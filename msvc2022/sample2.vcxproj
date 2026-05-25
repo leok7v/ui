@@ -142,9 +142,11 @@
     <ResourceCompile Include="..\src\samples\sample.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\posix.c" />
+    <ClCompile Include="..\src\core.c" />
+    <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample2.c" />
-    <ClCompile Include="..\src\samples\rt.c" />
     <ClCompile Include="..\src\ui\dxd.cpp">
       <AdditionalOptions>/W3 /EHsc /volatile:ms</AdditionalOptions>
     </ClCompile>

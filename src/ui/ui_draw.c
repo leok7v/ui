@@ -1,6 +1,6 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
-#include "rt/rt_win32.h"
+#include "ui/ui_win32.h"
 
 #pragma push_macro("ui_draw_with_hdc")
 #pragma push_macro("ui_draw_hdc_with_font")
@@ -36,17 +36,17 @@ static void ui_draw_fini(void) {
 }
 
 static ui_pen_t ui_draw_set_pen(ui_pen_t p) {
-    rt_not_null(p);
+    posix_not_null(p);
     return (ui_pen_t)SelectPen(ui_draw_hdc(), (HPEN)p);
 }
 
 static ui_brush_t ui_draw_set_brush(ui_brush_t b) {
-    rt_not_null(b);
+    posix_not_null(b);
     return (ui_brush_t)SelectBrush(ui_draw_hdc(), b);
 }
 
 static uint32_t ui_draw_color_rgb(ui_color_t c) {
-    rt_assert(ui_color_is_8bit(c));
+    posix_assert(ui_color_is_8bit(c));
     return (COLORREF)(c & 0xFFFFFFFF);
 }
 
@@ -59,20 +59,20 @@ static ui_color_t ui_draw_set_text_color(ui_color_t c) {
 }
 
 static ui_font_t ui_draw_set_font(ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
 }
 
 static void ui_draw_begin(struct ui_bitmap* image) {
-    rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
+    posix_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        rt_swear(image->texture != null);
+        posix_swear(image->texture != null);
         ui_draw_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
         ui_draw_context.texture = SelectBitmap(ui_draw_hdc(),
                                              (HBITMAP)image->texture);
     } else {
         ui_draw_context.hdc = (HDC)ui_app.canvas;
-        rt_swear(ui_draw_context.texture == null);
+        posix_swear(ui_draw_context.texture == null);
     }
     ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
     struct ui_rect rc = image != null ?
@@ -87,9 +87,9 @@ static void ui_draw_end(void) {
         ui_draw_context.dxd = null;
     }
     if (ui_draw_context.hdc != (HDC)ui_app.canvas) {
-        rt_swear(ui_draw_context.texture != null); // 1x1 bitmap
+        posix_swear(ui_draw_context.texture != null); // 1x1 bitmap
         SelectBitmap(ui_draw_context.hdc, (HBITMAP)ui_draw_context.texture);
-        rt_fatal_win32err(DeleteDC(ui_draw_context.hdc));
+        posix_fatal_win32err(DeleteDC(ui_draw_context.hdc));
     }
     memset(&ui_draw_context, 0x00, sizeof(ui_draw_context));
 }
@@ -101,14 +101,14 @@ static ui_pen_t ui_draw_set_colored_pen(ui_color_t c) {
 }
 
 static ui_pen_t ui_draw_create_pen(ui_color_t c, int32_t width) {
-    rt_assert(width >= 1);
+    posix_assert(width >= 1);
     ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_draw_color_ref(c));
-    rt_not_null(pen);
+    posix_not_null(pen);
     return pen;
 }
 
 static void ui_draw_delete_pen(ui_pen_t p) {
-    rt_fatal_win32err(DeletePen(p));
+    posix_fatal_win32err(DeletePen(p));
 }
 
 static ui_brush_t ui_draw_create_brush(ui_color_t c) {
@@ -132,7 +132,7 @@ static void ui_draw_pixel(int32_t x, int32_t y, ui_color_t c) {
 }
 
 static void ui_draw_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    rt_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
+    posix_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
 }
 
 static void ui_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
@@ -249,7 +249,7 @@ static void ui_draw_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     } else if (bpp == 4) {
         ui_draw.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
     } else {
-        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
+        posix_fatal("bpp: %d not {1, 3, 4}", bpp);
     }
 }
 
@@ -261,7 +261,7 @@ static void ui_draw_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 }
 
 static BITMAPINFOHEADER ui_draw_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    posix_assert(w > 0 && h >= 0); // h cannot be negative?
     BITMAPINFOHEADER bi = {
         .biSize = sizeof(BITMAPINFOHEADER),
         .biPlanes = 1,
@@ -298,7 +298,7 @@ static void ui_draw_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    posix_assert(w > 0 && h >= 0); // h cannot be negative?
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
     bi->bmiHeader.biHeight = -h;  // top down image
@@ -311,7 +311,7 @@ static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp) {
-    rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
+    posix_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
@@ -321,15 +321,15 @@ static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32
             ui_draw_init_bitmap_info(w, h, bpp, bi),
             DIB_RGB_COLORS, &image->pixels, null, 0x0
     );
-    rt_fatal_if(image->texture == null || image->pixels == null);
-    rt_fatal_win32err(DeleteDC(c));
+    posix_fatal_if(image->texture == null || image->pixels == null);
+    posix_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_draw_bitmap_init_rgbx(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
+    posix_fatal_if(bpp != 4, "bpp: %d", bpp);
     ui_draw_create_dib_section(image, w, h, bpp);
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -373,7 +373,7 @@ static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, i
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
+    posix_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
     ui_draw_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
@@ -458,8 +458,8 @@ static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, i
 static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         struct ui_bitmap* image, fp64_t alpha) {
-    rt_assert(image->bpp > 0);
-    rt_assert(0 <= alpha && alpha <= 1);
+    posix_assert(image->bpp > 0);
+    posix_assert(0 <= alpha && alpha <= 1);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, alpha, true);
@@ -468,7 +468,7 @@ static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         struct ui_bitmap* image) {
-    rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    posix_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, 1.0, false);
@@ -481,61 +481,61 @@ static void ui_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_draw_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
                                                    true, 0, spif));
     uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
         0, (void*)s, spif));
 }
 
 static void ui_draw_font_smoothing_contrast(int32_t c) {
-    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    posix_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
-rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
-rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
-rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
-rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+posix_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
+posix_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
+posix_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
+posix_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+posix_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
+posix_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
+posix_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
 static ui_font_t ui_draw_create_font(const char* family, int32_t h, int32_t q) {
-    rt_assert(h > 0);
+    posix_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
+    posix_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
-    rt_str_printf(lf.lfFaceName, "%s", family);
+    posix_str_printf(lf.lfFaceName, "%s", family);
     if (ui_font_quality_default <= q &&
         q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
+        posix_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
 static ui_font_t ui_draw_font(ui_font_t f, int32_t h, int32_t q) {
-    rt_assert(f != null && h > 0);
+    posix_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
+    posix_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     if (ui_font_quality_default <= q &&
         q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
+        posix_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
 static void ui_draw_delete_font(ui_font_t f) {
-    rt_fatal_win32err(DeleteFont(f));
+    posix_fatal_win32err(DeleteFont(f));
 }
 
 // guaranteed to return dc != null even if not painting
@@ -552,7 +552,7 @@ static HDC ui_draw_get_dc(void) {
     if (hdc == null && ui_app.window == null) {
         hdc = CreateICA("DISPLAY", null, null, null);
     }
-    rt_not_null(hdc);
+    posix_not_null(hdc);
     return hdc;
 }
 
@@ -576,7 +576,7 @@ static void ui_draw_release_dc(HDC hdc) {
 } while (0)
 
 #define ui_draw_hdc_with_font(f, ...) do {    \
-    rt_not_null(f);                          \
+    posix_not_null(f);                          \
     HDC hdc = ui_draw_get_dc();               \
     HFONT font_ = SelectFont(hdc, (HFONT)f); \
     { __VA_ARGS__ }                          \
@@ -592,63 +592,63 @@ static void ui_draw_dump_hdc_fm(HDC hdc) {
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
     TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    posix_fatal_win32err(GetTextMetricsA(hdc, &tm));
     char pitch[64] = { 0 };
     if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
     if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    rt_println("tm: .pitch_and_family: %s", pitch);
-    rt_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+    posix_println("tm: .pitch_and_family: %s", pitch);
+    posix_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
             tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    rt_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+    posix_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
             tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    rt_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+    posix_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    rt_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+    posix_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    posix_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    posix_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
-    rt_println("otm: .Ascent       : %2d   .Descent        : %2d",
+    posix_println("otm: .Ascent       : %2d   .Descent        : %2d",
             otm.otmAscent, otm.otmDescent);
-    rt_println(".otmLineGap        : %2u", otm.otmLineGap);
-    rt_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
+    posix_println(".otmLineGap        : %2u", otm.otmLineGap);
+    posix_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
             otm.otmrcFontBox.left, otm.otmrcFontBox.top,
             otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
-    rt_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
+    posix_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
             otm.otmusMinimumPPEM);
-    rt_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+    posix_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
             otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
             otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
-    rt_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+    posix_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
             otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
             otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
-    rt_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+    posix_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
             otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-    rt_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+    posix_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
             otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
     int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
     fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
-    rt_println("height: %.1fpt", pts);
+    posix_println("height: %.1fpt", pts);
 }
 
 static void ui_draw_dump_fm(ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
 }
 
 static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    posix_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    posix_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    posix_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // "tm.tmAscent" The ascent (units above the base line) of characters
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
@@ -689,7 +689,7 @@ static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     // Negative from the bottom (font.height)
     // tm.Descent: The descent (units below the base line) of characters.
     // Positive from the baseline down
-    rt_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
+    posix_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
            -otm.otmDescent <= tm.tmDescent,
            "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
     // "Mac" typography is ignored because it's usefulness is unclear.
@@ -699,28 +699,28 @@ static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
 }
 
 static void ui_draw_update_fm(struct ui_fm* fm, ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     SIZE em = {0, 0}; // "m"
     *fm = (struct ui_fm){ .font = f };
 //  ui_draw.dump_fm(f);
     ui_draw_hdc_with_font(f, {
         ui_draw_get_fm(hdc, fm);
-        // rt_glyph_nbsp and "M" have the same result
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
+        // ui_glyph_nbsp and "M" have the same result
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc,
-            rt_glyph_three_em_dash, 1, &e3));
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc,
+            ui_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-//      rt_println("vl: %d %d", vl.cx, vl.cy);
-//      rt_println("e3: %d %d", e3.cx, e3.cy);
-//      rt_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//      posix_println("vl: %d %d", vl.cx, vl.cy);
+//      posix_println("e3: %d %d", e3.cx, e3.cy);
+//      posix_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
-    rt_assert(fm->baseline <= fm->height);
+    posix_assert(fm->baseline <= fm->height);
     fm->em = (struct ui_wh){ .w = fm->height, .h = fm->height };
-//  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
+//  posix_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
 static int32_t ui_draw_draw_utf16(ui_font_t font, const char* s, int32_t n,
@@ -730,23 +730,23 @@ if (0) {
     HDC hdc = ui_draw_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        posix_println("em: %d %d", em.cx, em.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        posix_println("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        rt_println("vl: %d %d", vl.cx, vl.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
-        rt_println("e3: %d %d", e3.cx, e3.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        posix_println("vl: %d %d", vl.cx, vl.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        posix_println("e3: %d %d", e3.cx, e3.cy);
     }
 }
-    int32_t count = rt_str.utf16_chars(s, -1);
-    rt_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    int32_t count = posix_str.utf16_chars(s, -1);
+    posix_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    rt_swear(count <= rt_countof(ws), "find another way to draw!");
-    rt_str.utf8to16(ws, count, s, -1);
+    posix_swear(count <= posix_countof(ws), "find another way to draw!");
+    posix_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
         ui_draw_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
@@ -774,14 +774,14 @@ struct ui_draw_dtp { // draw text parameters
 };
 
 static void ui_draw_text_draw(struct ui_draw_dtp* p) {
-    rt_not_null(p);
+    posix_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    rt_str.format_va(text, rt_countof(text), p->format, p->va);
-    text[rt_countof(text) - 1] = 0;
-    int32_t k = (int32_t)rt_str.len(text);
+    posix_str.format_va(text, posix_countof(text), p->format, p->va);
+    text[posix_countof(text) - 1] = 0;
+    int32_t k = (int32_t)posix_str.len(text);
     if (k > 0) {
-        rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        posix_swear(k > 0 && k < posix_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         const bool measure_only = (p->flags & DT_CALCRECT) != 0;
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
         const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
@@ -815,10 +815,10 @@ static struct ui_wh ui_draw_text_with_flags(const struct ui_ta* ta,
     if (!ta->measure) {
         c = ta->color;
         if (ui_color_is_undefined(c)) {
-            rt_swear(ta->color_id > 0);
+            posix_swear(ta->color_id > 0);
             c = ui_colors.get_color(ta->color_id);
         } else {
-            rt_swear(ta->color_id == 0);
+            posix_swear(ta->color_id == 0);
         }
     }
     struct ui_draw_dtp p = {
@@ -868,7 +868,7 @@ static struct ui_wh ui_draw_multiline(const struct ui_ta* ta,
 
 static struct ui_wh ui_draw_glyphs_placement(const struct ui_ta* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    posix_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
 }
 
@@ -892,7 +892,7 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
         (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
-        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
+        posix_fatal_if(true, "curl.exe --silent --fail --create-dirs "
             "https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h "
             "--output ext/stb_bitmap.h");
         return null;
@@ -901,7 +901,7 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
 
 static void ui_draw_bitmap_dispose(struct ui_bitmap* image) {
     dxd_bitmap_dispose(&image->dxd);
-    rt_fatal_win32err(DeleteBitmap(image->texture));
+    posix_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(struct ui_bitmap));
 }
 

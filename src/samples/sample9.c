@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/rt/rt.h"
+#include "posix.h"
 #include "single_file_lib/ui/ui.h"
 #include "i18n.h"
 
@@ -42,8 +42,8 @@ static ui_label_t label_multiline = ui_label(19.0,
     "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\n"
     "use touchpad or keyboard "
-    rt_glyph_leftwards_white_arrow rt_glyph_upwards_white_arrow
-    rt_glyph_downwards_white_arrow rt_glyph_rightwards_white_arrow
+    ui_glyph_leftwards_white_arrow ui_glyph_upwards_white_arrow
+    ui_glyph_downwards_white_arrow ui_glyph_rightwards_white_arrow
     " to pan");
 
 static ui_label_t about = ui_label(34.56f,
@@ -58,7 +58,7 @@ static ui_label_t about = ui_label(34.56f,
     "incorrect Simplified Chinese localization."
     "\n\n"
     "Press ESC or click the "
-    rt_glyph_multiplication_sign
+    ui_glyph_multiplication_sign
     " button in right top corner "
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
@@ -68,16 +68,16 @@ static ui_label_t about = ui_label(34.56f,
 ui_mbx_chosen(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
-    rt_println("option=%d", option); // -1 or index of { "&Yes", "&No" }
+    posix_println("option=%d", option); // -1 or index of { "&Yes", "&No" }
 }, "&Yes", "&No");
 
 #else
 
 static void mbx_callback(struct ui_view* v) {
     struct ui_mbx* mbx = (struct ui_mbx*)v;
-    rt_assert(-1 <= mbx->option && mbx->option < 2);
+    posix_assert(-1 <= mbx->option && mbx->option < 2);
     static const char* name[] = { "Cancel", "Yes", "No" };
-    rt_println("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
+    posix_println("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
 }
 
 static struct ui_mbx mbx = ui_mbx( // message box
@@ -94,13 +94,13 @@ static const char* filter[] = {
     "Executables", "*.exe"
 };
 
-static void open_file(ui_button_t* rt_unused(b)) {
-    const char* home = rt_files.known_folder(rt_files.folder.home);
+static void open_file(ui_button_t* posix_unused(b)) {
+    const char* home = posix_files.known_folder(posix_files.folder.home);
     //  all files filer: null, 0
-    const char* fn = ui_app.open_file(home, filter, rt_countof(filter));
+    const char* fn = ui_app.open_file(home, filter, posix_countof(filter));
     if (fn[0] != 0) {
         ui_view.set_text(&toast_filename, "\n%s\n", fn);
-        rt_println("\"%s\"", fn);
+        posix_println("\"%s\"", fn);
         ui_app.show_toast(&toast_filename, 3.3);
     }
 }
@@ -116,18 +116,18 @@ static void flip_full_clicked(ui_button_t* b) {
 }
 
 static ui_button_t button_full_screen = ui_button(
-        rt_glyph_square_four_corners, 1, flip_full_clicked);
+        ui_glyph_square_four_corners, 1, flip_full_clicked);
 
 static void flip_locale(ui_button_t* b) {
     b->state.pressed = !b->state.pressed;
-    rt_fatal_if_error(rt_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
+    posix_fatal_if_error(posix_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
     ui_app.request_layout(); // because center panel layout changed
 }
 
 static ui_button_t button_locale = ui_button(
-    rt_glyph_kanji_onna_female "A", 1, flip_locale);
+    ui_glyph_kanji_onna_female "A", 1, flip_locale);
 
-static void about_clicked(ui_button_t* rt_unused(b)) {
+static void about_clicked(ui_button_t* posix_unused(b)) {
     ui_app.show_toast(&about, 10.0);
 }
 
@@ -138,7 +138,7 @@ ui_button_clicked(button_mbx, "&Message Box", 7.5, {
 });
 
 
-static void scroll_toggle(ui_button_t* rt_unused(b)) {
+static void scroll_toggle(ui_button_t* posix_unused(b)) {
     ui_app.request_redraw();
 }
 
@@ -193,7 +193,7 @@ static void panel_paint(struct ui_view* v) {
         ui_draw.line(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
         ui_draw.line(v->x + v->w, v->y, v->x, v->y, c);
     } else {
-        rt_assert(v == &panel_center);
+        posix_assert(v == &panel_center);
         ui_draw.line(v->x, v->y, v->x, v->y + v->h, c);
     }
     int32_t x = v->x + panel_border + (1 > v->fm->em.w / 8 ? 1 : v->fm->em.w / 8);
@@ -224,51 +224,51 @@ static void right_paint(struct ui_view* v) {
         "zh-CN" : "en-US");
     after(&button_full_screen, "%s",
         ui_app.is_full_screen ?
-        rt_nls.str("Restore from &Full Screen") :
-        rt_nls.str("&Full Screen"));
+        posix_nls.str("Restore from &Full Screen") :
+        posix_nls.str("&Full Screen"));
     int32_t x = label_multiline.x;
     int32_t y = label_multiline.y + label_multiline.h + v->fm->em.h / 4;
-//  rt_println("%d,%d %dx%d",
+//  posix_println("%d,%d %dx%d",
 //      label_multiline.x,
 //      label_multiline.y,
 //      label_multiline.w,
 //      label_multiline.h
 //  );
 
-    println(&x, &y, "%s", rt_nls.str("Proportional"));
+    println(&x, &y, "%s", posix_nls.str("Proportional"));
     ta = &ui_draw.ta.mono.normal;
-    println(&x, &y, "%s", rt_nls.str("Monospaced"));
+    println(&x, &y, "%s", posix_nls.str("Monospaced"));
     ta = &ui_draw.ta.prop.H1;
-    println(&x, &y, "H1 %s", rt_nls.str("Header"));
+    println(&x, &y, "H1 %s", posix_nls.str("Header"));
     ta = &ui_draw.ta.prop.H2;
-    println(&x, &y, "H2 %s", rt_nls.str("Header"));
+    println(&x, &y, "H2 %s", posix_nls.str("Header"));
     ta = &ui_draw.ta.prop.H3;
-    println(&x, &y, "H3 %s", rt_nls.str("Header"));
+    println(&x, &y, "H3 %s", posix_nls.str("Header"));
     ta = &ui_draw.ta.prop.normal;
-    println(&x, &y, "%s %dx%d root: %d,%d %dx%d", rt_nls.str("Client area"),
+    println(&x, &y, "%s %dx%d root: %d,%d %dx%d", posix_nls.str("Client area"),
             ui_app.crc.w, ui_app.crc.h,
             ui_app.root->x, ui_app.root->y,
             ui_app.root->w, ui_app.root->h);
-    println(&x, &y, "%s %dx%d dpi: %d", rt_nls.str("Window"),
+    println(&x, &y, "%s %dx%d dpi: %d", posix_nls.str("Window"),
             ui_app.wrc.w, ui_app.wrc.h, ui_app.dpi.window);
     println(&x, &y, "%s %dx%d dpi: %d ang %d raw %d",
-            rt_nls.str("Monitor"),
+            posix_nls.str("Monitor"),
             ui_app.mrc.w, ui_app.mrc.h,
             ui_app.dpi.monitor_effective,
             ui_app.dpi.monitor_angular,
             ui_app.dpi.monitor_raw);
-    println(&x, &y, "%s %d %d", rt_nls.str("Left Top"),
+    println(&x, &y, "%s %d %d", posix_nls.str("Left Top"),
             ui_app.wrc.x, ui_app.wrc.y);
-    println(&x, &y, "%s %d %d", rt_nls.str("Mouse"),
+    println(&x, &y, "%s %d %d", posix_nls.str("Mouse"),
             ui_app.mouse.x, ui_app.mouse.y);
     println(&x, &y, "%d x paint()", ui_app.paint_count);
     println(&x, &y, "%.1fms (%s %.1f %s %.1f)",
             ui_app.paint_time * 1000.0,
-            rt_nls.str("max"), ui_app.paint_max * 1000.0,
-            rt_nls.str("avg"), ui_app.paint_avg * 1000.0);
+            posix_nls.str("max"), ui_app.paint_max * 1000.0,
+            posix_nls.str("avg"), ui_app.paint_avg * 1000.0);
     after(&zoomer.view, "%.16f", zoom);
     after(&scroll, "%s", scroll.state.pressed ?
-        rt_nls.str("Natural") : rt_nls.str("Reverse"));
+        posix_nls.str("Natural") : posix_nls.str("Reverse"));
     ta = restore;
 }
 
@@ -287,7 +287,7 @@ static void measure(struct ui_view* v) {
     v->fm = &ui_app.fm.mono.normal;
     panel_border = 1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4;
     frame_border = 1 > v->fm->em.h / 8 ? 1 : v->fm->em.h / 8;
-    rt_assert(panel_border > 0 && frame_border > 0);
+    posix_assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.root->w;
     const int32_t h = ui_app.root->h;
     // measure ui elements
@@ -301,8 +301,8 @@ static void measure(struct ui_view* v) {
     panel_center.h = h - panel_bottom.h - panel_top.h;
 }
 
-static void layout(struct ui_view* rt_unused(view)) {
-    rt_assert(view->fm->em.w > 0 && view->fm->em.h > 0);
+static void layout(struct ui_view* posix_unused(view)) {
+    posix_assert(view->fm->em.w > 0 && view->fm->em.h > 0);
     const int32_t h = ui_app.root->h;
     panel_top.x = 0;
     panel_top.y = 0;
@@ -317,7 +317,7 @@ static void layout(struct ui_view* rt_unused(view)) {
 static void refresh(void);
 
 static void zoom_out(void) {
-    rt_assert(top > 0);
+    posix_assert(top > 0);
     top--;
     sx = stack[top].x;
     sy = stack[top].y;
@@ -325,7 +325,7 @@ static void zoom_out(void) {
 }
 
 static void zoom_in(int x, int y) {
-    rt_assert(top < rt_countof(stack));
+    posix_assert(top < posix_countof(stack));
     stack[top].x = sx;
     stack[top].y = sy;
     top++;
@@ -334,7 +334,7 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
+static bool tap(struct ui_view* posix_unused(v), int32_t ix, bool pressed) {
     const bool inside = ui_view.inside(&panel_center, &ui_app.mouse);
     if (pressed && inside) {
         int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
@@ -343,7 +343,7 @@ static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
             if (pressed && ix == 2) {
                 if (zoom < 1) { zoom_out(); refresh(); }
             } else if (pressed && ix == 0) {
-                if (top < rt_countof(stack)) { zoom_in(x, y); refresh(); }
+                if (top < posix_countof(stack)) { zoom_in(x, y); refresh(); }
             }
         }
         ui_app.request_redraw();
@@ -353,7 +353,7 @@ static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
 
 static void slider_format(struct ui_view* v) {
     struct ui_slider* slider = (struct ui_slider*)v;
-    ui_view.set_text(v, "%s", rt_str.uint64(slider->value));
+    ui_view.set_text(v, "%s", posix_str.uint64(slider->value));
 }
 
 static void zoomer_callback(struct ui_view* v) {
@@ -391,7 +391,7 @@ static void character(struct ui_view* view, const char* utf8) {
         struct ui_point pt = {-image.w / 8, 0};
         mouse_scroll(view, pt);
     } else if (ch == 3) { // Ctrl+C
-        rt_clipboard.put_image(&image);
+        posix_clipboard.put_image(&image);
     }
 }
 
@@ -429,9 +429,9 @@ static void opened(void) {
     ui_app.content->key_pressed  = keyboard; // virtual_keys
     ui_app.content->mouse_scroll = mouse_scroll;
     panel_center.tap = tap;
-    int n = rt_countof(pixels);
+    int n = posix_countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
-    static_assert(rt_countof(pixels) == rt_countof(pixels[0]), "square");
+    static_assert(posix_countof(pixels) == posix_countof(pixels[0]), "square");
     ui_draw.bitmap_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
     init_panel(&panel_center, "center", ui_colors.white, center_paint);
@@ -441,20 +441,20 @@ static void opened(void) {
     label_single_line.highlightable = true;
     label_single_line.flat = true;
     label_multiline.highlightable = true;
-    rt_str_printf(label_multiline.hint, "%s",
+    posix_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
-    ui_view.set_text(&label_multiline, "%s", rt_nls.string(str_help, ""));
+    ui_view.set_text(&label_multiline, "%s", posix_nls.string(str_help, ""));
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
-    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, rt_countof(stack) - 1,
+    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, posix_countof(stack) - 1,
         zoomer_callback);
 #else
-    zoomer = (struct ui_slider)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, rt_countof(stack) - 1,
+    zoomer = (struct ui_slider)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, posix_countof(stack) - 1,
         slider_format, zoomer_callback);
 #endif
-    rt_str_printf(button_mbx.hint, "Show Yes/No message box");
-    rt_str_printf(button_about.hint, "Show About message box");
+    posix_str_printf(button_mbx.hint, "Show Yes/No message box");
+    posix_str_printf(button_about.hint, "Show About message box");
     ui_view.add(&panel_right,
         &button_locale,
         &button_full_screen,
@@ -486,7 +486,7 @@ static fp64_t scale0to1(int v, int range, fp64_t sh, fp64_t zm) {
 }
 
 static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
-    rt_assert(0 <= v && v <= 1);
+    posix_assert(0 <= v && v <= 1);
     return v * (hi - lo) + lo;
 }
 
@@ -515,7 +515,7 @@ static void mandelbrot(struct ui_bitmap* im) {
                 ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
                 ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
-            ui_color_t color = palette[iteration % rt_countof(palette)];
+            ui_color_t color = palette[iteration % posix_countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];
             px[3] = 0xFF;
             px[0] = (color >> 16) & 0xFF;

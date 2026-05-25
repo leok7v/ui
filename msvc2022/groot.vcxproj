@@ -140,13 +140,6 @@
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
-    <ProjectReference Include="rt.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-    </ProjectReference>
-    <ProjectReference Include="ui.vcxproj">
-      <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
-      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />
@@ -155,8 +148,15 @@
     <None Include="..\inc\ut\version.rc.in" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\posix.c" />
+    <ClCompile Include="..\src\core.c" />
+    <ClCompile Include="..\src\trace.c" />
+    <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\groot\groot.c" />
     <ClCompile Include="..\src\samples\stb_image.c" />
+    <ClCompile Include="..\src\ui\dxd.cpp">
+      <AdditionalOptions>/W3 /EHsc /volatile:ms</AdditionalOptions>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

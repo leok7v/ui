@@ -1,4 +1,4 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
@@ -14,9 +14,9 @@ static void ui_view_update_shortcut(struct ui_view* v);
 
 static inline void ui_view_check_type(struct ui_view* v) {
     // little endian:
-    rt_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
-    rt_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
-    rt_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
+    posix_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
+    posix_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    posix_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
 }
@@ -26,9 +26,9 @@ static void ui_view_verify(struct ui_view* p) {
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
         ui_view_update_shortcut(c);
-        rt_swear(c->parent == p);
-        rt_swear(c == c->next->prev);
-        rt_swear(c == c->prev->next);
+        posix_swear(c->parent == p);
+        posix_swear(c == c->next->prev);
+        posix_swear(c == c->prev->next);
     });
 }
 
@@ -37,7 +37,7 @@ static struct ui_view* ui_view_add(struct ui_view* p, ...) {
     va_start(va, p);
     struct ui_view* c = va_arg(va, struct ui_view*);
     while (c != null) {
-        rt_swear(c->parent == null && c->prev == null && c->next == null);
+        posix_swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
         c = va_arg(va, struct ui_view*);
     }
@@ -48,7 +48,7 @@ static struct ui_view* ui_view_add(struct ui_view* p, ...) {
 }
 
 static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -65,7 +65,7 @@ static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
 }
 
 static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -83,8 +83,8 @@ static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
 }
 
 static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
-    rt_not_null(a->parent);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_not_null(a->parent);
     c->parent = a->parent;
     c->next = a->next;
     c->prev = a;
@@ -97,8 +97,8 @@ static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
 }
 
 static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
-    rt_not_null(b->parent);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_not_null(b->parent);
     c->parent = b->parent;
     c->prev = b->prev;
     c->next = b;
@@ -111,12 +111,12 @@ static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
 }
 
 static void ui_view_remove(struct ui_view* c) {
-    rt_not_null(c->parent);
-    rt_not_null(c->parent->child);
+    posix_not_null(c->parent);
+    posix_not_null(c->parent->child);
     // if a view that has focus is removed from parent:
     if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
-        rt_swear(c->next == c);
+        posix_swear(c->next == c);
         c->parent->child = null;
     } else {
         c->prev->next = c->next;
@@ -150,7 +150,7 @@ static void ui_view_disband(struct ui_view* p) {
 
 static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r) {
     if (ui_view.is_hidden(v)) {
-        rt_println("hidden: %s", ui_view_debug_id(v));
+        posix_println("hidden: %s", ui_view_debug_id(v));
     } else {
         struct ui_rect rc = {0};
         if (r != null) {
@@ -170,7 +170,7 @@ static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r)
             rc.h += p.top + p.bottom;
         }
         if (v->debug.trace.prc) {
-            rt_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+            posix_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
         }
         ui_app.invalidate(&rc);
     }
@@ -178,11 +178,11 @@ static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r)
 
 static const char* ui_view_string(struct ui_view* v) {
     if (v->p.strid == 0) {
-        int32_t id = rt_nls.strid(v->p.text);
+        int32_t id = posix_nls.strid(v->p.text);
         v->p.strid = id > 0 ? id : -1;
     }
     return v->p.strid < 0 ? v->p.text : // not localized
-        rt_nls.string(v->p.strid, v->p.text);
+        posix_nls.string(v->p.strid, v->p.text);
 }
 
 static struct ui_wh ui_view_text_metrics_va(int32_t x, int32_t y,
@@ -254,7 +254,7 @@ static void ui_view_text_align(struct ui_view* v, struct ui_view_text_metrics* t
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
         tm->xy.y += dy / 2;
         if (v->debug.trace.mt) {
-            rt_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+            posix_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->wh.h, dy);
         }
 #endif
@@ -270,7 +270,7 @@ static void ui_view_measure_control(struct ui_view* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const struct ui_ltrb p = ui_view.margins(v, &v->padding);
-        rt_println(">%dx%d em: %dx%d min: %.3fx%.3f "
+        posix_println(">%dx%d em: %dx%d min: %.3fx%.3f "
                 "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -279,7 +279,7 @@ static void ui_view_measure_control(struct ui_view* v) {
             (64 < strlen(s) ? 64 : strlen(s)), s);
         const struct ui_margins in = v->insets;
         const struct ui_margins pd = v->padding;
-        rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        posix_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -288,13 +288,13 @@ static void ui_view_measure_control(struct ui_view* v) {
     }
     ui_view_text_measure(v, s, &v->text);
     if (v->debug.trace.mt) {
-        rt_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
+        posix_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
     v->w = v->w > i.left + v->text.wh.w + i.right ? v->w : i.left + v->text.wh.w + i.right;
     v->h = v->h > i.top  + v->text.wh.h + i.bottom ? v->h : i.top  + v->text.wh.h + i.bottom;
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        rt_println("<%dx%d text_align x,y: %d,%d %s",
+        posix_println("<%dx%d text_align x,y: %d,%d %s",
                 v->w, v->h, v->text.xy.x, v->text.xy.y,
                 ui_view_debug_id(v));
     }
@@ -319,14 +319,14 @@ static void ui_view_measure(struct ui_view* v) {
     }
 }
 
-static void ui_layout_view(struct ui_view* rt_unused(v)) {
+static void ui_layout_view(struct ui_view* posix_unused(v)) {
 //  struct ui_ltrb i = ui_view.margins(v, &v->insets);
 //  struct ui_ltrb p = ui_view.margins(v, &v->padding);
-//  rt_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//  posix_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(struct ui_view* v) {
@@ -336,7 +336,7 @@ static void ui_view_layout_children(struct ui_view* v) {
 }
 
 static void ui_view_layout(struct ui_view* v) {
-//  rt_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -346,7 +346,7 @@ static void ui_view_layout(struct ui_view* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
@@ -357,7 +357,7 @@ static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
 
 static bool ui_view_is_parent_of(const struct ui_view* parent,
         const struct ui_view* child) {
-    rt_swear(parent != null && child != null);
+    posix_swear(parent != null && child != null);
     const struct ui_view* p = child->parent;
     while (p != null) {
         if (parent == p) { return true; }
@@ -382,8 +382,8 @@ static struct ui_ltrb ui_view_margins(const struct ui_view* v, const struct ui_m
 }
 
 static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets) {
-    rt_swear(r != null || insets != null);
-    rt_swear(v->max_w >= 0 && v->max_h >= 0);
+    posix_swear(r != null || insets != null);
+    posix_swear(v->max_w >= 0 && v->max_h >= 0);
     const struct ui_ltrb i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
@@ -397,12 +397,12 @@ static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_
 }
 
 static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding) {
-    rt_swear(r != null || padding != null);
-    rt_swear(v->max_w >= 0 && v->max_h >= 0);
+    posix_swear(r != null || padding != null);
+    posix_swear(v->max_w >= 0 && v->max_h >= 0);
     const struct ui_ltrb p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      rt_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
+//      posix_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (struct ui_rect) {
@@ -411,7 +411,7 @@ static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      rt_println("%s %d,%d %dx%d", v->p.text,
+//      posix_println("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -429,8 +429,8 @@ static void ui_view_update_shortcut(struct ui_view* v) {
 }
 
 static void ui_view_set_text_va(struct ui_view* v, const char* format, va_list va) {
-    char t[rt_countof(v->p.text)];
-    rt_str.format_va(t, rt_countof(t), format, va);
+    char t[posix_countof(v->p.text)];
+    posix_str.format_va(t, posix_countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
@@ -583,11 +583,11 @@ static void ui_view_resolve_color_ids(struct ui_view* v) {
 }
 
 static void ui_view_paint(struct ui_view* v) {
-    rt_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
+    posix_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
-        rt_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+        posix_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
                 (64 < strlen(s) ? 64 : strlen(s)), s);
     }
@@ -611,10 +611,10 @@ static void ui_view_set_focus(struct ui_view* v) {
         struct ui_view* loosing = ui_app.focus;
         struct ui_view* gaining = v;
         if (gaining != null) {
-            rt_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
+            posix_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
                                         !ui_view.is_disabled(gaining));
         }
-        if (loosing != null) { rt_swear(loosing->focusable); }
+        if (loosing != null) { posix_swear(loosing->focusable); }
         ui_app.focus = v;
         if (loosing != null && loosing->focus_lost != null) {
             loosing->focus_lost(loosing);
@@ -646,14 +646,14 @@ static void ui_view_update_hover(struct ui_view* v, bool hidden) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
     if (hover != v->state.hover) {
-//      rt_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+//      posix_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
         ui_view.hover_changed(v); // even for hidden
         if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
 static void ui_view_mouse_hover(struct ui_view* v) {
-//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  posix_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse hover over is dispatched even to disabled views
@@ -664,7 +664,7 @@ static void ui_view_mouse_hover(struct ui_view* v) {
 }
 
 static void ui_view_mouse_move(struct ui_view* v) {
-//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  posix_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse move is dispatched even to disabled views
@@ -698,7 +698,7 @@ static void ui_view_hover_changed(struct ui_view* v) {
             v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
-            rt_swear(ui_view_hover_delay >= 0);
+            posix_swear(ui_view_hover_delay >= 0);
             if (v->p.hover_when >= 0) {
                 v->p.hover_when = ui_app.now + ui_view_hover_delay;
             }
@@ -795,7 +795,7 @@ static bool ui_view_message(struct ui_view* view, int32_t m, int64_t wp, int64_t
     }
     // message() callback is called even for hidden and disabled views
     // could be useful for enabling conditions of post() messages from
-    // background rt_thread.
+    // background posix_thread.
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }
@@ -896,7 +896,7 @@ static void ui_view_debug_paint_fm(struct ui_view* v) {
 #pragma push_macro("ui_view_no_siblings")
 
 #define ui_view_no_siblings(v) do {                    \
-    rt_swear((v)->parent == null && (v)->child == null && \
+    posix_swear((v)->parent == null && (v)->child == null && \
           (v)->prev == null && (v)->next == null);     \
 } while (0)
 
@@ -927,15 +927,15 @@ static void ui_view_test(void) {
     ui_view.remove(&c3);                            ui_view_verify(&p0);
     // add_first, add_last, add_before, add_after
     ui_view.add_first(&p0, &c1);                    ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
+    posix_swear(p0.child == &c1);
     ui_view.add_last(&p0, &c4);                     ui_view_verify(&p0);
-    rt_swear(p0.child == &c1 && p0.child->prev == &c4);
+    posix_swear(p0.child == &c1 && p0.child->prev == &c4);
     ui_view.add_after(&c2, &c1);                    ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
-    rt_swear(c1.next == &c2);
+    posix_swear(p0.child == &c1);
+    posix_swear(c1.next == &c2);
     ui_view.add_before(&c3, &c4);                   ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
-    rt_swear(c4.prev == &c3);
+    posix_swear(p0.child == &c1);
+    posix_swear(c4.prev == &c3);
     // removing all
     ui_view.remove(&c1);                            ui_view_verify(&p0);
     ui_view.remove(&c2);                            ui_view_verify(&p0);
@@ -964,7 +964,7 @@ static void ui_view_test(void) {
     ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
     ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
     ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
 }
 
 #pragma pop_macro("ui_view_no_siblings")
@@ -1031,7 +1031,7 @@ struct ui_view_if ui_view = {
 
 #ifdef UI_VIEW_TEST
 
-rt_static_init(ui_view) {
+posix_static_init(ui_view) {
     ui_view.test();
 }
 

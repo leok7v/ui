@@ -1,4 +1,4 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
@@ -41,12 +41,12 @@ static void ui_image_paint(struct ui_view* v) {
 //  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_draw.set_clip(v->x, v->y, v->w, v->h);
-        rt_swear(!iv->fit || !iv->fill, "make up your mind");
-        rt_swear(0 < iv->zn && iv->zn <= 16);
-        rt_swear(0 < iv->zd && iv->zd <= 16);
+        posix_swear(!iv->fit || !iv->fill, "make up your mind");
+        posix_swear(0 < iv->zn && iv->zn <= 16);
+        posix_swear(0 < iv->zd && iv->zd <= 16);
         // only 1:2 and 2:1 etc are supported:
-        if (iv->zn != 1) { rt_swear(iv->zd == 1); }
-        if (iv->zd != 1) { rt_swear(iv->zn == 1); }
+        if (iv->zn != 1) { posix_swear(iv->zd == 1); }
+        if (iv->zd != 1) { posix_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
         struct ui_rect rc = ui_image_position(iv);
@@ -76,7 +76,7 @@ static void ui_image_paint(struct ui_view* v) {
             // rather than crashing the whole UI.
             static bool warned;
             if (!warned) {
-                rt_println("ui_image: unsupported bpp=%d", iv->image.bpp);
+                posix_println("ui_image: unsupported bpp=%d", iv->image.bpp);
                 warned = true;
             }
         }
@@ -104,7 +104,7 @@ static void ui_image_show_tools(struct ui_image* iv, bool show) {
             ui_app.request_layout();
         }
         if (show) { // hide in 3.3 seconds:
-            iv->when = rt_clock.seconds() + 3.3;
+            iv->when = posix_clock.seconds() + 3.3;
         } else {
             iv->when = 0;
         }
@@ -113,7 +113,7 @@ static void ui_image_show_tools(struct ui_image* iv, bool show) {
 
 static void ui_image_fit_fill_scale(struct ui_image* iv) {
     fp64_t s = ui_image.scale(iv);
-    rt_assert(s != 0);
+    posix_assert(s != 0);
     if (s > 1) {
         ui_view.set_text(&iv->tool.ratio, "1:%.3f", s);
     } else if (s != 0 && s <= 1) {
@@ -151,7 +151,7 @@ static void ui_image_layout(struct ui_view* v) {
 
 static void ui_image_every_100ms(struct ui_view* v) {
     struct ui_image* iv = (struct ui_image*)v;
-    if (iv->when != 0 && rt_clock.seconds() > iv->when) {
+    if (iv->when != 0 && posix_clock.seconds() > iv->when) {
         ui_image_show_tools(iv, false);
     }
 }
@@ -253,7 +253,7 @@ static bool ui_image_tap(struct ui_view* v, int32_t ix, bool pressed) {
         }
         swallow = inside || tools;
     }
-//  rt_println("inside %s", inside ? "true" : "false");
+//  posix_println("inside %s", inside ? "true" : "false");
     return swallow;
 }
 
@@ -275,7 +275,7 @@ static bool ui_image_mouse_move(struct ui_view* v) {
     } else if (!inside && !tools) {
         ui_image_show_tools(iv, false);
     }
-//  rt_println("inside %s", inside ? "true" : "false");
+//  posix_println("inside %s", inside ? "true" : "false");
     return inside;
 }
 
@@ -350,33 +350,33 @@ static void ui_image_zoom_1t1(ui_button_t* b) {
 static ui_label_t ui_image_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "Ctrl+C copies image to the clipboard.\n\n"
-    rt_glyph_heavy_plus_sign " zoom in; "
-    rt_glyph_heavy_minus_sign " zoom out;\n"
-    rt_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
-    rt_glyph_up_down_arrow " Fit;\n"
-    rt_glyph_left_right_arrow " Fill.\n\n"
+    ui_glyph_heavy_plus_sign " zoom in; "
+    ui_glyph_heavy_minus_sign " zoom out;\n"
+    ui_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
+    ui_glyph_up_down_arrow " Fit;\n"
+    ui_glyph_left_right_arrow " Fill.\n\n"
     "Left/Right Arrows "
-    rt_glyph_leftward_arrow
-    rt_glyph_rightwards_arrow
+    ui_glyph_leftward_arrow
+    ui_glyph_rightwards_arrow
     "Up/Down Arrows "
-    rt_glyph_upwards_arrow
-    rt_glyph_downwards_arrow
+    ui_glyph_upwards_arrow
+    ui_glyph_downwards_arrow
     "\npans the image inside view.\n\n"
     "Mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
 
-static void ui_image_help(ui_button_t* rt_unused(b)) {
+static void ui_image_help(ui_button_t* posix_unused(b)) {
     ui_app.show_toast(&ui_image_about, 7.0);
 }
 
 static void ui_image_copy_to_clipboard(struct ui_image* iv) {
     struct ui_bitmap image = {0};
     if (iv->image.texture != null) {
-        rt_clipboard.put_image(&iv->image);
+        posix_clipboard.put_image(&iv->image);
     } else {
         ui_draw.bitmap_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
-        rt_clipboard.put_image(&image);
+        posix_clipboard.put_image(&image);
         ui_draw.bitmap_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
@@ -431,7 +431,7 @@ static void ui_image_add_button(struct ui_image* iv, ui_button_t* b,
     b->flat = true;
     b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
-    rt_str_printf(b->hint, "%s", hint);
+    posix_str_printf(b->hint, "%s", hint);
     ui_view.add_last(&iv->tool.bar, b);
 }
 
@@ -455,19 +455,19 @@ void ui_image_init(struct ui_image* iv) {
     ui_image_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_image_copy,
         "Copy to Clipboard Ctrl+C");
     ui_image_add_button(iv, &iv->tool.zoom_out,
-                    rt_glyph_heavy_minus_sign,
+                    ui_glyph_heavy_minus_sign,
                     ui_image_zoom_out, "Zoom Out");
     ui_image_add_button(iv, &iv->tool.zoom_1t1,
-                    rt_glyph_open_circle_arrows_one_overlay,
+                    ui_glyph_open_circle_arrows_one_overlay,
                     ui_image_zoom_1t1, "Reset to 1:1");
     ui_image_add_button(iv, &iv->tool.zoom_in,
-                     rt_glyph_heavy_plus_sign,
+                     ui_glyph_heavy_plus_sign,
                      ui_image_zoom_in,  "Zoom In");
     ui_image_add_button(iv, &iv->tool.fit,
-                     rt_glyph_up_down_arrow,
+                     ui_glyph_up_down_arrow,
                      ui_image_fit,  "Fit");
     ui_image_add_button(iv, &iv->tool.fill,
-                     rt_glyph_left_right_arrow,
+                     ui_glyph_left_right_arrow,
                      ui_image_fill,  "Fill");
     ui_image_add_button(iv, &iv->tool.help,
                      "?", ui_image_help, "Help");
@@ -502,11 +502,11 @@ void ui_image_init_with(struct ui_image* iv, const uint8_t* pixels,
 }
 
 static void ui_image_ratio(struct ui_image* iv, int32_t zn, int32_t zd) {
-    rt_swear(0 < zn && zn <= 16);
-    rt_swear(0 < zd && zd <= 16);
+    posix_swear(0 < zn && zn <= 16);
+    posix_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
-    if (zn != 1) { rt_swear(zd == 1); }
-    if (zd != 1) { rt_swear(zn == 1); }
+    if (zn != 1) { posix_swear(zd == 1); }
+    if (zd != 1) { posix_swear(zn == 1); }
     iv->zn = zn;
     iv->zd = zd;
     iv->fit  = false;

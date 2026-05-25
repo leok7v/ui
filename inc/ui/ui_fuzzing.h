@@ -1,15 +1,15 @@
 #pragma once
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
 
 struct ui_fuzzing {
-    rt_work_t    base;
+    struct posix_work    base;
     const char*  utf8; // .character(utf8)
     int32_t      key;  // .key_pressed(key)/.key_released(key)
     struct ui_point*  pt;   // .move_move()
@@ -42,5 +42,5 @@ struct ui_fuzzing_if {
 
 extern struct ui_fuzzing_if ui_fuzzing;
 
-rt_end_c
+posix_end_c
 

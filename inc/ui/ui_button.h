@@ -1,8 +1,8 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 #include "ui/ui_view.h"
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_button_t;
 
@@ -92,4 +92,4 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // }
 
 
-rt_end_c
+posix_end_c

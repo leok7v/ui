@@ -1,4 +1,4 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static void ui_button_every_100ms(struct ui_view* v) { // every 100ms
@@ -87,20 +87,20 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->callback != null) { b->callback(b); }
     if (pressed != b->state.pressed) {
         if (b->flip) { // warn the client of strange logic:
-            rt_println("strange flip the button with button.flip: true");
+            posix_println("strange flip the button with button.flip: true");
             // if client wants to flip pressed state manually it
             // should do it for the button.flip = false
         }
-//      rt_println("disarmed immediately");
+//      posix_println("disarmed immediately");
         b->p.armed_until = 0;
         b->state.armed = false;
     } else {
         if (b->flip) {
-//          rt_println("disarmed immediately");
+//          posix_println("disarmed immediately");
             b->p.armed_until = 0;
             b->state.armed = false;
         } else {
-//          rt_println("will disarm in 1/4 seconds");
+//          posix_println("will disarm in 1/4 seconds");
             b->p.armed_until = ui_app.now + 0.250;
         }
     }
@@ -121,13 +121,13 @@ static void ui_button_character(struct ui_view* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(struct ui_view* v, int64_t key) {
-    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    posix_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
+static bool ui_button_tap(struct ui_view* v, int32_t posix_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     const bool inside = ui_view.inside(v, &ui_app.mouse);
@@ -146,7 +146,7 @@ static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
 }
 
 void ui_view_init_button(struct ui_view* v) {
-    rt_assert(v->type == ui_view_button);
+    posix_assert(v->type == ui_view_button);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;

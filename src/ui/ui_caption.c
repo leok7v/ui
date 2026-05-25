@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 #pragma push_macro("ui_caption_glyph_rest")
@@ -11,14 +11,14 @@
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  rt_glyph_white_square_with_upper_right_quadrant // instead of rt_glyph_desktop_window
-#define ui_caption_glyph_menu  rt_glyph_trigram_for_heaven
-#define ui_caption_glyph_dark  rt_glyph_crescent_moon
-#define ui_caption_glyph_light rt_glyph_white_sun_with_rays
-#define ui_caption_glyph_mini  rt_glyph_minimize
-#define ui_caption_glyph_maxi  rt_glyph_white_square_with_lower_left_quadrant // instead of rt_glyph_maximize
-#define ui_caption_glyph_full  rt_glyph_square_four_corners
-#define ui_caption_glyph_quit  rt_glyph_cancellation_x
+#define ui_caption_glyph_rest  ui_glyph_white_square_with_upper_right_quadrant // instead of ui_glyph_desktop_window
+#define ui_caption_glyph_menu  ui_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  ui_glyph_crescent_moon
+#define ui_caption_glyph_light ui_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  ui_glyph_minimize
+#define ui_caption_glyph_maxi  ui_glyph_white_square_with_lower_left_quadrant // instead of ui_glyph_maximize
+#define ui_caption_glyph_full  ui_glyph_square_four_corners
+#define ui_caption_glyph_quit  ui_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -27,30 +27,30 @@ static void ui_caption_toggle_full(void) {
 }
 
 static void ui_caption_esc_full_screen(struct ui_view* v, const char utf8[]) {
-    rt_swear(v == ui_caption.view.parent);
+    posix_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_caption_quit(ui_button_t* rt_unused(b)) {
+static void ui_caption_quit(ui_button_t* posix_unused(b)) {
     ui_app.close();
 }
 
-static void ui_caption_mini(ui_button_t* rt_unused(b)) {
+static void ui_caption_mini(ui_button_t* posix_unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
 }
 
 static void ui_caption_mode_appearance(void) {
     if (ui_theme.is_app_dark()) {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_light);
-        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
+        posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Light Mode"));
     } else {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_dark);
-        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Dark Mode"));
+        posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Dark Mode"));
     }
 }
 
-static void ui_caption_mode(ui_button_t* rt_unused(b)) {
+static void ui_caption_mode(ui_button_t* posix_unused(b)) {
     bool was_dark = ui_theme.is_app_dark();
     ui_app.light_mode =  was_dark;
     ui_app.dark_mode  = !was_dark;
@@ -62,16 +62,16 @@ static void ui_caption_maximize_or_restore(void) {
     ui_view.set_text(&ui_caption.maxi, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
-    rt_str_printf(ui_caption.maxi.hint, "%s",
+    posix_str_printf(ui_caption.maxi.hint, "%s",
         ui_app.is_maximized() ?
-        rt_nls.str("Restore") : rt_nls.str("Maximize"));
+        posix_nls.str("Restore") : posix_nls.str("Maximize"));
     // non-decorated windows on Win32 are "popup" style
     // that cannot be maximized. Full screen will serve
     // the purpose of maximization.
     ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
-static void ui_caption_maxi(ui_button_t* rt_unused(b)) {
+static void ui_caption_maxi(ui_button_t* posix_unused(b)) {
     if (!ui_app.is_maximized()) {
         ui_app.show_window(ui.visibility.maximize);
     } else if (ui_app.is_maximized() || ui_app.is_minimized()) {
@@ -80,14 +80,14 @@ static void ui_caption_maxi(ui_button_t* rt_unused(b)) {
     ui_caption_maximize_or_restore();
 }
 
-static void ui_caption_full(ui_button_t* rt_unused(b)) {
+static void ui_caption_full(ui_button_t* posix_unused(b)) {
     ui_caption_toggle_full();
 }
 
 static int64_t ui_caption_hit_test(const struct ui_view* v, struct ui_point pt) {
-    rt_swear(v == &ui_caption.view);
-    rt_assert(ui_view.inside(v, &pt));
-//  rt_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
+    posix_swear(v == &ui_caption.view);
+    posix_assert(ui_view.inside(v, &pt));
+//  posix_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
 //      ui_caption.icon.w, ui_caption.icon.h,
@@ -122,7 +122,7 @@ static const struct ui_margins ui_caption_button_button_padding =
       .right = 0.25,  .bottom = 0.0};
 
 static void ui_caption_button_measure(struct ui_view* v) {
-    rt_assert(v->type == ui_view_button);
+    posix_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
     const int32_t dy = ui_app.caption_height - v->h;
@@ -143,7 +143,7 @@ static void ui_caption_button_icon_paint(struct ui_view* v) {
     ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(struct ui_view* rt_unused(v)) {
+static void ui_caption_prepare(struct ui_view* posix_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
@@ -178,7 +178,7 @@ static void ui_caption_paint(struct ui_view* v) {
 }
 
 static void ui_caption_init(struct ui_view* v) {
-    rt_swear(v == &ui_caption.view, "caption is a singleton");
+    posix_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (struct ui_margins){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
@@ -219,12 +219,12 @@ static void ui_caption_init(struct ui_view* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-    rt_str_printf(ui_caption.menu.hint, "%s", rt_nls.str("Menu"));
-    rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
-    rt_str_printf(ui_caption.mini.hint, "%s", rt_nls.str("Minimize"));
-    rt_str_printf(ui_caption.maxi.hint, "%s", rt_nls.str("Maximize"));
-    rt_str_printf(ui_caption.full.hint, "%s", rt_nls.str("Full Screen (ESC to restore)"));
-    rt_str_printf(ui_caption.quit.hint, "%s", rt_nls.str("Close"));
+    posix_str_printf(ui_caption.menu.hint, "%s", posix_nls.str("Menu"));
+    posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Light Mode"));
+    posix_str_printf(ui_caption.mini.hint, "%s", posix_nls.str("Minimize"));
+    posix_str_printf(ui_caption.maxi.hint, "%s", posix_nls.str("Maximize"));
+    posix_str_printf(ui_caption.full.hint, "%s", posix_nls.str("Full Screen (ESC to restore)"));
+    posix_str_printf(ui_caption.quit.hint, "%s", posix_nls.str("Close"));
     ui_caption.icon.icon     = ui_app.icon;
     ui_caption.icon.padding  = p0;
     ui_caption.icon.paint    = ui_caption_button_icon_paint;
@@ -256,7 +256,7 @@ struct ui_caption ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .state.hidden = true
     },
-    .icon   = ui_button(rt_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),

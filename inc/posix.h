@@ -86,6 +86,12 @@ typedef double fp64_t;
 #define posix_end_packed posix_attribute_packed
 #define posix_aligned_8 __attribute__((aligned(8)))
 #define posix_unused(name) name __attribute__((unused))
+#elif defined(_MSC_VER)
+#define posix_attribute_packed
+#define posix_begin_packed posix_pragma( pack(push, 1) )
+#define posix_end_packed posix_pragma( pack(pop) )
+#define posix_aligned_8 __declspec(align(8))
+#define posix_unused(name) _Pragma("warning(suppress: 4100)") name
 #else
 #define posix_attribute_packed
 #define posix_begin_packed

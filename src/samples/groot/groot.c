@@ -1,4 +1,4 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 #include "rocket.h"
 #include "groot.h"
@@ -37,7 +37,7 @@ static void init_image(struct ui_bitmap* i, const uint8_t* data, int64_t bytes) 
     int32_t h = 0;
     int32_t c = 0;
     void* pixels = load_image(data, bytes, &w, &h, &c, 0);
-    rt_not_null(pixels);
+    posix_not_null(pixels);
     ui_draw.bitmap_init(i, w, h, c, pixels);
     stbi_image_free(pixels);
 }
@@ -45,7 +45,7 @@ static void init_image(struct ui_bitmap* i, const uint8_t* data, int64_t bytes) 
 static void init_gs(void) {
     const struct ui_bitmap* i = &view_groot.image;
     uint32_t* pixels = (uint32_t*)i->pixels;
-    rt_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
+    posix_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
     for (int y = 0; y < height; y++) {
         int32_t y64 = y % 64;
         for (int x = 0; x < width; x++) {
@@ -75,12 +75,12 @@ static void slider_format(struct ui_view* v) {
 static void slider_callback(struct ui_view* v) {
     struct ui_slider* s = (struct ui_slider*)v;
     view_groot.alpha = (fp64_t)s->value / 256.0;
-//  rt_println("value: %d", slider->value);
+//  posix_println("value: %d", slider->value);
 }
 
 static void init_images(void) {
     ui_image.init(&view_groot);
-    init_image(&view_groot.image, groot, rt_countof(groot));
+    init_image(&view_groot.image, groot, posix_countof(groot));
     // view of groot image:
 //  ui_image.ratio(&view_groot, 4, 1); // 4:1
     ui_image.ratio(&view_groot, 3, 1); // 4:1
@@ -89,7 +89,7 @@ static void init_images(void) {
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
     ui_image.init(&view_rocket);
-    init_image(&view_rocket.image, rocket, rt_countof(rocket));
+    init_image(&view_rocket.image, rocket, posix_countof(rocket));
     ui_image.ratio(&view_rocket, 3, 1); // 3:1
     view_rocket.padding = (struct ui_margins){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
@@ -97,7 +97,7 @@ static void init_images(void) {
 }
 
 static void init_text(void) {
-    rt_swear(ui_edit_doc.init(&document,
+    posix_swear(ui_edit_doc.init(&document,
     "Star-Lord: \"What is wrong with giving tree, here?\"\n"
     "Rocket: \"Well, he don't know talking good like me and you, "
               "so his vocabulistics is limited to 'I' and 'am' and 'Groot.' "
@@ -110,7 +110,7 @@ view_text.hide_word_wrap = false; // TODO: debugging remove
 //  view_text.insets = (struct ui_margins){0};
     view_text.background_id = 0;
     view_text.background = ui_colors.transparent;
-    rt_str_printf(view_text.hint,
+    posix_str_printf(view_text.hint,
         "Text Edit:\n\n"
         "Try double clicking to select a word\n"
         "or long-pressing to select a paragraph.\n\n"
@@ -138,7 +138,7 @@ static void opened(void) {
     static ui_label_t label_top    = ui_label(0, "Top");
     static ui_label_t label_bottom = ui_label(0, "Bottom");
     // painting greyscale pixels will be handled w/o device bitmap:
-    for (int32_t i = 0; i < rt_countof(view_gs); i++) {
+    for (int32_t i = 0; i < posix_countof(view_gs); i++) {
         ui_image.init_with(&view_gs[i], gs, width, height, 1, width);
         view_gs[i].erase = gs_erase;
         view_gs[i].focusable = true; // enable zoom pan
@@ -193,7 +193,7 @@ right.debug.paint.margins = true;
     center.insets  = (struct ui_margins){0};
     center.padding = (struct ui_margins){0};
     static struct ui_view* panels[] = { &top, &left, &right, &bottom  };
-    for (int32_t i = 0; i < rt_countof(panels); i++) {
+    for (int32_t i = 0; i < posix_countof(panels); i++) {
         panels[i]->erase = panel_erase;
         panels[i]->padding = (struct ui_margins){0};
         panels[i]->insets  = (struct ui_margins){0.125f, 0.125f, 0.125f, 0.125f};
@@ -208,7 +208,7 @@ right.debug.paint.margins = true;
         it->max_h   = ui.infinity;
     });
     center.max_h = ui.infinity;
-    for (int32_t i = 0; i < rt_countof(view_gs); i++) {
+    for (int32_t i = 0; i < posix_countof(view_gs); i++) {
         fill_parent(&view_gs[i].view)->erase = panel_erase;
     }
     view_gs[0].padding.bottom = 0.25f;

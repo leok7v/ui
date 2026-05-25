@@ -1,8 +1,8 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 #include "ui/ui_view.h"
 
-rt_begin_c
+posix_begin_c
 
 // Options like:
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
@@ -64,4 +64,4 @@ void ui_mbx_init(struct ui_mbx* mx, const char* option[], const char* format, ..
     .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
-rt_end_c
+posix_end_c

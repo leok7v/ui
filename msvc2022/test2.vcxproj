@@ -112,19 +112,14 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\posix.c" />
+    <ClCompile Include="..\src\core.c" />
+    <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\test\test2.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="amalgamate.vcxproj">
-      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
-    </ProjectReference>
-    <ProjectReference Include="rt.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -1,8 +1,8 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include <stdio.h>
 
 static int usage(void) {
-    fprintf(stderr, "Usage: %s [options]\n", rt_args.basename());
+    fprintf(stderr, "Usage: %s [options]\n", posix_args.basename());
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  --help, -h     - this help\n");
     fprintf(stderr, "  --verbosity    - set verbosity level "
@@ -12,28 +12,28 @@ static int usage(void) {
 }
 
 static int run(void) {
-    if (rt_args.option_bool("--help") || rt_args.option_bool("-?")) {
+    if (posix_args.option_bool("--help") || posix_args.option_bool("-?")) {
         return usage();
     }
-    const char* v = rt_args.option_str("--verbosity");
+    const char* v = posix_args.option_str("--verbosity");
     if (v != null) {
-        rt_debug.verbosity.level = rt_debug.verbosity_from_string(v);
-    } else if (rt_args.option_bool("-v") || rt_args.option_bool("--verbose")) {
-        rt_debug.verbosity.level = rt_debug.verbosity.verbose;
+        posix_debug.verbosity.level = posix_debug.verbosity_from_string(v);
+    } else if (posix_args.option_bool("-v") || posix_args.option_bool("--verbose")) {
+        posix_debug.verbosity.level = posix_debug.verbosity.verbose;
     }
-    rt_core.test();
-    rt_println("all tests passed\n\n");
-//  rt_println("rt_args.basename(): %s", rt_args.basename());
-//  rt_println("rt_args.v[0]: %s", rt_args.v[0]);
-//  for (int i = 1; i < rt_args.c; i++) {
-//      rt_println("rt_args.v[%d]: %s", i, rt_args.v[i]);
+    posix_core.test();
+    posix_println("all tests passed\n\n");
+//  posix_println("posix_args.basename(): %s", posix_args.basename());
+//  posix_println("posix_args.v[0]: %s", posix_args.v[0]);
+//  for (int i = 1; i < posix_args.c; i++) {
+//      posix_println("posix_args.v[%d]: %s", i, posix_args.v[i]);
 //  }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
-    //  rt_args.v[0]: .\bin\debug\test1.exe
-    //  rt_args.basename(): test1
-    //  rt_args.v[1]: Hello World
-    //  rt_args.v[2]: Hello
-    //  rt_args.v[3]: World
+    //  posix_args.v[0]: .\bin\debug\test1.exe
+    //  posix_args.basename(): test1
+    //  posix_args.v[1]: Hello World
+    //  posix_args.v[2]: Hello
+    //  posix_args.v[3]: World
     return 0;
 }
 
@@ -47,20 +47,20 @@ static int run(void) {
 // to select and call appropriate function:
 
 int main(int argc, const char* argv[], const char *envp[]) {
-    rt_args.main(argc, argv, envp);
+    posix_args.main(argc, argv, envp);
     int r = run();
-    rt_args.fini();
+    posix_args.fini();
     return r;
 }
 
-#include "rt/rt_win32.h"
+#include "ui/ui_win32.h"
 
 #pragma warning(suppress: 28251) // no annotations
 
-int APIENTRY WinMain(HINSTANCE rt_unused(inst), HINSTANCE rt_unused(prev),
-                     char* rt_unused(command), int rt_unused(show)) {
-    rt_args.WinMain(); // Uses GetCommandLineW() which has full pathname
+int APIENTRY WinMain(HINSTANCE posix_unused(inst), HINSTANCE posix_unused(prev),
+                     char* posix_unused(command), int posix_unused(show)) {
+    posix_args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
-    rt_args.fini();
+    posix_args.fini();
     return r;
 }

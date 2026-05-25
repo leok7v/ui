@@ -1,12 +1,12 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static const char* title = "Sample8: Panels";
 
 enum { version = 0x102 };
 
-typedef rt_begin_packed struct app_data_t {
+typedef posix_begin_packed struct app_data_t {
     int32_t version;
     int32_t menu_used;
     int32_t selected_view;
@@ -15,7 +15,7 @@ typedef rt_begin_packed struct app_data_t {
     int32_t large; // show large H3 controls
     int32_t margins;  // draw controls padding and insets
     int32_t fm;    // draw controls font metrics
-} rt_end_packed app_data_t;
+} posix_end_packed app_data_t;
 
 static app_data_t app_data = { .version = version };
 
@@ -60,7 +60,7 @@ static struct ui_view test = ui_view(stack);
 static struct ui_view tools_list = ui_view(list);
 
 static void tools(ui_button_t* b) {
-    rt_println("b->state.pressed: %d", b->state.pressed);
+    posix_println("b->state.pressed: %d", b->state.pressed);
 //  menu is "flip" button. It will do this:
 //  b->state.pressed = !b->state.pressed;
 //  automatically before callback.
@@ -107,7 +107,7 @@ static void debug(ui_button_t* b) {
 }
 
 static ui_button_t button_bugs =
-        ui_button(rt_glyph_lady_beetle, 0.0f, debug);
+        ui_button(ui_glyph_lady_beetle, 0.0f, debug);
 
 static struct ui_mbx mbx = ui_mbx( // message box
     "Orange frames represent stack, span, or list\n"
@@ -121,9 +121,9 @@ static struct ui_mbx mbx = ui_mbx( // message box
     "unless an alignment is specified by a child.\n"
     "\n"
     "When child.max_w = "
-    rt_glyph_infinity
+    ui_glyph_infinity
     "or child.max_h = "
-    rt_glyph_infinity
+    ui_glyph_infinity
     ",\n"
     "the child expands in the specified direction.\n"
     "\n"
@@ -138,24 +138,24 @@ static struct ui_mbx mbx = ui_mbx( // message box
     "\n",
     null, null);
 
-static void about(ui_button_t* rt_unused(b)) {
+static void about(ui_button_t* posix_unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
 static char* nil;
 
-static void crash(ui_button_t* rt_unused(b)) {
+static void crash(ui_button_t* posix_unused(b)) {
     // two random ways to crash in release configuration
-    if (rt_clock.nanoseconds() % 2 == 0) {
-        rt_swear(false, "should crash in release configuration");
+    if (posix_clock.nanoseconds() % 2 == 0) {
+        posix_swear(false, "should crash in release configuration");
     } else {
         #if 0 // cl.exe compains even with disabled warnings
         #pragma warning(push)            // this is intentional for testing
         #pragma warning(disable: 4723)   // potential division by zero
         int32_t  a[5];
         int32_t* p = a;
-        rt_println("%d\n", rt_countof(a));
-        rt_println("%d\n", rt_countof(p)); // expected "division by zero"
+        posix_println("%d\n", posix_countof(a));
+        posix_println("%d\n", posix_countof(p)); // expected "division by zero"
         #pragma warning(pop)
         #endif
         (*nil)++; // expected "access violation"
@@ -163,7 +163,7 @@ static void crash(ui_button_t* rt_unused(b)) {
 }
 
 static void insert_into_caption(ui_button_t* b, const char* hint) {
-    rt_str_printf(b->hint, "%s", hint);
+    posix_str_printf(b->hint, "%s", hint);
     b->flat = true;
     b->padding = (struct ui_margins){0,0,0,0};
     b->insets  = (struct ui_margins){0,0,0,0};
@@ -171,7 +171,7 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
     ui_view.add_before(b,  &ui_caption.mini);
 }
 
-static void ui_app_root_composed(struct ui_view* rt_unused(v)) {
+static void ui_app_root_composed(struct ui_view* posix_unused(v)) {
     app_data.light = !ui_theme.is_app_dark();
 }
 
@@ -225,7 +225,7 @@ static void opened(void) {
         it->align = ui.align.left;
         it->padding.bottom = 0;
     });
-    rt_str_printf(button_stack.hint,
+    posix_str_printf(button_stack.hint,
         "Shows ui_view(stack) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
@@ -243,16 +243,16 @@ static void opened(void) {
     ui_caption.icon.state.hidden = true;
     tools_list.state.hidden = true;
     if (app_data.menu_used == 0) {
-        ui_app.toast(4.5, rt_glyph_leftward_arrow
+        ui_app.toast(4.5, ui_glyph_leftward_arrow
                           " click "
-                          rt_glyph_trigram_for_heaven
+                          ui_glyph_trigram_for_heaven
                           " menu button");
     }
     // caption buttons:
     static ui_button_t button_info =
-           ui_button(rt_glyph_circled_information_source, 0.0f, about);
+           ui_button(ui_glyph_circled_information_source, 0.0f, about);
     static ui_button_t button_bomb =
-           ui_button(rt_glyph_bomb, 0.0f, crash);
+           ui_button(ui_glyph_bomb, 0.0f, crash);
     insert_into_caption(&button_info, "About");
     insert_into_caption(&button_bugs, "Debug");
     insert_into_caption(&button_bomb, "Intentionally Crash");
@@ -346,7 +346,7 @@ static void span_test(struct ui_view* parent) {
         it->padding = (struct ui_margins){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
 //      it->fm      = &ui_app.fm.prop.H1;
-//      rt_println("%s 0x%02X", it->text, it->align);
+//      posix_println("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
     bottom.max_h = 0;
@@ -394,12 +394,12 @@ static void list_test(struct ui_view* parent) {
 
 static void slider_format(struct ui_view* v) {
     struct ui_slider* slider = (struct ui_slider*)v;
-    ui_view.set_text(v, "%s", rt_str.uint64(slider->value));
+    ui_view.set_text(v, "%s", posix_str.uint64(slider->value));
 }
 
 static void slider_callback(struct ui_view* v) {
     struct ui_slider* slider = (struct ui_slider*)v;
-    rt_println("value: %d", slider->value);
+    posix_println("value: %d", slider->value);
 }
 
 static void controls_set_margins(struct ui_view* v, bool on_off) {
@@ -443,20 +443,20 @@ static void controls_large(struct ui_view* v) {
 
 static void button_pressed(struct ui_view* v) {
     if (v->shortcut != 0) {
-        rt_println("'%c' 0x%02X %d, %s \"%s\"",
+        posix_println("'%c' 0x%02X %d, %s \"%s\"",
             v->shortcut, v->shortcut, v->shortcut,
             ui_view_debug_id(v), v->p.text);
     } else {
-        rt_println("%s \"%s\"", ui_view_debug_id(v), v->p.text);
+        posix_println("%s \"%s\"", ui_view_debug_id(v), v->p.text);
     }
 }
 
 static void controls_test(struct ui_view* parent) {
     #define wild_string                                 \
-        "A"  rt_glyph_zwsp                              \
-        rt_glyph_combining_enclosing_circle             \
-        "B" rt_glyph_box_drawings_light_diagonal_cross  \
-        rt_glyph_E_with_cedilla_and_breve
+        "A"  ui_glyph_zwsp                              \
+        ui_glyph_combining_enclosing_circle             \
+        "B" ui_glyph_box_drawings_light_diagonal_cross  \
+        ui_glyph_E_with_cedilla_and_breve
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
@@ -541,14 +541,14 @@ static void edit1_test(struct ui_view* parent) {
     static void* text;
     static int64_t bytes;
     if (text == null) {
-        if (rt_args.c > 1) {
-            if (rt_files.exists(rt_args.v[1])) {
-                errno_t r = rt_mem.map_ro(rt_args.v[1], &text, &bytes);
+        if (posix_args.c > 1) {
+            if (posix_files.exists(posix_args.v[1])) {
+                errno_t r = posix_mem.map_ro(posix_args.v[1], &text, &bytes);
                 if (r != 0) {
-                    rt_println("rt_mem.map_ro(%s) failed %s", rt_args.v[1], rt_str.error(r));
+                    posix_println("posix_mem.map_ro(%s) failed %s", posix_args.v[1], posix_str.error(r));
                 }
             } else {
-                rt_println("file \"%s\" does not exist", rt_args.v[1]);
+                posix_println("file \"%s\" does not exist", posix_args.v[1]);
             }
         }
     }
@@ -556,7 +556,7 @@ static void edit1_test(struct ui_view* parent) {
     static struct ui_edit_view edit = {0};
     static struct ui_edit_doc doc = {0};
     if (doc.text.np == 0) {
-        rt_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
+        posix_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
         ui_edit_view.init(&edit, &doc);
     }
     ui_view.add(&test,
@@ -571,6 +571,6 @@ static void edit1_test(struct ui_view* parent) {
     edit.view.max_h = ui.infinity;
 //  edit.view.debug.paint.margins = true;
 //  edit.view.debug.trace.prc = true;
-    rt_str_printf(edit.p.text, "#edit");
+    posix_str_printf(edit.p.text, "#edit");
     ui_view.set_focus(&edit.view);
 }

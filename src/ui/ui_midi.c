@@ -1,6 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
+#include "ui/ui_win32.h"
 #include "ui/ui.h"
 #include <mmsystem.h>
 
@@ -15,20 +15,20 @@ struct ui_midi_implementation {
     bool playing;
 };
 
-rt_static_assertion(sizeof(struct ui_midi) >= sizeof(struct ui_midi_implementation) + sizeof(void*));
-rt_static_assertion(MMSYSERR_NOERROR == 0);
+posix_static_assertion(sizeof(struct ui_midi) >= sizeof(struct ui_midi_implementation) + sizeof(void*));
+posix_static_assertion(MMSYSERR_NOERROR == 0);
 
 static void ui_midi_error(errno_t r, char* text, int32_t count) {
-    rt_fatal_win32err(mciGetErrorStringA(r, text, (UINT)count));
+    posix_fatal_win32err(mciGetErrorStringA(r, text, (UINT)count));
 }
 
 static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
         int line) {
     if (r != 0) {
         static char error[256];
-        ui_midi_error(r, error, rt_countof(error));
-        rt_println("%s:%d %s", func, line, call);
-        rt_println("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
+        ui_midi_error(r, error, posix_countof(error));
+        posix_println("%s:%d %s", func, line, call);
+        posix_println("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
     }
 }
 
@@ -38,18 +38,18 @@ static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
 
 #define ui_midi_fatal_if_error(call) do {                                   \
     int _r_ = call; ui_midi_warn_if_error_(r, #call, __func__, __LINE__);   \
-    rt_fatal_if_error(r);                                                   \
+    posix_fatal_if_error(r);                                                   \
 } while (0)
 
 static bool ui_midi_message_callback(struct ui_app_message_handler* h, int32_t m,
                                      int64_t wp, int64_t lp, int64_t* rt) {
     if (m == MM_MCINOTIFY) {
         #ifdef UI_MIDI_DEBUG
-            rt_println("device_id: %lld", lp);
-            if (wp & MCI_NOTIFY_SUCCESSFUL) { rt_println("SUCCESSFUL"); }
-            if (wp & MCI_NOTIFY_SUPERSEDED) { rt_println("SUPERSEDED"); }
-            if (wp & MCI_NOTIFY_ABORTED)    { rt_println("ABORTED");    }
-            if (wp & MCI_NOTIFY_FAILURE)    { rt_println("FAILURE");    }
+            posix_println("device_id: %lld", lp);
+            if (wp & MCI_NOTIFY_SUCCESSFUL) { posix_println("SUCCESSFUL"); }
+            if (wp & MCI_NOTIFY_SUPERSEDED) { posix_println("SUPERSEDED"); }
+            if (wp & MCI_NOTIFY_ABORTED)    { posix_println("ABORTED");    }
+            if (wp & MCI_NOTIFY_FAILURE)    { posix_println("FAILURE");    }
         #endif
         struct ui_midi* midi = (struct ui_midi*)h->that;
         struct ui_midi_implementation* mi  = (struct ui_midi_implementation*)midi;
@@ -74,7 +74,7 @@ static void ui_midi_remove_handler(struct ui_midi* m) {
         while (h->next != null && h->next != &mi->handler) {
             h = h->next;
         }
-        rt_swear(h->next == &mi->handler);
+        posix_swear(h->next == &mi->handler);
         if (h->next == &mi->handler) {
             h->next = h->next->next;
         }
@@ -85,7 +85,7 @@ static void ui_midi_remove_handler(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+    posix_swear(posix_thread.id() == ui_app.tid);
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     mi->handler.that = mi;
     mi->handler.next = ui_app.handlers;
@@ -97,12 +97,12 @@ static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
     mi->mop.lpstrDeviceType = (const char*)MCI_DEVTYPE_SEQUENCER;
     mi->mop.lpstrElementName = filename;
     mi->mop.lpstrAlias = mi->alias;
-    rt_str_printf(mi->alias, "%p", m);
+    posix_str_printf(mi->alias, "%p", m);
     const DWORD_PTR flags = MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID |
                             MCI_OPEN_ELEMENT | MCI_OPEN_ALIAS;
     errno_t r = mciSendCommandA(0, MCI_OPEN, flags, (uintptr_t)&mi->mop);
     ui_midi_warn_if_error(r);
-    rt_assert(mi->mop.wDeviceID != -1);
+    posix_assert(mi->mop.wDeviceID != -1);
     mi->handler.callback = ui_midi_message_callback,
     mi->device_id = mi->mop.wDeviceID;
     if (r != 0) {
@@ -114,9 +114,9 @@ static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
 }
 
 static errno_t ui_midi_play(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+    posix_swear(posix_thread.id() == ui_app.tid);
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
-    rt_swear(ui_midi.is_open(m));
+    posix_swear(ui_midi.is_open(m));
     MCI_PLAY_PARMS  pp = { .dwCallback = (uintptr_t)mi->window };
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY, (uintptr_t)&pp);
     ui_midi_warn_if_error(r);
@@ -127,8 +127,8 @@ static errno_t ui_midi_play(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_rewind(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     MCI_SEEK_PARMS p = { .dwCallback = (uintptr_t)mi->window, .dwTo = 0 };
     const DWORD f = MCI_WAIT|MCI_SEEK_TO_START;
@@ -138,8 +138,8 @@ static errno_t ui_midi_rewind(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_get_volume(struct ui_midi* m, fp64_t* volume) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = 0;
     errno_t r = midiOutGetVolume((HMIDIOUT)0, &v);
     ui_midi_warn_if_error(r);
@@ -148,21 +148,21 @@ static errno_t ui_midi_get_volume(struct ui_midi* m, fp64_t* volume) {
 }
 
 static errno_t ui_midi_set_volume(struct ui_midi* m, fp64_t volume) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = (DWORD)(volume * (fp64_t)0xFFFFFFFFU);
     const UINT n = midiOutGetNumDevs();
     // Handle to a MIDI Output Device
     HMIDIOUT h = (HMIDIOUT)(uintptr_t)(n - 1);
     errno_t r = n == 0 ? MCIERR_DEVICE_NOT_INSTALLED : midiOutSetVolume(h, v);
     ui_midi_warn_if_error(r);
-    rt_fatal_if_error(r);
+    posix_fatal_if_error(r);
     return r;
 }
 
 static errno_t ui_midi_stop(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_STOP, 0, 0);
     ui_midi_warn_if_error(r);
@@ -171,14 +171,14 @@ static errno_t ui_midi_stop(struct ui_midi* m) {
 }
 
 static void ui_midi_close(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
     r = mciSendCommandA(MCI_ALL_DEVICE_ID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
-    rt_fatal_if_error(r, "sound card is unplugged on the fly?");
+    posix_fatal_if_error(r, "sound card is unplugged on the fly?");
     memset(&mi->mop, 0x00, sizeof(mi->mop));
     mi->window = 0;
     ui_midi_remove_handler(m);

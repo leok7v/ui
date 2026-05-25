@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 struct ui_view;
 
@@ -52,4 +52,4 @@ void ui_view_init_span(struct ui_view* v);
 void ui_view_init_list(struct ui_view* v);
 void ui_view_init_spacer(struct ui_view* v);
 
-rt_end_c
+posix_end_c

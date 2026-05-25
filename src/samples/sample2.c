@@ -1,9 +1,9 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/rt/rt.h"
+#include "posix.h"
 #include "single_file_lib/ui/ui.h"
 
 static int64_t hit_test(const struct ui_view* v, struct ui_point pt) {
-    rt_swear(v == ui_app.content);
+    posix_swear(v == ui_app.content);
     if (ui_view.inside(v, &pt)) {
         if (pt.y < v->fm->em.h && ui_app.caption->state.hidden) {
             ui_app.caption->state.hidden = false;
@@ -31,14 +31,14 @@ static void opened(void) {
     ui_app.content->hit_test = hit_test;
 }
 
-static void character(struct ui_view* rt_unused(v), const char* utf8) {
+static void character(struct ui_view* posix_unused(v), const char* utf8) {
     if (utf8[0] == 033) { // escape
         if (!ui_app.is_full_screen) { ui_app.quit(0); }
         if ( ui_app.is_full_screen) { ui_app.full_screen(false); }
     }
 }
 
-static bool key_pressed(struct ui_view* rt_unused(v), int64_t key) {
+static bool key_pressed(struct ui_view* posix_unused(v), int64_t key) {
     bool swallow = key == ui.key.f11;
     if (swallow) { ui_app.full_screen(!ui_app.is_full_screen); }
     return swallow;

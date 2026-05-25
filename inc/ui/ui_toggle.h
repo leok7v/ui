@@ -1,8 +1,8 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 #include "ui/ui_view.h"
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_toggle_t;
 
@@ -54,4 +54,4 @@ void ui_view_init_toggle(struct ui_view* v);
     }                                                       \
 }
 
-rt_end_c
+posix_end_c

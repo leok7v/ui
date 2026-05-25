@@ -1,7 +1,7 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 
-rt_begin_c
+posix_begin_c
 
 struct ui_point { int32_t x, y; };
 struct ui_rect { int32_t x, y, w, h; };
@@ -176,5 +176,5 @@ extern struct ui_if ui;
 // "pixels" on MacOS. Windows used to use "dialog units" which
 // is font size based and this is where the idea is inherited from.
 
-rt_end_c
+posix_end_c
 

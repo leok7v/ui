@@ -1,8 +1,12 @@
 #if !defined(_WIN32)
 #define _GNU_SOURCE 1
 #else
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS   // strncpy/strerror/snprintf are used deliberately
+#endif
+#ifndef _CRT_NONSTDC_NO_WARNINGS
 #define _CRT_NONSTDC_NO_WARNINGS  // fileno/_environ POSIX names
+#endif
 #endif
 #include "posix.h"
 
@@ -1929,66 +1933,61 @@ struct posix_worker_if posix_worker = {
 
 // ________________________________ posix_heap.c _________________________________
 
-static int posix_heap_alloc(void* *a, int64_t bytes) {
-    *a = malloc((size_t)bytes);
-    return *a == null ? ENOMEM : 0;
+#if defined(_WIN32)
+
+// Win32 heap: HEAP_ZERO_MEMORY makes HeapReAlloc zero exactly the grown
+// region (the heap tracks the old size), so realloc_zero grows correctly.
+
+static HANDLE posix_heap_or_process_heap(struct posix_heap* h) {
+    static HANDLE process_heap;
+    if (process_heap == null) { process_heap = GetProcessHeap(); }
+    return h != null ? (HANDLE)h : process_heap;
 }
 
-static int posix_heap_alloc_zero(void* *a, int64_t bytes) {
-    *a = calloc(1, (size_t)bytes);
-    return *a == null ? ENOMEM : 0;
-}
-
-static int posix_heap_realloc(void* *a, int64_t bytes) {
-    void* p = realloc(*a, (size_t)bytes);
-    if (p != null) { *a = p; }
-    return p == null ? ENOMEM : 0;
-}
-
-static int posix_heap_realloc_zero(void* *a, int64_t bytes) {
-    // Standard realloc doesn't zero new memory. Since we don't know the old size 
-    // reliably across all platforms without platform-specific extensions, we just 
-    // allocate a new zeroed block, copy, and free. For high performance, 
-    // an arena allocator should be used.
-    void* p = calloc(1, (size_t)bytes);
-    if (p != null) {
-        if (*a != null) {
-            // We can't reliably copy just the old bytes without malloc_size, 
-            // so we rely on the caller tracking it or just use realloc + manual zeroing.
-            // For safety in this shim, we use standard realloc and leave zeroing 
-            // to the caller if they must use realloc_zero.
-            free(p);
-            p = realloc(*a, (size_t)bytes);
-            // Warning: newly allocated tail is NOT zeroed here.
+static int posix_heap_allocate(struct posix_heap* h, void* *p, int64_t bytes, bool zero) {
+    posix_swear(bytes > 0);
+    #ifdef DEBUG
+        static bool enabled;
+        if (!enabled) {
+            enabled = true;
+            HeapSetInformation(null, HeapEnableTerminationOnCorruption, null, 0);
         }
-        *a = p;
-    }
-    return p == null ? ENOMEM : 0;
+    #endif
+    const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
+    *p = HeapAlloc(posix_heap_or_process_heap(h), flags, (SIZE_T)bytes);
+    return *p == null ? ENOMEM : 0;
 }
 
-static void posix_heap_free(void* a) {
-    free(a);
+static int posix_heap_reallocate(struct posix_heap* h, void* *p, int64_t bytes, bool zero) {
+    posix_swear(bytes > 0);
+    const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
+    void* a = *p == null ? // HeapReAlloc(..., null, bytes) may not work
+        HeapAlloc(posix_heap_or_process_heap(h), flags, (SIZE_T)bytes) :
+        HeapReAlloc(posix_heap_or_process_heap(h), flags, *p, (SIZE_T)bytes);
+    if (a != null) { *p = a; }
+    return a == null ? ENOMEM : 0;
+}
+
+static void posix_heap_deallocate(struct posix_heap* h, void* a) {
+    posix_fatal_win32err(HeapFree(posix_heap_or_process_heap(h), 0, a));
+}
+
+static int64_t posix_heap_bytes(struct posix_heap* h, void* a) {
+    SIZE_T bytes = HeapSize(posix_heap_or_process_heap(h), 0, a);
+    posix_fatal_if(bytes == (SIZE_T)-1);
+    return (int64_t)bytes;
 }
 
 static struct posix_heap* posix_heap_create(bool serialized) {
-    (void)serialized;
-    return (struct posix_heap*)1; // Dummy handle, standard malloc is thread-safe
+    const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
+    return (struct posix_heap*)HeapCreate(options, 0, 0);
 }
 
-static int posix_heap_allocate(struct posix_heap* heap, void* *a, int64_t bytes, bool zero) {
-    (void)heap;
-    return zero ? posix_heap_alloc_zero(a, bytes) : posix_heap_alloc(a, bytes);
+static void posix_heap_dispose(struct posix_heap* h) {
+    posix_fatal_win32err(HeapDestroy((HANDLE)h));
 }
 
-static int posix_heap_reallocate(struct posix_heap* heap, void* *a, int64_t bytes, bool zero) {
-    (void)heap;
-    return zero ? posix_heap_realloc_zero(a, bytes) : posix_heap_realloc(a, bytes);
-}
-
-static void posix_heap_deallocate(struct posix_heap* heap, void* a) {
-    (void)heap;
-    free(a);
-}
+#else // POSIX
 
 static int64_t posix_heap_bytes(struct posix_heap* heap, void* a) {
     (void)heap;
@@ -2002,8 +2001,61 @@ static int64_t posix_heap_bytes(struct posix_heap* heap, void* a) {
 #endif
 }
 
+static int posix_heap_allocate(struct posix_heap* heap, void* *p, int64_t bytes, bool zero) {
+    (void)heap;
+    *p = zero ? calloc(1, (size_t)bytes) : malloc((size_t)bytes);
+    return *p == null ? ENOMEM : 0;
+}
+
+static int posix_heap_reallocate(struct posix_heap* heap, void* *p, int64_t bytes, bool zero) {
+    (void)heap;
+    // realloc() does not zero grown memory; zero [old_usable, bytes) ourselves.
+    int64_t old = (zero && *p != null) ? posix_heap_bytes(null, *p) : 0;
+    void* a = realloc(*p, (size_t)bytes);
+    if (a == null) { return ENOMEM; }
+    if (zero && bytes > old) {
+        memset((uint8_t*)a + old, 0x00, (size_t)(bytes - old));
+    }
+    *p = a;
+    return 0;
+}
+
+static void posix_heap_deallocate(struct posix_heap* heap, void* a) {
+    (void)heap;
+    free(a);
+}
+
+static struct posix_heap* posix_heap_create(bool serialized) {
+    (void)serialized;
+    return (struct posix_heap*)1; // dummy handle; malloc is thread-safe
+}
+
 static void posix_heap_dispose(struct posix_heap* heap) {
     (void)heap;
+}
+
+#endif // _WIN32
+
+// thin wrappers over the process heap, shared by both platforms:
+
+static int posix_heap_alloc(void* *a, int64_t bytes) {
+    return posix_heap_allocate(null, a, bytes, false);
+}
+
+static int posix_heap_alloc_zero(void* *a, int64_t bytes) {
+    return posix_heap_allocate(null, a, bytes, true);
+}
+
+static int posix_heap_realloc(void* *a, int64_t bytes) {
+    return posix_heap_reallocate(null, a, bytes, false);
+}
+
+static int posix_heap_realloc_zero(void* *a, int64_t bytes) {
+    return posix_heap_reallocate(null, a, bytes, true);
+}
+
+static void posix_heap_free(void* a) {
+    posix_heap_deallocate(null, a);
 }
 
 static void posix_heap_test(void) {}

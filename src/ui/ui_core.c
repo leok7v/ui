@@ -1,6 +1,6 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
-#include "rt/rt_win32.h"
+#include "ui/ui_win32.h"
 
 #define UI_WM_ANIMATE  (WM_APP + 0x7FFF)
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)

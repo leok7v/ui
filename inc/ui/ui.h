@@ -1,6 +1,8 @@
 #pragma once
 // alphabetical order is not possible because of headers interdependencies
-#include "rt/rt_std.h"
+#include "posix.h"
+#include "ui/ui_win32.h"  // ui is Windows-only: pull in the Win32 SDK subset
+#include "ui/ui_glyphs.h" // ui_glyph_* UTF-8 string literals
 #include "ui/ui_core.h"
 #include "ui/ui_colors.h"
 #include "ui/ui_fuzzing.h"

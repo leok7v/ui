@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
-// #include "single_file_lib/rt/rt.h"
+// #include "posix.h"
 // #include "single_file_lib/ui/ui.h"
 
 const char* title = "Sample5";
@@ -31,7 +31,7 @@ static int32_t focused(void) {
     // ui_app.focus can point to a button, thus see which edit
     // control was focused last
     int32_t ix = -1;
-    for (int32_t i = 0; i < rt_countof(edit) && ix < 0; i++) {
+    for (int32_t i = 0; i < posix_countof(edit) && ix < 0; i++) {
         if (ui_app.focus == &edit[i]->view) { ix = i; }
         if (edit[i]->focused) { ix = i; }
     }
@@ -50,7 +50,7 @@ static void focus_back_to_edit(void) {
 }
 
 static void scaled_fonts(void) {
-    rt_assert(0 <= fx && fx < rt_countof(fs));
+    posix_assert(0 <= fx && fx < posix_countof(fs));
     if (mf.font != null) { ui_draw.delete_font(mf.font); }
     int32_t h = (int32_t)(ui_app.fm.mono.normal.height * fs[fx] + 0.5);
     ui_draw.update_fm(&mf, ui_draw.font(ui_app.fm.mono.normal.font, h, -1));
@@ -86,7 +86,7 @@ ui_toggle_on_off(ro, "&Read Only", 7.0f, {
         int32_t ix = focused();
         if (ix >= 0) {
             edit[ix]->ro = ro->state.pressed;
-    //      rt_println("edit[%d].readonly: %d", ix, edit[ix]->ro);
+    //      posix_println("edit[%d].readonly: %d", ix, edit[ix]->ro);
             focus_back_to_edit();
         }
     }
@@ -96,7 +96,7 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->hide_word_wrap = ww->state.pressed;
-//      rt_println("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
+//      posix_println("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
         focus_back_to_edit();
     }
 });
@@ -120,7 +120,7 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
         } else if (0 <= ix && ix < 2) {
             struct ui_edit_view* e = edit[ix];
             e->sle = sl->state.pressed;
-    //      rt_println("edit[%d].multiline: %d", ix, e->multiline);
+    //      posix_println("edit[%d].multiline: %d", ix, e->multiline);
             if (e->sle) {
                 ui_edit_view.select_all(e);
                 ui_edit_view.replace(e, "Hello World! Single Line Edit", -1);
@@ -132,7 +132,7 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
 });
 
 static void font_plus(void) {
-    if (fx < rt_countof(fs) - 1) {
+    if (fx < posix_countof(fs) - 1) {
         fx++;
         scaled_fonts();
         ui_app.request_layout();
@@ -168,7 +168,7 @@ static void set_text(int32_t ix) {
         edit[ix]->view.w, edit[ix]->view.h,
         edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     if (0) {
-        rt_println("%d:%d %d:%d %dx%d scroll %03d:%03d",
+        posix_println("%d:%d %d:%d %dx%d scroll %03d:%03d",
             edit[ix]->selection.a[0].pn, edit[ix]->selection.a[0].gp,
             edit[ix]->selection.a[1].pn, edit[ix]->selection.a[1].gp,
             edit[ix]->view.w, edit[ix]->view.h,
@@ -178,13 +178,13 @@ static void set_text(int32_t ix) {
     if (strcmp(last, ui_view.string(&label)) != 0) {
         ui_view.invalidate(&label, null);
     }
-    rt_str_printf(last, "%s", ui_view.string(&label));
+    posix_str_printf(last, "%s", ui_view.string(&label));
 }
 
 static void paint(struct ui_view* v) {
     ui_draw.fill(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
-    for (int32_t i = 0; i < rt_countof(edit); i++) {
+    for (int32_t i = 0; i < posix_countof(edit); i++) {
         struct ui_view* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
             ui_colors.tone_red : ui_colors.blue;
@@ -204,28 +204,28 @@ static void paint(struct ui_view* v) {
 static void open_file(const char* pathname) {
     char* file = null;
     int64_t bytes = 0;
-    if (rt_mem.map_ro(pathname, &file, &bytes) == 0) {
+    if (posix_mem.map_ro(pathname, &file, &bytes) == 0) {
         if (0 < bytes && bytes <= INT64_MAX) {
             ui_edit_view.select_all(edit[0]);
             ui_edit_view.replace(edit[0], file, (int32_t)bytes);
             struct ui_edit_pg start = { .pn = 0, .gp = 0 };
             ui_edit_view.move(edit[0], start);
         }
-        rt_mem.unmap(file, bytes);
+        posix_mem.unmap(file, bytes);
     } else {
         ui_app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
-                  pathname, rt_strerr(rt_core.err()));
+                  pathname, posix_strerr(posix_core.err()));
     }
 }
 
 static void every_100ms(void) {
-//  rt_println("");
+//  posix_println("");
     static struct ui_view* last;
     if (last != ui_app.focus) { ui_app.request_redraw(); }
 //  last = ui_app.focus;
 }
 
-static bool key_pressed(struct ui_view* rt_unused(view), int64_t key) {
+static bool key_pressed(struct ui_view* posix_unused(view), int64_t key) {
     bool swallow = false;
     if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
@@ -254,9 +254,9 @@ static bool key_pressed(struct ui_view* rt_unused(view), int64_t key) {
 }
 
 static void edit_enter(struct ui_edit_view* e) {
-    rt_assert(e->sle);
+    posix_assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
-        rt_println("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
+        posix_println("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
     }
 }
 
@@ -280,8 +280,8 @@ static void opened(void) {
     ui_app.content->key_pressed = key_pressed;
     scaled_fonts();
     label.fm = &ui_app.fm.mono.normal;
-    rt_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
-    for (int32_t i = 0; i < rt_countof(edit); i++) {
+    posix_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
+    for (int32_t i = 0; i < posix_countof(edit); i++) {
         ui_edit_doc.init(doc[i], null, 0, false);
         if (i < 2) {
             ui_edit_init_with_lorem_ipsum(&doc[i]->text);
@@ -293,9 +293,9 @@ static void opened(void) {
     }
     ui_app.every_100ms = every_100ms;
     edit[2]->sle = true;
-    rt_str_printf(edit[0]->view.p.text, "edit.#0#");
-    rt_str_printf(edit[1]->view.p.text, "edit.#1#");
-    rt_str_printf(edit[2]->view.p.text, "edit.sle");
+    posix_str_printf(edit[0]->view.p.text, "edit.#0#");
+    posix_str_printf(edit[1]->view.p.text, "edit.#1#");
+    posix_str_printf(edit[2]->view.p.text, "edit.sle");
 //  edit[2]->select_all(edit[2]);
 //  edit[2]->paste(edit[2], "Single line", -1);
     ui_edit_view.enter = edit_enter;
@@ -339,7 +339,7 @@ static void opened(void) {
     edit0.debug.id = "#edit0";
     edit1.debug.id = "#edit1";
     edit2.debug.id = "#edit2";
-    if (rt_args.c > 1) { open_file(rt_args.v[1]); }
+    if (posix_args.c > 1) { open_file(posix_args.v[1]); }
 }
 
 static void init(void) {

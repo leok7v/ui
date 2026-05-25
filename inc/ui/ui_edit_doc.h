@@ -1,9 +1,9 @@
 #pragma once
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 struct ui_edit_str;
 
@@ -19,10 +19,10 @@ struct ui_edit_pg { // page/glyph coordinates
     int32_t gp; // zero based glyph position ("column")
 };
 
-union rt_begin_packed ui_edit_range {
+union posix_begin_packed ui_edit_range {
     struct { struct ui_edit_pg from; struct ui_edit_pg to; };
     struct ui_edit_pg a[2];
-} rt_end_packed; // "from"[0] "to"[1]
+} posix_end_packed; // "from"[0] "to"[1]
 
 struct ui_edit_text {
     int32_t np;   // number of paragraphs
@@ -143,7 +143,7 @@ struct ui_edit_text_if {
 
 extern struct ui_edit_text_if ui_edit_text;
 
-struct rt_begin_packed ui_edit_str {
+struct posix_begin_packed ui_edit_str {
     char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -151,7 +151,7 @@ struct rt_begin_packed ui_edit_str {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} rt_end_packed;
+} posix_end_packed;
 
 struct ui_edit_str_if {
     bool (*init)(struct ui_edit_str* s, const char* utf8, int32_t bytes, bool heap);
@@ -228,4 +228,4 @@ extern struct ui_edit_str_if ui_edit_str;
 */
 
 
-rt_end_c
+posix_end_c

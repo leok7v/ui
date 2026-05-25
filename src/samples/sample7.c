@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/rt/rt.h"
+#include "posix.h"
 #include "single_file_lib/ui/ui.h"
 #include <math.h>
 
@@ -8,7 +8,7 @@ const char* title = "Sample7 : timers";
 enum { max_count = 1800 };
 
 static ui_timer_t timer10ms;
-static rt_thread_t thread;
+static posix_thread_t thread;
 static bool quit;
 
 typedef struct {
@@ -30,12 +30,12 @@ static int32_t N = max_count;
 
 static void composed(struct ui_view* view) {
     if (view->w > 0) { N = view->w < N ? view->w : N; }
-    rt_println("M: %d", N);
+    posix_println("M: %d", N);
 }
 
 static void stats(int32_t ix) {
     volatile time_stats_t* t = &ts[ix];
-    rt_assert(t->samples >= 2, "no samples");
+    posix_assert(t->samples >= 2, "no samples");
     int n = N < t->samples ? N : t->samples;
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
@@ -57,7 +57,7 @@ static void stats(int32_t ix) {
     fp64_t spread = (d0 > d1 ? d0 : d1) * 2;
     t->spread = t->spread > spread ? t->spread : spread;
 //  if (t->samples % 1000 == 0) {
-//      rt_println("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
+//      posix_println("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
 //              ix, t->samples, t->spread, t->min_dt, t->max_dt);
 //  }
 }
@@ -101,12 +101,12 @@ static void graph(struct ui_view* v, int ix, ui_color_t c, int y) {
 }
 
 static void paint(struct ui_view* v) {
-    for (int i = 0; i < rt_countof(ts); i++) {
+    for (int i = 0; i < posix_countof(ts); i++) {
         if (ts[i].samples >= 2) { stats(i); }
     }
     if (ts[0].spread > 0 && ts[1].spread > 0) {
         char paint_stats[256];
-        rt_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
+        posix_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
         struct ui_ta ta = ui_draw.ta.mono.normal;
         ta.measure = true;
@@ -130,11 +130,11 @@ static void paint(struct ui_view* v) {
 
 static void timer_thread(void* p) {
     bool* done = (bool*)p;
-    rt_thread.name("r/t timer");
-    rt_thread.realtime();
+    posix_thread.name("r/t timer");
+    posix_thread.realtime();
     while (!*done) {
-        rt_thread.sleep_for(0.0094);
-        ts[1].time[ts[1].pos] = rt_clock.seconds();
+        posix_thread.sleep_for(0.0094);
+        ts[1].time[ts[1].pos] = posix_clock.seconds();
         ts[1].pos = (ts[1].pos + 1) % N;
         (ts[1].samples)++;
         ui_app.request_redraw();
@@ -142,7 +142,7 @@ static void timer_thread(void* p) {
 }
 
 static void timer(struct ui_view* view, ui_timer_t id) {
-    rt_swear(view == ui_app.content);
+    posix_swear(view == ui_app.content);
     // there are at least 3 timers notifications coming here:
     // 1 seconds, 100ms and 10ms:
     if (id == timer10ms) {
@@ -155,36 +155,36 @@ static void timer(struct ui_view* view, ui_timer_t id) {
 
 static void opened(void) {
     timer10ms = ui_app.set_timer((uintptr_t)&timer10ms, 10);
-    rt_fatal_if(timer10ms == 0);
-    thread = rt_thread.start(timer_thread, &quit);
-    rt_not_null(thread);
+    posix_fatal_if(timer10ms == 0);
+    thread = posix_thread.start(timer_thread, &quit);
+    posix_not_null(thread);
 }
 
-static void detached_sleep(void* rt_unused(p)) {
-    rt_thread.sleep_for(100.0); // seconds
+static void detached_sleep(void* posix_unused(p)) {
+    posix_thread.sleep_for(100.0); // seconds
 }
 
-static void detached_loop(void* rt_unused(p)) {
+static void detached_loop(void* posix_unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) {
         sum += i;
     }
     // making sure that compiler won't get rid of the loop:
-    rt_println("%lld", sum);
+    posix_println("%lld", sum);
 }
 
 static void closed(void) {
     ui_app.kill_timer(timer10ms);
     quit = true;
-    rt_fatal_if_error(rt_thread.join(thread, -1));
+    posix_fatal_if_error(posix_thread.join(thread, -1));
     thread = null;
     quit = false;
     // just to test that ExitProcess(0) works when there is
     // are detached threads
-    rt_thread_t detached = rt_thread.start(detached_sleep, null);
-    rt_thread.detach(detached);
-    detached = rt_thread.start(detached_loop, null);
-    rt_thread.detach(detached);
+    posix_thread_t detached = posix_thread.start(detached_sleep, null);
+    posix_thread.detach(detached);
+    detached = posix_thread.start(detached_loop, null);
+    posix_thread.detach(detached);
 }
 
 static void do_not_start_minimized(void) {
@@ -199,7 +199,7 @@ static void do_not_start_minimized(void) {
 
 static void init(void) {
     ui_app.title = title;
-    rt_thread.realtime(); // both main thread and timer thread
+    posix_thread.realtime(); // both main thread and timer thread
     ui_app.closed = closed;
     ui_app.opened = opened;
     ui_app.content->timer = timer;

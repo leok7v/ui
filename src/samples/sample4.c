@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/rt/rt.h"
+#include "posix.h"
 #include "single_file_lib/ui/ui.h"
 #include "stb_image.h"
 
@@ -12,7 +12,7 @@ static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 static void init(void);
 
 static int  console(void) {
-    rt_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", rt_args.basename());
+    posix_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", posix_args.basename());
     return 1;
 }
 
@@ -36,22 +36,22 @@ static void load_images(void) {
     int r = 0;
     void* data = null;
     int64_t bytes = 0;
-    for (int i = 0; i < rt_countof(image); i++) {
+    for (int i = 0; i < posix_countof(image); i++) {
         if (i == 0) {
-            r = rt_mem.map_ro(filename, &data, &bytes);
+            r = posix_mem.map_ro(filename, &data, &bytes);
         } else {
-            r = rt_mem.map_resource("sample_png", &data, &bytes);
+            r = posix_mem.map_resource("sample_png", &data, &bytes);
         }
-        rt_fatal_if_error(r);
+        posix_fatal_if_error(r);
         int w = 0;
         int h = 0;
         int bpp = 0; // bytes (!) per pixel
         void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
-        rt_not_null(pixels);
+        posix_not_null(pixels);
         ui_draw.bitmap_init(&image[i], w, h, bpp, pixels);
         stbi_image_free(pixels);
         // do not unmap resources:
-        if (i == 0) { rt_mem.unmap(data, bytes); }
+        if (i == 0) { posix_mem.unmap(data, bytes); }
     }
 }
 
@@ -78,13 +78,13 @@ static void download(void) {
     static const char* url =
         "https://upload.wikimedia.org/wikipedia/commons/c/c1/"
         "Wikipedia-sipi-image-db-mandrill-4.2.03.png";
-    if (!rt_files.exists(filename)) {
+    if (!posix_files.exists(filename)) {
         char cmd[256];
-        rt_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
+        posix_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
-            rt_println("download %s failed %d %s", filename, r, rt_strerr(r));
+            posix_println("download %s failed %d %s", filename, r, posix_strerr(r));
         }
     }
 }
@@ -92,8 +92,8 @@ static void download(void) {
 static void init(void) {
     ui_app.title = title;
     ui_app.content->paint = paint;
-    rt_str_printf(filename, "%s\\mandrill-4.2.03.png",
-        rt_files.known_folder(rt_files.folder.pictures));
+    posix_str_printf(filename, "%s\\mandrill-4.2.03.png",
+        posix_files.known_folder(posix_files.folder.pictures));
     download();
     load_images();
 }

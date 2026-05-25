@@ -1,4 +1,4 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static inline uint8_t ui_color_clamp_uint8(fp64_t value) {
@@ -53,9 +53,9 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
         default: r = 0; g = 0; b = 0; break;
     }
-    rt_assert(0 <= r && r <= 255);
-    rt_assert(0 <= g && g <= 255);
-    rt_assert(0 <= b && b <= 255);
+    posix_assert(0 <= r && r <= 255);
+    posix_assert(0 <= g && g <= 255);
+    posix_assert(0 <= b && b <= 255);
     return ui_color_rgba((uint8_t)r, (uint8_t)g, (uint8_t)b, a);
 }
 
@@ -80,7 +80,7 @@ static ui_color_t ui_color_saturation(ui_color_t c, fp32_t multiplier) {
 
 static ui_color_t ui_color_interpolate(ui_color_t c0, ui_color_t c1,
         fp32_t multiplier) {
-    rt_assert(0.0f < multiplier && multiplier < 1.0f);
+    posix_assert(0.0f < multiplier && multiplier < 1.0f);
     fp64_t h0, s0, i0, h1, s1, i1;
     ui_color_rgb_to_hsi(ui_color_r(c0), ui_color_g(c0), ui_color_b(c0),
                        &h0, &s0, &i0);
@@ -181,7 +181,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    rt_swear(0 < color_id && color_id < rt_countof(ui_theme_colors));
+    posix_swear(0 < color_id && color_id < posix_countof(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;

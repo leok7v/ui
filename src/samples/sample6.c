@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/rt/rt.h"
+#include "posix.h"
 #include "single_file_lib/ui/ui.h"
 #include "stb_image.h"
 
@@ -27,7 +27,7 @@ enum { max_speed = 3 };
 typedef struct animation_s {
     animated_gif_t* gif;
     int32_t  index; // animated_groot index 0..groot.frames - 1
-    uint32_t seed; // for rt_num.random32()
+    uint32_t seed; // for posix_num.random32()
     int32_t  x;
     int32_t  y;
     int32_t  w;
@@ -42,7 +42,7 @@ static animation_t    animated_groot = { .gif = &groot };
 static animated_gif_t movie;
 static animation_t    animated_movie = { .gif = &movie };
 
-static rt_thread_t thread; // animated gifs loader thread
+static posix_thread_t thread; // animated gifs loader thread
 
 static bool   muted;
 static fp64_t volume; // be mute
@@ -90,8 +90,8 @@ static void paint_mute_unmute(struct ui_view* v) {
     struct ui_ta ta = ui_draw.ta.prop.H3;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
-    #define str_unmuted rt_glyph_mute  " mute"
-    #define str_muted rt_glyph_speaker " unmute"
+    #define str_unmuted ui_glyph_mute  " mute"
+    #define str_muted ui_glyph_speaker " unmute"
     const int32_t mx = v->x + ui_app.fm.prop.H3.em.w / 16;
     const int32_t my = v->y + ui_app.fm.prop.H3.em.h / 16;
     const int32_t mw = ui_app.fm.prop.H3.em.w * 5;
@@ -113,13 +113,13 @@ static void paint(struct ui_view* v) {
     paint_mute_unmute(v);
 }
 
-static void character(struct ui_view* rt_unused(v), const char* utf8) {
+static void character(struct ui_view* posix_unused(v), const char* utf8) {
     if (utf8[0] == 'q' || utf8[0] == 'Q' || utf8[0] == 033) {
         ui_app.close();
     }
 }
 
-static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
+static bool tap(struct ui_view* posix_unused(v), int32_t ix, bool pressed) {
     const int32_t w = ui_app.fm.prop.H3.em.w * 5;
     const int32_t h = ui_app.fm.prop.H3.em.h;
     const bool inside =
@@ -130,32 +130,32 @@ static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
         muted = !muted;
         if (muted) {
             if (ui_midi.is_playing(&midi)) {
-                rt_fatal_if_error(ui_midi.get_volume(&midi, &volume));
-                rt_fatal_if_error(ui_midi.set_volume(&midi,  0));
+                posix_fatal_if_error(ui_midi.get_volume(&midi, &volume));
+                posix_fatal_if_error(ui_midi.set_volume(&midi,  0));
             }
         } else {
-            rt_fatal_if_error(ui_midi.set_volume(&midi,  volume));
+            posix_fatal_if_error(ui_midi.set_volume(&midi,  volume));
         }
     }
     return swallow; // swallows taps inside mute `button`
 }
 
 static int64_t notify(struct ui_midi* m, int64_t f) { // f: f
-    rt_swear(&midi == m);
+    posix_swear(&midi == m);
     #ifdef UI_MIDI_DEBUG
-        if (f & ui_midi.success)    { rt_println("success"); }
-        if (f & ui_midi.failure)    { rt_println("failure"); }
-        if (f & ui_midi.aborted)    { rt_println("aborted"); }
-        if (f & ui_midi.superseded) { rt_println("superseded"); }
+        if (f & ui_midi.success)    { posix_println("success"); }
+        if (f & ui_midi.failure)    { posix_println("failure"); }
+        if (f & ui_midi.aborted)    { posix_println("aborted"); }
+        if (f & ui_midi.superseded) { posix_println("superseded"); }
     #endif // UI_MIDI_DEBUG
     if ((f & (ui_midi.aborted|ui_midi.failure)) != 0) {
         stop_and_close();
     } else if ((f & ui_midi.success) != 0) {
         // success : is received on the end of mini sequence playback
         // "when the music over..." rewind and start playing again
-        rt_fatal_if_error(ui_midi.stop(&midi));
-        rt_fatal_if_error(ui_midi.rewind(&midi));
-        rt_fatal_if_error(ui_midi.play(&midi));
+        posix_fatal_if_error(ui_midi.stop(&midi));
+        posix_fatal_if_error(ui_midi.rewind(&midi));
+        posix_fatal_if_error(ui_midi.play(&midi));
     }
     return 0;
 }
@@ -164,7 +164,7 @@ static void stop_and_close(void) {
     if (ui_midi.is_open(&midi)) {
         if (ui_midi.is_playing(&midi)) {
             midi.notify = null;
-            rt_fatal_if_error(ui_midi.stop(&midi));
+            posix_fatal_if_error(ui_midi.stop(&midi));
             ui_midi.close(&midi);
         }
     }
@@ -175,54 +175,54 @@ static void open_and_play(void) {
         // first call to MIDI Sequencer .open() takes 1.122 seconds
         // next  attempt to .open() after .close() takes 4.237 seconds!
         // what can possibly take 1 second on 2GH cpu?
-        rt_fatal_if_error(ui_midi.open(&midi, midi_file()));
+        posix_fatal_if_error(ui_midi.open(&midi, midi_file()));
     }
     if (!ui_midi.is_playing(&midi)) {
         midi.notify = notify;
-        rt_fatal_if_error(ui_midi.play(&midi));
+        posix_fatal_if_error(ui_midi.play(&midi));
         // it is possible that last mute call leaves the volume to 0
-        rt_fatal_if_error(ui_midi.set_volume(&midi, 0.5));
+        posix_fatal_if_error(ui_midi.set_volume(&midi, 0.5));
     }
 }
 
 static void delete_midi_file(void) {
-    rt_fatal_if_error(rt_files.unlink(midi_file()));
+    posix_fatal_if_error(posix_files.unlink(midi_file()));
 }
 
 static void load_gif(animated_gif_t* g, const char* name) {
     void* data = null;
     int64_t bytes = 0;
-    errno_t r = rt_mem.map_resource(name, &data, &bytes);
-    rt_fatal_if_error(r);
+    errno_t r = posix_mem.map_resource(name, &data, &bytes);
+    posix_fatal_if_error(r);
     // load_animated_gif() calls realloc(delays) w/o first alloc()
-    r = rt_heap.allocate(null, (void**)&g->delays, sizeof(int32_t), false);
-    rt_swear(r == 0 && g->delays != null);
+    r = posix_heap.allocate(null, (void**)&g->delays, sizeof(int32_t), false);
+    posix_swear(r == 0 && g->delays != null);
     g->pixels = load_animated_gif(data, bytes, &g->delays,
         &g->w, &g->h, &g->frames, &g->bpp, 4);
-    // resources cannot be unmapped do not call rt_mem.unmap()
+    // resources cannot be unmapped do not call posix_mem.unmap()
 }
 
 static void load_gifs(void) {
     load_gif(&movie, "gotg_gif");
-    rt_swear(movie.pixels != null &&
+    posix_swear(movie.pixels != null &&
              movie.bpp == 4 &&  movie.frames >= 1,
              "%s", stbi_failure_reason());
     load_gif(&groot, "groot_gif");
-    rt_swear(groot.pixels != null && groot.bpp == 4 && groot.frames >= 1,
+    posix_swear(groot.pixels != null && groot.bpp == 4 && groot.frames >= 1,
              "%s", stbi_failure_reason());
 }
 
-static void schedule_next_animation(rt_work_t* work) {
+static void schedule_next_animation(struct posix_work* work) {
     animation_t* a = (animation_t*)work->data;
-    rt_swear(0 <= a->index && a->index < a->gif->frames);
+    posix_swear(0 <= a->index && a->index < a->gif->frames);
     // milliseconds to seconds:
     fp64_t ds = a->gif->delays[a->index] * 0.001; // delay in seconds
-    work->when = rt_clock.seconds() + ds;
+    work->when = posix_clock.seconds() + ds;
     ui_app.post(work);
 }
 
-static void dancing_step(rt_work_t* work) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+static void dancing_step(struct posix_work* work) {
+    posix_swear(posix_thread.id() == ui_app.tid);
     animation_t* a = (animation_t*)work->data;
     animated_gif_t* g = (animated_gif_t*)a->gif;
     int32_t multiplier = 1;
@@ -236,16 +236,16 @@ static void dancing_step(rt_work_t* work) {
         a->x = (ui_app.crc.w - a->w) / 2;
         a->y = (ui_app.crc.h - a->h) / 2;
     }
-//  rt_println("%d %d speed: %d %d", a->x, a->y,
+//  posix_println("%d %d speed: %d %d", a->x, a->y,
 //                                   a->speed_x,
 //                                   a->speed_y);
     a->index = (a->index + 1) % g->frames;
     while (a->speed_x == 0) {
-        const uint32_t r = rt_num.random32(&a->seed);
+        const uint32_t r = posix_num.random32(&a->seed);
         a->speed_x = r % (max_speed * 2 + 1) - max_speed;
     }
     while (a->speed_y == 0) {
-        const uint32_t r = rt_num.random32(&a->seed);
+        const uint32_t r = posix_num.random32(&a->seed);
         a->speed_y = r % (max_speed * 2 + 1) - max_speed;
     }
     a->x += a->speed_x;
@@ -264,8 +264,8 @@ static void dancing_step(rt_work_t* work) {
         a->y = ui_app.root->h - a->h / 2 - 1;
         a->speed_y = -a->speed_y;
     }
-    int inc = rt_num.random32(&a->seed) % 2 == 0 ? -1 : +1;
-    if (rt_num.random32(&a->seed) % 2 == 0) {
+    int inc = posix_num.random32(&a->seed) % 2 == 0 ? -1 : +1;
+    if (posix_num.random32(&a->seed) % 2 == 0) {
         if (1 <= a->speed_x + inc && a->speed_x + inc < max_speed) {
             a->speed_x += inc;
         }
@@ -278,8 +278,8 @@ static void dancing_step(rt_work_t* work) {
     schedule_next_animation(work);
 }
 
-static void movie_step(rt_work_t* work) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+static void movie_step(struct posix_work* work) {
+    posix_swear(posix_thread.id() == ui_app.tid);
     animation_t* a = (animation_t*)work->data;
     animated_gif_t* g = (animated_gif_t*)a->gif;
     int32_t multiplier = 1;
@@ -296,15 +296,15 @@ static void movie_step(rt_work_t* work) {
     schedule_next_animation(work);
 }
 
-static void animated_gifs_loader(void* rt_unused(unused)) {
+static void animated_gifs_loader(void* posix_unused(unused)) {
     ui_cursor_t cursor = ui_app.cursor;
     ui_app.set_cursor(ui_app.cursors.wait);
     load_gifs();
     ui_app.set_cursor(cursor);
-    static rt_work_t dancing = { .work = dancing_step,
+    static struct posix_work dancing = { .work = dancing_step,
                                  .data = &animated_groot };
     ui_app.post(&dancing);
-    static rt_work_t cinema  = { .work = movie_step,
+    static struct posix_work cinema  = { .work = movie_step,
                                  .data = &animated_movie };
     ui_app.post(&cinema);
 }
@@ -312,40 +312,40 @@ static void animated_gifs_loader(void* rt_unused(unused)) {
 static void load_png(void) { // from resources
     void* data = null;
     int64_t bytes = 0;
-    rt_fatal_if_error(rt_mem.map_resource("sample_png", &data, &bytes));
+    posix_fatal_if_error(posix_mem.map_resource("sample_png", &data, &bytes));
     int w = 0;
     int h = 0;
     int bpp = 0; // bytes (!) per pixel
     void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
     if (pixels == null) {
-        rt_println("%s", stbi_failure_reason());
+        posix_println("%s", stbi_failure_reason());
     }
-    rt_not_null(pixels);
+    posix_not_null(pixels);
     ui_draw.bitmap_init(&background, w, h, bpp, pixels);
     stbi_image_free(pixels);
 }
 
-static void start_music(rt_work_t* rt_unused(w)) {
+static void start_music(struct posix_work* posix_unused(w)) {
     open_and_play(); // 1+ second long expensive call
 }
 
 static void opened(void) {
-    animated_groot.seed = (uint32_t)rt_clock.nanoseconds();
+    animated_groot.seed = (uint32_t)posix_clock.nanoseconds();
     animated_groot.x = -1;
     animated_groot.y = -1;
     animated_groot.gif = &groot;
-    thread = rt_thread.start(animated_gifs_loader, null);
+    thread = posix_thread.start(animated_gifs_loader, null);
     // start music after first paint() call:
-    static rt_work_t music = { .work = start_music };
-    music.when = rt_clock.seconds() + 0.125;
+    static struct posix_work music = { .work = start_music };
+    music.when = posix_clock.seconds() + 0.125;
     ui_app.post(&music);
 }
 
 static void closed(void) {
-    rt_thread.join(thread, -1);
+    posix_thread.join(thread, -1);
     if (ui_midi.is_open(&midi)) {
         // restore pre-muted volume:
-        rt_fatal_if_error(ui_midi.set_volume(&midi,
+        posix_fatal_if_error(ui_midi.set_volume(&midi,
                         volume != 0 ? volume : 0.5));
     }
     stop_and_close();
@@ -389,19 +389,19 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
 static const char* midi_file(void) {
     // resource -> temporary file unpacking because ancient MIDI Win32 API
     //             does not support memory buffers (or I didn't find it)
-    static char filename[rt_files_max_path];
+    static char filename[posix_files_max_path];
     if (filename[0] == 0) {
         void* data = null;
         int64_t bytes = 0;
-        int r = rt_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
-        rt_fatal_if_error(r);
-        rt_fatal_if_error(rt_files.create_tmp(filename,
-                                      rt_countof(filename)));
-        rt_assert(filename[0] != 0);
+        int r = posix_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
+        posix_fatal_if_error(r);
+        posix_fatal_if_error(posix_files.create_tmp(filename,
+                                      posix_countof(filename)));
+        posix_assert(filename[0] != 0);
         int64_t written = 0;
-        rt_fatal_if_error(rt_files.write_fully(filename, data, bytes,
+        posix_fatal_if_error(posix_files.write_fully(filename, data, bytes,
                                               &written));
-        rt_assert(written == bytes);
+        posix_assert(written == bytes);
     }
     return filename;
 }

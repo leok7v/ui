@@ -1,7 +1,7 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 
-rt_begin_c
+posix_begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -158,11 +158,11 @@ struct ui_draw_if {
         int32_t w, const char* format, va_list va); // "w" can be zero
     struct ui_wh (*multiline)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
-    // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
+    // x[posix_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
     struct ui_wh (*glyphs_placement)(const struct ui_ta* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
 };
 
 extern struct ui_draw_if ui_draw;
 
-rt_end_c
+posix_end_c

@@ -4,11 +4,624 @@
 // ___________________________________ ui.h ___________________________________
 
 // alphabetical order is not possible because of headers interdependencies
-#include "rt/rt_std.h"
+#include "posix.h"
+// ________________________________ ui_win32.h ________________________________
+
+// ui is Windows-only. This header pulls in the Win32 SDK subset the ui.*
+// implementation and ui consumers need. The runtime (posix.*) stays free of
+// <Windows.h>; posix_b2e()/posix_win32_close_handle()/posix_wait_ix2e() are
+// declared in posix.h (gated on _WIN32) and only reference Win32 APIs at the
+// expansion site, so this header must be included before they are used.
+
+#if defined(_WIN32)
+
+#pragma warning(push)
+#pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
+#pragma warning(disable: 4459) // declaration of '...' hides global declaration
+#pragma warning(disable: 4668) // SDK headers (e.g. shellapi.h) test version
+                               // macros like NTDDI_WIN10_GE that older SDKs
+                               // do not define; harmless under /Wall
+
+#pragma push_macro("UNICODE")
+#define UNICODE // always because otherwise IME does not work
+
+#include <Windows.h>
+#include <Psapi.h>
+#include <shellapi.h>
+#include <winternl.h>
+#include <initguid.h>
+#include <KnownFolders.h>
+#include <AclAPI.h>
+#include <ShlObj_core.h>
+#include <Shlwapi.h>
+#include <commdlg.h>
+#include <dbghelp.h>
+#include <dwmapi.h>
+#include <imm.h>
+#include <ShellScalingApi.h>
+#include <tlhelp32.h>
+#include <VersionHelpers.h>
+#include <windowsx.h>
+#include <winnt.h>
+
+#pragma pop_macro("UNICODE")
+
+#pragma warning(pop)
+
+#include <fcntl.h>
+
+#endif // _WIN32
+// _______________________________ ui_glyphs.h ________________________________
+
+// UTF-8 glyph string literals (moved from rt_glyphs.h; ui is Windows-only).
+
+
+// Square Four Corners https://www.compart.com/en/unicode/U+26F6
+#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
+
+// Circled Cross Formee
+// https://codepoints.net/U+1F902
+#define ui_glyph_circled_cross_formee                   "\xF0\x9F\xA4\x82"
+
+// White Large Square https://www.compart.com/en/unicode/U+2B1C
+#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
+
+// N-Ary Times Operator https://www.compart.com/en/unicode/U+2A09
+#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
+
+// Heavy Minus Sign https://www.compart.com/en/unicode/U+2796
+#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
+
+// Heavy Plus Sign https://www.compart.com/en/unicode/U+2795
+#define ui_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
+
+// Clockwise Rightwards and Leftwards Open Circle Arrows with Circled One Overlay
+// https://www.compart.com/en/unicode/U+1F502
+// ui_glyph_clockwise_rightwards_and_leftwards_open_circle_arrows_with_circled_one_overlay...
+#define ui_glyph_open_circle_arrows_one_overlay         "\xF0\x9F\x94\x82"
+
+// Halfwidth Katakana-Hiragana Prolonged Sound Mark https://www.compart.com/en/unicode/U+FF70
+#define ui_glyph_prolonged_sound_mark                   "\xEF\xBD\xB0"
+
+// Fullwidth Plus Sign https://www.compart.com/en/unicode/U+FF0B
+#define ui_glyph_fullwidth_plus_sign                    "\xEF\xBC\x8B"
+
+// Fullwidth Hyphen-Minus https://www.compart.com/en/unicode/U+FF0D
+#define ui_glyph_fullwidth_hyphen_minus                 "\xEF\xBC\x8D"
+
+
+// Heavy Multiplication X https://www.compart.com/en/unicode/U+2716
+#define ui_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
+
+// Multiplication Sign https://www.compart.com/en/unicode/U+00D7
+#define ui_glyph_multiplication_sign                    "\xC3\x97"
+
+// Trigram For Heaven (caption menu button) https://www.compart.com/en/unicode/U+2630
+#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
+
+// (tool bar drag handle like: msvc toolbars)
+// Braille Pattern Dots-12345678  https://www.compart.com/en/unicode/U+28FF
+#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+
+// White Square Containing Black Medium Square
+// https://compart.com/en/unicode/U+1F795
+#define ui_glyph_white_square_containing_black_medium_square "\xF0\x9F\x9E\x95"
+
+// White Medium Square
+// https://compart.com/en/unicode/U+25FB
+#define ui_glyph_white_medium_square                   "\xE2\x97\xBB"
+
+// White Square with Upper Right Quadrant
+// https://compart.com/en/unicode/U+25F3
+#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+
+// White Square with Upper Left Quadrant https://www.compart.com/en/unicode/U+25F0
+#define ui_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
+
+// White Square with Lower Left Quadrant https://www.compart.com/en/unicode/U+25F1
+#define ui_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
+
+// White Square with Lower Right Quadrant https://www.compart.com/en/unicode/U+25F2
+#define ui_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
+
+// White Square with Upper Right Quadrant https://www.compart.com/en/unicode/U+25F3
+#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+
+// White Square with Vertical Bisecting Line https://www.compart.com/en/unicode/U+25EB
+#define ui_glyph_white_square_with_vertical_bisecting_line "\xE2\x97\xAB"
+
+// (White Square with Horizontal Bisecting Line)
+// Squared Minus https://www.compart.com/en/unicode/U+229F
+#define ui_glyph_squared_minus                          "\xE2\x8A\x9F"
+
+// North East and South West Arrow https://www.compart.com/en/unicode/U+2922
+#define ui_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
+
+// South East Arrow to Corner https://www.compart.com/en/unicode/U+21F2
+#define ui_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
+
+// North West Arrow to Corner https://www.compart.com/en/unicode/U+21F1
+#define ui_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
+
+// Leftwards Arrow to Bar https://www.compart.com/en/unicode/U+21E6
+#define ui_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
+
+// Rightwards Arrow to Bar https://www.compart.com/en/unicode/U+21E8
+#define ui_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
+
+// Upwards White Arrow https://www.compart.com/en/unicode/U+21E7
+#define ui_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
+
+// Downwards White Arrow https://www.compart.com/en/unicode/U+21E9
+#define ui_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
+
+// Leftwards White Arrow https://www.compart.com/en/unicode/U+21E4
+#define ui_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
+
+// Rightwards White Arrow https://www.compart.com/en/unicode/U+21E5
+#define ui_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
+
+// Upwards White Arrow on Pedestal https://www.compart.com/en/unicode/U+21EB
+#define ui_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
+
+// Braille Pattern Dots-678 https://www.compart.com/en/unicode/U+28E0
+#define ui_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
+
+// Braille Pattern Dots-2345678 https://www.compart.com/en/unicode/U+28FE
+// Combining the two into:
+#define ui_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
+
+// Upper Right Drop-Shadowed White Square https://www.compart.com/en/unicode/U+2750
+#define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+
+// No-Break Space (NBSP)
+// https://www.compart.com/en/unicode/U+00A0
+#define ui_glyph_nbsp                                   "\xC2\xA0"
+
+// Word Joiner (WJ)
+// https://compart.com/en/unicode/U+2060
+#define ui_glyph_word_joiner                            "\xE2\x81\xA0"
+
+// Zero Width Space (ZWSP)
+// https://compart.com/en/unicode/U+200B
+#define ui_glyph_zwsp                                   "\xE2\x80\x8B"
+
+// Zero Width Joiner (ZWJ)
+// https://compart.com/en/unicode/u+200D
+#define ui_glyph_zwj                                    "\xE2\x80\x8D"
+
+// En Quad
+// https://compart.com/en/unicode/U+2000
+#define ui_glyph_en_quad "\xE2\x80\x80"
+
+// Em Quad
+// https://compart.com/en/unicode/U+2001
+#define ui_glyph_em_quad "\xE2\x80\x81"
+
+// En Space
+// https://compart.com/en/unicode/U+2002
+#define ui_glyph_en_space "\xE2\x80\x82"
+
+// Em Space
+// https://compart.com/en/unicode/U+2003
+#define ui_glyph_em_space "\xE2\x80\x83"
+
+// Hyphen https://www.compart.com/en/unicode/U+2010
+#define ui_glyph_hyphen                                "\xE2\x80\x90"
+
+// Non-Breaking Hyphen https://www.compart.com/en/unicode/U+2011
+#define ui_glyph_non_breaking_hyphen                   "\xE2\x80\x91"
+
+// Fullwidth Low Line https://www.compart.com/en/unicode/U+FF3F
+#define ui_glyph_fullwidth_low_line                    "\xEF\xBC\xBF"
+
+// #define ui_glyph_light_horizontal                     "\xE2\x94\x80"
+// Light Horizontal https://www.compart.com/en/unicode/U+2500
+#define ui_glyph_light_horizontal                     "\xE2\x94\x80"
+
+// Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
+#define ui_glyph_three_em_dash                         "\xE2\xB8\xBB"
+
+// Infinity https://www.compart.com/en/unicode/U+221E
+#define ui_glyph_infinity                              "\xE2\x88\x9E"
+
+// Black Large Circle https://www.compart.com/en/unicode/U+2B24
+#define ui_glyph_black_large_circle                    "\xE2\xAC\xA4"
+
+// Large Circle https://www.compart.com/en/unicode/U+25EF
+#define ui_glyph_large_circle                          "\xE2\x97\xAF"
+
+// Heavy Leftwards Arrow with Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F818
+#define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
+
+// Heavy Rightwards Arrow with Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81A
+#define ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead          "\xF0\x9F\xA0\x9A"
+
+// Heavy Leftwards Arrow with Large Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81C
+#define ui_glyph_heavy_leftwards_arrow_with_large_equilateral_arrowhead     "\xF0\x9F\xA0\x9C"
+
+// Heavy Rightwards Arrow with Large Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81E
+#define ui_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
+
+// CJK Unified Ideograph-5973: Kanji Onna "Female" https://www.compart.com/en/unicode/U+5973
+#define ui_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
+
+// Leftwards Arrow https://www.compart.com/en/unicode/U+2190
+#define ui_glyph_leftward_arrow                                             "\xE2\x86\x90"
+
+// Upwards Arrow https://www.compart.com/en/unicode/U+2191
+#define ui_glyph_upwards_arrow                                              "\xE2\x86\x91"
+
+// Rightwards Arrow
+// https://www.compart.com/en/unicode/U+2192
+#define ui_glyph_rightwards_arrow                                           "\xE2\x86\x92"
+
+// Downwards Arrow https://www.compart.com/en/unicode/U+2193
+#define ui_glyph_downwards_arrow                                            "\xE2\x86\x93"
+
+// Thin Space https://www.compart.com/en/unicode/U+2009
+#define ui_glyph_thin_space                                                 "\xE2\x80\x89"
+
+// Medium Mathematical Space (MMSP) https://www.compart.com/en/unicode/U+205F
+#define ui_glyph_mmsp                                                       "\xE2\x81\x9F"
+
+// Three-Per-Em Space https://www.compart.com/en/unicode/U+2004
+#define ui_glyph_three_per_em                                               "\xE2\x80\x84"
+
+// Six-Per-Em Space https://www.compart.com/en/unicode/U+2006
+#define ui_glyph_six_per_em                                                 "\xE2\x80\x86"
+
+// Punctuation Space https://www.compart.com/en/unicode/U+2008
+#define ui_glyph_punctuation                                                "\xE2\x80\x88"
+
+// Hair Space https://www.compart.com/en/unicode/U+200A
+#define ui_glyph_hair_space                                                 "\xE2\x80\x8A"
+
+// Chinese "jin4" https://www.compart.com/en/unicode/U+58F9
+#define ui_glyph_chinese_jin4                                               "\xE5\xA3\xB9"
+
+// Chinese "gong" https://www.compart.com/en/unicode/U+8D70
+#define ui_glyph_chinese_gong                                                "\xE8\xB5\xB0"
+
+// https://www.compart.com/en/unicode/U+1F9F8
+#define ui_glyph_teddy_bear                                                 "\xF0\x9F\xA7\xB8"
+
+// https://www.compart.com/en/unicode/U+1F9CA
+#define ui_glyph_ice_cube                                                   "\xF0\x9F\xA7\x8A"
+
+// Speaker https://www.compart.com/en/unicode/U+1F508
+#define ui_glyph_speaker                                                    "\xF0\x9F\x94\x88"
+
+// Speaker with Cancellation Stroke https://www.compart.com/en/unicode/U+1F507
+#define ui_glyph_mute                                                       "\xF0\x9F\x94\x87"
+
+// TODO: this is used for Font Metric Visualization
+
+// Full Block https://www.compart.com/en/unicode/U+2588
+#define ui_glyph_full_block                             "\xE2\x96\x88"
+
+// Black Square https://www.compart.com/en/unicode/U+25A0
+#define ui_glyph_black_square                           "\xE2\x96\xA0"
+
+// the appearance of a dragon walking
+// CJK Unified Ideograph-9F98 https://www.compart.com/en/unicode/U+9F98
+#define ui_glyph_walking_dragon                         "\xE9\xBE\x98"
+
+// possibly highest "diacritical marks" character (Vietnamese)
+// Latin Small Letter U with Horn and Hook Above https://www.compart.com/en/unicode/U+1EED
+#define ui_glyph_u_with_horn_and_hook_above             "\xC7\xAD"
+
+// possibly "long descender" character
+// Latin Small Letter Qp Digraph https://www.compart.com/en/unicode/U+0239
+#define ui_glyph_qp_digraph                             "\xC9\xB9"
+
+// another possibly "long descender" character
+// Cyrillic Small Letter Shha with Descender https://www.compart.com/en/unicode/U+0527
+#define ui_glyph_shha_with_descender                    "\xD4\xA7"
+
+// a"very long descender" character
+// Tibetan Mark Caret Yig Mgo Phur Shad Ma https://www.compart.com/en/unicode/U+0F06
+#define ui_glyph_caret_yig_mgo_phur_shad_ma             "\xE0\xBC\x86"
+
+// Tibetan Vowel Sign Vocalic Ll https://www.compart.com/en/unicode/U+0F79
+#define ui_glyph_vocalic_ll                             "\xE0\xBD\xB9"
+
+// https://www.compart.com/en/unicode/U+1F4A3
+#define ui_glyph_bomb "\xF0\x9F\x92\xA3"
+
+// https://www.compart.com/en/unicode/U+1F4A1
+#define ui_glyph_electric_light_bulb "\xF0\x9F\x92\xA1"
+
+// https://www.compart.com/en/unicode/U+1F4E2
+#define ui_glyph_public_address_loudspeaker "\xF0\x9F\x93\xA2"
+
+// https://www.compart.com/en/unicode/U+1F517
+#define ui_glyph_link_symbol "\xF0\x9F\x94\x97"
+
+// https://www.compart.com/en/unicode/U+1F571
+#define ui_glyph_black_skull_and_crossbones "\xF0\x9F\x95\xB1"
+
+// https://www.compart.com/en/unicode/U+1F5B5
+#define ui_glyph_screen "\xF0\x9F\x96\xB5"
+
+// https://www.compart.com/en/unicode/U+1F5D7
+#define ui_glyph_overlap "\xF0\x9F\x97\x97"
+
+// https://www.compart.com/en/unicode/U+1F5D6
+#define ui_glyph_maximize "\xF0\x9F\x97\x96"
+
+// https://www.compart.com/en/unicode/U+1F5D5
+#define ui_glyph_minimize "\xF0\x9F\x97\x95"
+
+// Desktop Window
+// https://compart.com/en/unicode/U+1F5D4
+#define ui_glyph_desktop_window "\xF0\x9F\x97\x94"
+
+// https://www.compart.com/en/unicode/U+1F5D9
+#define ui_glyph_cancellation_x "\xF0\x9F\x97\x99"
+
+// https://www.compart.com/en/unicode/U+1F5DF
+#define ui_glyph_page_with_circled_text "\xF0\x9F\x97\x9F"
+
+// https://www.compart.com/en/unicode/U+1F533
+#define ui_glyph_white_square_button "\xF0\x9F\x94\xB3"
+
+// https://www.compart.com/en/unicode/U+1F532
+#define ui_glyph_black_square_button "\xF0\x9F\x94\xB2"
+
+// https://www.compart.com/en/unicode/U+1F5F9
+#define ui_glyph_ballot_box_with_bold_check "\xF0\x9F\x97\xB9"
+
+// https://www.compart.com/en/unicode/U+1F5F8
+#define ui_glyph_light_check_mark "\xF0\x9F\x97\xB8"
+
+// https://compart.com/en/unicode/U+1F4BB
+#define ui_glyph_personal_computer "\xF0\x9F\x92\xBB"
+
+// https://compart.com/en/unicode/U+1F4DC
+#define ui_glyph_desktop_computer "\xF0\x9F\x93\x9C"
+
+// https://compart.com/en/unicode/U+1F4DD
+#define ui_glyph_printer "\xF0\x9F\x93\x9D"
+
+// https://compart.com/en/unicode/U+1F4F9
+#define ui_glyph_video_camera "\xF0\x9F\x93\xB9"
+
+// https://compart.com/en/unicode/U+1F4F8
+#define ui_glyph_camera "\xF0\x9F\x93\xB8"
+
+// https://compart.com/en/unicode/U+1F505
+#define ui_glyph_high_brightness "\xF0\x9F\x94\x85"
+
+// https://compart.com/en/unicode/U+1F506
+#define ui_glyph_low_brightness "\xF0\x9F\x94\x86"
+
+// https://compart.com/en/unicode/U+1F507
+#define ui_glyph_speaker_with_cancellation_stroke "\xF0\x9F\x94\x87"
+
+// https://compart.com/en/unicode/U+1F509
+#define ui_glyph_speaker_with_one_sound_wave "\xF0\x9F\x94\x89"
+
+// Right-Pointing Magnifying Glass
+// https://compart.com/en/unicode/U+1F50E
+#define ui_glyph_right_pointing_magnifying_glass "\xF0\x9F\x94\x8E"
+
+// Radio Button
+// https://compart.com/en/unicode/U+1F518
+#define ui_glyph_radio_button "\xF0\x9F\x94\x98"
+
+// https://compart.com/en/unicode/U+1F525
+#define ui_glyph_fire "\xF0\x9F\x94\xA5"
+
+// Gear
+// https://compart.com/en/unicode/U+2699
+#define ui_glyph_gear "\xE2\x9A\x99"
+
+// Nut and Bolt
+// https://compart.com/en/unicode/U+1F529
+#define ui_glyph_nut_and_bolt "\xF0\x9F\x94\xA9"
+
+// Hammer and Wrench
+// https://compart.com/en/unicode/U+1F6E0
+#define ui_glyph_hammer_and_wrench "\xF0\x9F\x9B\xA0"
+
+// https://compart.com/en/unicode/U+1F53E
+#define ui_glyph_upwards_button "\xF0\x9F\x94\xBE"
+
+// https://compart.com/en/unicode/U+1F53F
+#define ui_glyph_downwards_button "\xF0\x9F\x94\xBF"
+
+// https://compart.com/en/unicode/U+1F5C7
+#define ui_glyph_litter_in_bin_sign "\xF0\x9F\x97\x87"
+
+// Checker Board
+// https://compart.com/en/unicode/U+1F67E
+#define ui_glyph_checker_board "\xF0\x9F\x9A\xBE"
+
+// Reverse Checker Board
+// https://compart.com/en/unicode/U+1F67F
+#define ui_glyph_reverse_checker_board "\xF0\x9F\x9A\xBF"
+
+// Clipboard
+// https://compart.com/en/unicode/U+1F4CB
+#define ui_glyph_clipboard "\xF0\x9F\x93\x8B"
+
+// Two Joined Squares https://www.compart.com/en/unicode/U+29C9
+#define ui_glyph_two_joined_squares "\xE2\xA7\x89"
+
+// White Heavy Check Mark
+// https://compart.com/en/unicode/U+2705
+#define ui_glyph_white_heavy_check_mark "\xE2\x9C\x85"
+
+// Negative Squared Cross Mark
+// https://compart.com/en/unicode/U+274E
+#define ui_glyph_negative_squared_cross_mark "\xE2\x9D\x8E"
+
+// Lower Right Drop-Shadowed White Square
+// https://compart.com/en/unicode/U+274F
+#define ui_glyph_lower_right_drop_shadowed_white_square "\xE2\x9D\x8F"
+
+// Upper Right Drop-Shadowed White Square
+// https://compart.com/en/unicode/U+2750
+#define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+
+// Lower Right Shadowed White Square
+// https://compart.com/en/unicode/U+2751
+#define ui_glyph_lower_right_shadowed_white_square "\xE2\x9D\x91"
+
+// Upper Right Shadowed White Square
+// https://compart.com/en/unicode/U+2752
+#define ui_glyph_upper_right_shadowed_white_square "\xE2\x9D\x92"
+
+// Left Double Wiggly Fence
+// https://compart.com/en/unicode/U+29DA
+#define ui_glyph_left_double_wiggly_fence "\xE2\xA7\x9A"
+
+// Right Double Wiggly Fence
+// https://compart.com/en/unicode/U+29DB
+#define ui_glyph_right_double_wiggly_fence "\xE2\xA7\x9B"
+
+// Logical Or
+// https://compart.com/en/unicode/U+2228
+#define ui_glyph_logical_or "\xE2\x88\xA8"
+
+// Logical And
+// https://compart.com/en/unicode/U+2227
+#define ui_glyph_logical_and "\xE2\x88\xA7"
+
+// Double Vertical Bar (Pause)
+// https://compart.com/en/unicode/U+23F8
+#define ui_glyph_double_vertical_bar "\xE2\x8F\xB8"
+
+// Black Square For Stop
+// https://compart.com/en/unicode/U+23F9
+#define ui_glyph_black_square_for_stop "\xE2\x8F\xB9"
+
+// Black Circle For Record
+// https://compart.com/en/unicode/U+23FA
+#define ui_glyph_black_circle_for_record "\xE2\x8F\xBA"
+
+// Negative Squared Latin Capital Letter "I"
+// https://compart.com/en/unicode/U+1F158
+#define ui_glyph_negative_squared_latin_capital_letter_i "\xF0\x9F\x85\x98"
+#define ui_glyph_info ui_glyph_negative_squared_latin_capital_letter_i
+
+// Circled Information Source
+// https://compart.com/en/unicode/U+1F6C8
+#define ui_glyph_circled_information_source "\xF0\x9F\x9B\x88"
+
+// Information Source
+// https://compart.com/en/unicode/U+2139
+#define ui_glyph_information_source "\xE2\x84\xB9"
+
+// Squared Cool
+// https://compart.com/en/unicode/U+1F192
+#define ui_glyph_squared_cool "\xF0\x9F\x86\x92"
+
+// Squared OK
+// https://compart.com/en/unicode/U+1F197
+#define ui_glyph_squared_ok "\xF0\x9F\x86\x97"
+
+// Squared Free
+// https://compart.com/en/unicode/U+1F193
+#define ui_glyph_squared_free "\xF0\x9F\x86\x93"
+
+// Squared New
+// https://compart.com/en/unicode/U+1F195
+#define ui_glyph_squared_new "\xF0\x9F\x86\x95"
+
+// Lady Beetle
+// https://compart.com/en/unicode/U+1F41E
+#define ui_glyph_lady_beetle "\xF0\x9F\x90\x9E"
+
+// Brain
+// https://compart.com/en/unicode/U+1F9E0
+#define ui_glyph_brain "\xF0\x9F\xA7\xA0"
+
+// South West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2926
+#define ui_glyph_south_west_arrow_with_hook "\xE2\xA4\xA6"
+
+// North West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2923
+#define ui_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"
+
+// White Sun with Rays
+// https://www.compart.com/en/unicode/U+263C
+#define ui_glyph_white_sun_with_rays "\xE2\x98\xBC"
+
+// Black Sun with Rays
+// https://www.compart.com/en/unicode/U+2600
+#define ui_glyph_black_sun_with_rays "\xE2\x98\x80"
+
+// Sun Behind Cloud
+// https://www.compart.com/en/unicode/U+26C5
+#define ui_glyph_sun_behind_cloud "\xE2\x9B\x85"
+
+// White Sun
+// https://www.compart.com/en/unicode/U+1F323
+#define ui_glyph_white_sun "\xF0\x9F\x8C\xA3"
+
+// Crescent Moon
+// https://www.compart.com/en/unicode/U+1F319
+#define ui_glyph_crescent_moon "\xF0\x9F\x8C\x99"
+
+// Latin Capital Letter E with Cedilla and Breve
+// https://compart.com/en/unicode/U+1E1C
+#define ui_glyph_E_with_cedilla_and_breve "\xE1\xB8\x9C"
+
+// Box Drawings Heavy Vertical and Horizontal
+// https://compart.com/en/unicode/U+254B
+#define ui_glyph_box_drawings_heavy_vertical_and_horizontal "\xE2\x95\x8B"
+
+// Box Drawings Light Diagonal Cross
+// https://compart.com/en/unicode/U+2573
+#define ui_glyph_box_drawings_light_diagonal_cross "\xE2\x95\xB3"
+
+// Combining Enclosing Square
+// https://compart.com/en/unicode/U+20DE
+#define ui_glyph_combining_enclosing_square "\xE2\x83\x9E"
+
+// Combining Enclosing Screen
+// https://compart.com/en/unicode/U+20E2
+#define ui_glyph_combining_enclosing_screen "\xE2\x83\xA2"
+
+// Combining Enclosing Keycap
+// https://compart.com/en/unicode/U+20E3
+#define ui_glyph_combining_enclosing_keycap "\xE2\x83\xA3"
+
+// Combining Enclosing Circle
+// https://compart.com/en/unicode/U+20DD
+#define ui_glyph_combining_enclosing_circle "\xE2\x83\x9D"
+
+// Frame with Picture
+// https://compart.com/en/unicode/U+1F5BC
+#define ui_glyph_frame_with_picture "\xF0\x9F\x96\xBC"
+// with emoji variation selector: "\xF0\x9F\x96\xBC\xEF\xB8\x8F"
+
+// Document with Picture
+// https://compart.com/en/unicode/U+1F5BB
+#define ui_glyph_document_with_picture "\xF0\x9F\x96\xBB"
+
+// Frame with Tiles
+// https://compart.com/en/unicode/U+1F5BD
+#define ui_glyph_frame_with_tiles "\xF0\x9F\x96\xBD"
+
+// Frame with an X
+// https://compart.com/en/unicode/U+1F5BE
+#define ui_glyph_frame_with_an_x "\xF0\x9F\x96\xBE"
+
+// Left Right Arrow
+// https://compart.com/en/unicode/U+2194
+#define ui_glyph_left_right_arrow "\xE2\x86\x94"
+
+// Up Down Arrow
+// https://compart.com/en/unicode/U+2195
+#define ui_glyph_up_down_arrow "\xE2\x86\x95"
 
 // ________________________________ ui_core.h _________________________________
 
-rt_begin_c
+posix_begin_c
 
 struct ui_point { int32_t x, y; };
 struct ui_rect { int32_t x, y, w, h; };
@@ -183,12 +796,12 @@ extern struct ui_if ui;
 // "pixels" on MacOS. Windows used to use "dialog units" which
 // is font size based and this is where the idea is inherited from.
 
-rt_end_c
+posix_end_c
 
 
 // _______________________________ ui_colors.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
@@ -468,18 +1081,17 @@ extern struct ui_colors_if ui_colors;
 // it would be super cool to implement a plethora of palettes
 // with named colors and app "themes" that can be switched
 
-rt_end_c
+posix_end_c
 // _______________________________ ui_fuzzing.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
 // ___________________________________ ui.h ___________________________________
 
 // alphabetical order is not possible because of headers interdependencies
 
 // ________________________________ ui_draw.h _________________________________
 
-rt_begin_c
+posix_begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -636,14 +1248,14 @@ struct ui_draw_if {
         int32_t w, const char* format, va_list va); // "w" can be zero
     struct ui_wh (*multiline)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
-    // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
+    // x[posix_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
     struct ui_wh (*glyphs_placement)(const struct ui_ta* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
 };
 
 extern struct ui_draw_if ui_draw;
 
-rt_end_c
+posix_end_c
 // __________________________________ dxd.h ___________________________________
 
 // Direct2D + DirectWrite drawing backend for ui_draw.
@@ -731,7 +1343,7 @@ struct ui_wh dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t byt
 
 // ________________________________ ui_view.h _________________________________
 
-rt_begin_c
+posix_begin_c
 
 enum ui_view_type_t {
     ui_view_stack     = 'vwst',
@@ -753,7 +1365,7 @@ struct ui_view;
 struct ui_view_private { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
-    fp64_t armed_until; // rt_clock.seconds() - when to release
+    fp64_t armed_until; // posix_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
 };
@@ -1005,12 +1617,12 @@ extern struct ui_view_if ui_view;
 } while (0)
 
 
-rt_end_c
+posix_end_c
 // _____________________________ ui_containers.h ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
-rt_begin_c
+posix_begin_c
 
 struct ui_view;
 
@@ -1061,12 +1673,12 @@ void ui_view_init_span(struct ui_view* v);
 void ui_view_init_list(struct ui_view* v);
 void ui_view_init_spacer(struct ui_view* v);
 
-rt_end_c
+posix_end_c
 // ______________________________ ui_edit_doc.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
-rt_begin_c
+posix_begin_c
 
 struct ui_edit_str;
 
@@ -1082,10 +1694,10 @@ struct ui_edit_pg { // page/glyph coordinates
     int32_t gp; // zero based glyph position ("column")
 };
 
-union rt_begin_packed ui_edit_range {
+union posix_begin_packed ui_edit_range {
     struct { struct ui_edit_pg from; struct ui_edit_pg to; };
     struct ui_edit_pg a[2];
-} rt_end_packed; // "from"[0] "to"[1]
+} posix_end_packed; // "from"[0] "to"[1]
 
 struct ui_edit_text {
     int32_t np;   // number of paragraphs
@@ -1206,7 +1818,7 @@ struct ui_edit_text_if {
 
 extern struct ui_edit_text_if ui_edit_text;
 
-struct rt_begin_packed ui_edit_str {
+struct posix_begin_packed ui_edit_str {
     char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -1214,7 +1826,7 @@ struct rt_begin_packed ui_edit_str {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} rt_end_packed;
+} posix_end_packed;
 
 struct ui_edit_str_if {
     bool (*init)(struct ui_edit_str* s, const char* utf8, int32_t bytes, bool heap);
@@ -1291,12 +1903,12 @@ extern struct ui_edit_str_if ui_edit_str;
 */
 
 
-rt_end_c
+posix_end_c
 // ______________________________ ui_edit_view.h ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
-rt_begin_c
+posix_begin_c
 
 // important struct ui_edit_view will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
@@ -1491,11 +2103,11 @@ extern struct ui_edit_view_if ui_edit_view;
     other API that expects zero terminated strings.
 */
 
-rt_end_c
+posix_end_c
 
 // ________________________________ ui_label.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_label_t;
 
@@ -1531,11 +2143,11 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 // which is subtle C difference of constant and
 // variable initialization and I did not find universal way
 
-rt_end_c
+posix_end_c
 
 // _______________________________ ui_button.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_button_t;
 
@@ -1625,11 +2237,11 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // }
 
 
-rt_end_c
+posix_end_c
 
 // ________________________________ ui_image.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 // "image view"
 
@@ -1691,7 +2303,7 @@ struct ui_image_if {
 
 extern struct ui_image_if ui_image;
 
-rt_end_c
+posix_end_c
 
 // ________________________________ ui_midi.h _________________________________
 
@@ -1764,7 +2376,7 @@ extern struct ui_midi_if ui_midi;
 
 // _______________________________ ui_slider.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 struct ui_slider;
 
@@ -1840,12 +2452,12 @@ void ui_slider_init(struct ui_slider* r, const char* label, fp32_t min_w_em,
     .value_min = mn, .value_max = mx, .value = mn,                  \
 }
 
-rt_end_c
+posix_end_c
 // ________________________________ ui_theme.h ________________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
-rt_begin_c
+posix_begin_c
 
 enum {
     ui_theme_app_mode_default     = 0,
@@ -1868,11 +2480,11 @@ struct ui_theme_if {
 
 extern struct ui_theme_if ui_theme;
 
-rt_end_c
+posix_end_c
 
 // _______________________________ ui_toggle.h ________________________________
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_toggle_t;
 
@@ -1924,11 +2536,11 @@ void ui_view_init_toggle(struct ui_view* v);
     }                                                       \
 }
 
-rt_end_c
+posix_end_c
 
 // _________________________________ ui_mbx.h _________________________________
 
-rt_begin_c
+posix_begin_c
 
 // Options like:
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
@@ -1990,12 +2602,12 @@ void ui_mbx_init(struct ui_mbx* mx, const char* option[], const char* format, ..
     .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
-rt_end_c
+posix_end_c
 // _______________________________ ui_caption.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
-rt_begin_c
+posix_begin_c
 
 struct ui_caption {
     struct ui_view view;
@@ -2013,11 +2625,11 @@ struct ui_caption {
 
 extern struct ui_caption ui_caption;
 
-rt_end_c
+posix_end_c
 
 // _________________________________ ui_app.h _________________________________
 
-rt_begin_c
+posix_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
@@ -2120,7 +2732,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     struct ui_rect work_area; // current monitor work area
     int32_t   caption_height; // caption height
     struct ui_wh   border;    // frame border size
-    // not to call rt_clock.seconds() too often:
+    // not to call posix_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
     struct ui_view* root; // show_window() changes ui.hidden
     struct ui_view* content;
@@ -2164,7 +2776,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     struct ui_app_message_handler* handlers;
     // post(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
+    void (*post)(struct posix_work* work); // work.when == 0 meaning ASAP
     void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
@@ -2216,7 +2828,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, rt_countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, posix_countof(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
@@ -2229,21 +2841,21 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
-    fp64_t paint_last; // rt_clock.seconds() of last paint
+    fp64_t paint_last; // posix_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
 };
 
 extern struct ui_app ui_app;
 
-rt_end_c
+posix_end_c
 
-rt_begin_c
+posix_begin_c
 
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
 
 struct ui_fuzzing {
-    rt_work_t    base;
+    struct posix_work    base;
     const char*  utf8; // .character(utf8)
     int32_t      key;  // .key_pressed(key)/.key_released(key)
     struct ui_point*  pt;   // .move_move()
@@ -2276,7 +2888,7 @@ struct ui_fuzzing_if {
 
 extern struct ui_fuzzing_if ui_fuzzing;
 
-rt_end_c
+posix_end_c
 
 
 #endif // ui_definition
@@ -2284,8 +2896,7 @@ rt_end_c
 #ifdef ui_implementation
 // _________________________________ ui_app.c _________________________________
 
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
@@ -2300,11 +2911,11 @@ static WNDCLASSW ui_app_wc; // window class
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 
-static rt_event_t ui_app_event_quit;
-static rt_event_t ui_app_event_invalidate;
-static rt_event_t ui_app_wt; // waitable timer;
+static posix_event_t ui_app_event_quit;
+static posix_event_t ui_app_event_invalidate;
+static posix_event_t ui_app_wt; // waitable timer;
 
-static rt_work_queue_t ui_app_queue;
+static struct posix_work_queue ui_app_queue;
 
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
@@ -2329,7 +2940,7 @@ static struct {
 // 32ms intervals and can be delayed.
 
 static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    rt_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
+    posix_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
             (WPARAM)wp, (LPARAM)lp));
 }
 
@@ -2337,21 +2948,21 @@ static fp64_t ui_app_last_next_due_at;
 
 static void ui_app_update_wt_timeout(void) {
     fp64_t next_due_at = -1.0;
-    rt_atomics.spinlock_acquire(&ui_app_queue.lock);
+    posix_atomics.spinlock_acquire(&ui_app_queue.lock);
     if (ui_app_queue.head != null) {
         next_due_at = ui_app_queue.head->when;
     }
-    rt_atomics.spinlock_release(&ui_app_queue.lock);
+    posix_atomics.spinlock_release(&ui_app_queue.lock);
     if (next_due_at >= 0) {
-        fp64_t dt = next_due_at - rt_clock.seconds();
+        fp64_t dt = next_due_at - posix_clock.seconds();
         if (dt <= 0) {
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (ui_app_last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-            rt_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
-            rt_fatal_win32err(
+            posix_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
+            posix_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
@@ -2359,20 +2970,20 @@ static void ui_app_update_wt_timeout(void) {
     }
 }
 
-static void ui_app_post(rt_work_t* w) {
+static void ui_app_post(struct posix_work* w) {
     if (w->queue == null) { w->queue = &ui_app_queue; }
     // work item can be reused but only with the same queue
-    rt_assert(w->queue == &ui_app_queue);
-    rt_work_queue.post(w);
+    posix_assert(w->queue == &ui_app_queue);
+    posix_work_queue.post(w);
     ui_app_update_wt_timeout();
 }
 
-static void ui_app_alarm_thread(void* rt_unused(p)) {
-    rt_thread.realtime();
-    rt_thread.name("ui_app.alarm");
+static void ui_app_alarm_thread(void* posix_unused(p)) {
+    posix_thread.realtime();
+    posix_thread.name("ui_app.alarm");
     for (;;) {
-        rt_event_t es[] = { ui_app_wt, ui_app_event_quit };
-        int32_t ix = rt_event.wait_any(rt_countof(es), es);
+        posix_event_t es[] = { ui_app_wt, ui_app_event_quit };
+        int32_t ix = posix_event.wait_any(posix_countof(es), es);
         if (ix == 0) {
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
@@ -2386,12 +2997,12 @@ static void ui_app_alarm_thread(void* rt_unused(p)) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void ui_app_redraw_thread(void* rt_unused(p)) {
-    rt_thread.realtime();
-    rt_thread.name("ui_app.redraw");
+static void ui_app_redraw_thread(void* posix_unused(p)) {
+    posix_thread.realtime();
+    posix_thread.name("ui_app.redraw");
     for (;;) {
-        rt_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = rt_event.wait_any(rt_countof(es), es);
+        posix_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
+        int32_t ix = posix_event.wait_any(posix_countof(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -2434,7 +3045,7 @@ static RECT ui_app_ui2rect(const struct ui_rect* u) {
 
 static void ui_app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
-    rt_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
+    posix_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
         sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
@@ -2452,7 +3063,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, struct ui_dpi* dpi) {
         // The device may need to be manually reset."
         int32_t r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         if (r != 0) {
-            rt_thread.sleep_for(1.0 / 32); // and retry:
+            posix_thread.sleep_for(1.0 / 32); // and retry:
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         }
         if (r == 0) {
@@ -2467,50 +3078,50 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, struct ui_dpi* dpi) {
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
-//                  rt_println("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
+//                  posix_println("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_ANGULAR_DPI:
                     dpi->monitor_angular = max_xy;
-//                  rt_println("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
+//                  posix_println("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_RAW_DPI:
                     dpi->monitor_raw = max_xy;
-//                  rt_println("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
+//                  posix_println("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
                     break;
-                default: rt_assert(false);
+                default: posix_assert(false);
             }
             dpi->monitor_max = dpi->monitor_max > max_xy ? dpi->monitor_max : max_xy;
         }
     }
-//  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
+//  posix_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
 #ifdef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
-    rt_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
-    rt_println("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
-    rt_println("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
-    rt_println("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
-    rt_println("ui_app.dpi.window           : %d", ui_app.dpi.window             );
-    rt_println("ui_app.dpi.system           : %d", ui_app.dpi.system             );
-    rt_println("ui_app.dpi.process          : %d", ui_app.dpi.process            );
-    rt_println("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
+    posix_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
+    posix_println("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
+    posix_println("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
+    posix_println("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
+    posix_println("ui_app.dpi.window           : %d", ui_app.dpi.window             );
+    posix_println("ui_app.dpi.system           : %d", ui_app.dpi.system             );
+    posix_println("ui_app.dpi.process          : %d", ui_app.dpi.process            );
+    posix_println("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
                                              ui_app.mrc.w, ui_app.mrc.h);
-    rt_println("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
+    posix_println("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
                                              ui_app.wrc.w, ui_app.wrc.h);
-    rt_println("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
+    posix_println("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
                                              ui_app.crc.w, ui_app.crc.h);
-    rt_println("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
+    posix_println("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
                                              ui_app.work_area.w, ui_app.work_area.h);
     int32_t mxt_x = GetSystemMetrics(SM_CXMAXTRACK);
     int32_t mxt_y = GetSystemMetrics(SM_CYMAXTRACK);
-    rt_println("MAXTRACK: %d, %d", mxt_x, mxt_y);
+    posix_println("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
     fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_max;
     fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_max;
-    rt_println("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
+    posix_println("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
 #endif
@@ -2522,7 +3133,7 @@ static bool ui_app_update_mi(const struct ui_rect* r, uint32_t flags) {
 //  HMONITOR mw = MonitorFromWindow(ui_app_window(), flags);
     if (monitor != null) {
         ui_app_update_monitor_dpi(monitor, &ui_app.dpi);
-        rt_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
+        posix_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
         ui_app.work_area = ui_app_rect2ui(&ui_app_mi.rcWork);
         ui_app.mrc = ui_app_rect2ui(&ui_app_mi.rcMonitor);
 //      ui_app_dump_dpi();
@@ -2532,7 +3143,7 @@ static bool ui_app_update_mi(const struct ui_rect* r, uint32_t flags) {
 
 static void ui_app_update_crc(void) {
     RECT rc = {0};
-    rt_fatal_win32err(GetClientRect(ui_app_window(), &rc));
+    posix_fatal_win32err(GetClientRect(ui_app_window(), &rc));
     ui_app.crc = ui_app_rect2ui(&rc);
 }
 
@@ -2556,7 +3167,7 @@ static void ui_app_dispose_fonts(void) {
 }
 
 static fp64_t ui_app_px2pt(fp64_t px) {
-    rt_assert(ui_app.dpi.window >= 72.0);
+    posix_assert(ui_app.dpi.window >= 72.0);
     return px * 72.0 / (fp64_t)ui_app.dpi.window;
 }
 
@@ -2594,11 +3205,11 @@ static void ui_app_ncm_dump_fonts(void) {
     const char* font_names[] = {
         "Caption", "SmCaption", "Menu", "Status", "Message"
     };
-    for (int32_t i = 0; i < rt_countof(fonts); i++) {
+    for (int32_t i = 0; i < posix_countof(fonts); i++) {
         const LOGFONTW* lf = fonts[i];
         char fn[128];
-        rt_str.utf16to8(fn, rt_countof(fn), lf->lfFaceName, -1);
-        rt_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
+        posix_str.utf16to8(fn, posix_countof(fn), lf->lfFaceName, -1);
+        posix_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
                    lf->lfWidth, lf->lfHeight, lf->lfWeight, lf->lfQuality);
     }
 #endif
@@ -2606,9 +3217,9 @@ static void ui_app_ncm_dump_fonts(void) {
 
 static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
                                   struct ui_fm* fm) {
-    rt_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
-    rt_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
-    rt_swear(ui_app.dpi.window >= 72);
+    posix_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
+    posix_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
+    posix_swear(ui_app.dpi.window >= 72);
     // "The height, in logical units, of the font's character cell or character.
     //  The character height value (also known as the em height) is the
     //  character cell height value minus the internal-leading value."
@@ -2616,7 +3227,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
         int32_t ascender = fm->baseline - fm->ascent;
         int32_t cell = fm->height - ascender - fm->descent;
         fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
-        rt_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
+        posix_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
                    "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
                     name, lf->lfHeight, fm->height, pt,
                     ascender, cell, fm->descent, fm->baseline,
@@ -2630,7 +3241,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
             int32_t by = (int32_t)(fm->box.y * sf + 0.5);
             int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
             int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
-            rt_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+            posix_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
         #endif
     #else
         (void)name; // unused
@@ -2651,7 +3262,7 @@ static void ui_app_init_fms(struct ui_fms* fms, const LOGFONTW* base) {
     ui_draw.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("normal", &lf, &fms->normal);
     const fp64_t fh = lf.lfHeight;
-    rt_swear(fh != 0);
+    posix_swear(fh != 0);
     lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
     ui_draw.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("tiny", &lf, &fms->tiny);
@@ -2680,29 +3291,29 @@ static void ui_app_init_fonts(int32_t dpi) {
     if (ui_app.fm.prop.normal.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW mono = ui_app_ncm.lfMessageFont;
     // TODO: how to get name of monospaced from Win32 API?
-    wcscpy_s(mono.lfFaceName, rt_countof(mono.lfFaceName), L"Cascadia Mono");
+    wcscpy_s(mono.lfFaceName, posix_countof(mono.lfFaceName), L"Cascadia Mono");
     mono.lfPitchAndFamily |= FIXED_PITCH;
-//  rt_println("ui_app.fm.mono");
+//  posix_println("ui_app.fm.mono");
     ui_app_init_fms(&ui_app.fm.mono, &mono);
     LOGFONTW prop = ui_app_ncm.lfMessageFont;
     prop.lfHeight--; // inc by 1
-//  rt_println("ui_app.fm.prop");
+//  posix_println("ui_app.fm.prop");
     ui_app_init_fms(&ui_app.fm.prop, &ui_app_ncm.lfMessageFont);
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
-    rt_config.save(ui_app.class_name, name, data, bytes);
+    posix_config.save(ui_app.class_name, name, data, bytes);
 }
 
 static int32_t ui_app_data_size(const char* name) {
-    return rt_config.size(ui_app.class_name, name);
+    return posix_config.size(ui_app.class_name, name);
 }
 
 static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
-    return rt_config.load(ui_app.class_name, name, data, bytes);
+    return posix_config.load(ui_app.class_name, name, data, bytes);
 }
 
-rt_begin_packed struct ui_app_wiw { // "where is window"
+posix_begin_packed struct ui_app_wiw { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
@@ -2717,13 +3328,13 @@ rt_begin_packed struct ui_app_wiw { // "where is window"
     int32_t    dpi;          // of the monitor on which window (x,y) is located
     int32_t    flags;        // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED
     int32_t    show;         // show command
-} rt_end_packed;
+} posix_end_packed;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
-        HDC rt_unused(hdc), RECT* rt_unused(rc1), LPARAM that) {
+        HDC posix_unused(hdc), RECT* posix_unused(rc1), LPARAM that) {
     struct ui_app_wiw* wiw = (struct ui_app_wiw*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
-    rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
+    posix_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t l = mi.rcMonitor.left, r = mi.rcMonitor.right;
     const int32_t t = mi.rcMonitor.top,  b = mi.rcMonitor.bottom;
@@ -2748,11 +3359,11 @@ static void ui_app_enum_monitors(struct ui_app_wiw* wiw) {
 
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
-    rt_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
+    posix_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
     struct ui_rect wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
-    rt_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
+    posix_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
     struct ui_app_wiw wiw = { // where is window
         .bytes = sizeof(struct ui_app_wiw),
@@ -2771,24 +3382,24 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
     };
     ui_app_enum_monitors(&wiw);
     if (dump) {
-        rt_println("wiw.space: %d,%d %dx%d",
+        posix_println("wiw.space: %d,%d %dx%d",
               wiw.space.x, wiw.space.y, wiw.space.w, wiw.space.h);
-        rt_println("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
-        rt_println("wpl.rcNormalPosition: %d,%d %dx%d",
+        posix_println("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
+        posix_println("wpl.rcNormalPosition: %d,%d %dx%d",
             wpl.rcNormalPosition.left, wpl.rcNormalPosition.top,
             wpl.rcNormalPosition.right - wpl.rcNormalPosition.left,
             wpl.rcNormalPosition.bottom - wpl.rcNormalPosition.top);
-        rt_println("wpl.ptMinPosition: %d,%d",
+        posix_println("wpl.ptMinPosition: %d,%d",
             wpl.ptMinPosition.x, wpl.ptMinPosition.y);
-        rt_println("wpl.ptMaxPosition: %d,%d",
+        posix_println("wpl.ptMaxPosition: %d,%d",
             wpl.ptMaxPosition.x, wpl.ptMaxPosition.y);
-        rt_println("wpl.showCmd: %d", wpl.showCmd);
+        posix_println("wpl.showCmd: %d", wpl.showCmd);
         // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED WPF_ASYNCWINDOWPLACEMENT
-        rt_println("wpl.flags: %d", wpl.flags);
+        posix_println("wpl.flags: %d", wpl.flags);
     }
-//  rt_println("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
+//  posix_println("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
 //      wiw.placement.w, wiw.placement.h, wiw.show);
-    rt_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
+    posix_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
     ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
 }
 
@@ -2798,21 +3409,21 @@ static void ui_app_save_console_pos(void) {
         ui_app_save_window_pos((ui_window_t)cw, "wic", false);
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
+        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : posix_core.err();
         if (r != 0) {
-            rt_println("GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
+            posix_println("GetConsoleScreenBufferInfoEx() %s", posix_strerr(r));
         } else {
-            rt_config.save(ui_app.class_name, "console_screen_buffer_infoex",
+            posix_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
-//          rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//          rt_println("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
+//          posix_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//          posix_println("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
 //              info.srWindow.Right - info.srWindow.Left,
 //              info.srWindow.Bottom - info.srWindow.Top);
         }
     }
     int32_t v = ui_app.is_console_visible();
     // "icv" "is console visible"
-    rt_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
+    posix_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
 static bool ui_app_is_fully_inside(const struct ui_rect* inner,
@@ -2823,7 +3434,7 @@ static bool ui_app_is_fully_inside(const struct ui_rect* inner,
 }
 
 static void ui_app_bring_window_inside_monitor(const struct ui_rect* mrc, struct ui_rect* wrc) {
-    rt_assert(mrc->w > 0 && mrc->h > 0);
+    posix_assert(mrc->w > 0 && mrc->h > 0);
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
@@ -2839,25 +3450,25 @@ static void ui_app_bring_window_inside_monitor(const struct ui_rect* mrc, struct
 
 static bool ui_app_load_window_pos(struct ui_rect* rect, int32_t *visibility) {
     struct ui_app_wiw wiw = {0}; // where is window
-    bool loaded = rt_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
+    bool loaded = posix_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         #ifdef UI_APP_DEBUG
-            rt_println("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
+            posix_println("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
                 wiw.placement.w, wiw.placement.h);
-            rt_println("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
-            rt_println("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
+            posix_println("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
+            posix_println("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
                                                   wiw.work_area.w, wiw.work_area.h);
-            rt_println("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
-            rt_println("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
-            rt_println("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
-            rt_println("wiw.dpi: %d", wiw.dpi);
-            rt_println("wiw.flags: %d", wiw.flags);
-            rt_println("wiw.show: %d", wiw.show);
+            posix_println("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
+            posix_println("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
+            posix_println("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
+            posix_println("wiw.dpi: %d", wiw.dpi);
+            posix_println("wiw.flags: %d", wiw.flags);
+            posix_println("wiw.show: %d", wiw.show);
         #endif
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      rt_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      posix_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -2872,21 +3483,21 @@ static bool ui_app_load_window_pos(struct ui_rect* rect, int32_t *visibility) {
         }
         *visibility = wiw.show;
     }
-//  rt_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  posix_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     ui_app_bring_window_inside_monitor(&ui_app.mrc, rect);
-//  rt_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  posix_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     return loaded;
 }
 
 static bool ui_app_load_console_pos(struct ui_rect* rect, int32_t *visibility) {
     struct ui_app_wiw wiw = {0}; // where is window
     *visibility = 0; // boolean
-    bool loaded = rt_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
+    bool loaded = posix_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      rt_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      posix_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -2906,15 +3517,15 @@ static bool ui_app_load_console_pos(struct ui_rect* rect, int32_t *visibility) {
 }
 
 static void ui_app_timer_kill(ui_timer_t timer) {
-    rt_fatal_win32err(KillTimer(ui_app_window(), timer));
+    posix_fatal_win32err(KillTimer(ui_app_window(), timer));
 }
 
 static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
-    rt_not_null(ui_app_window());
-    rt_assert(10 <= ms && ms < 0x7FFFFFFF);
+    posix_not_null(ui_app_window());
+    posix_assert(10 <= ms && ms < 0x7FFFFFFF);
     ui_timer_t tid = (ui_timer_t)SetTimer(ui_app_window(), id, (uint32_t)ms, null);
-    rt_fatal_if(tid == 0);
-    rt_assert(tid == id);
+    posix_fatal_if(tid == 0);
+    posix_assert(tid == id);
     return tid;
 }
 
@@ -2955,15 +3566,15 @@ static void ui_app_window_opening(void) {
     ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
-    rt_assert(ui_app.cursors.arrow != null);
+    posix_assert(ui_app.cursors.arrow != null);
     ui_app.set_cursor(ui_app.cursors.arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
-    rt_not_null(ui_app.canvas);
+    posix_not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
     ui_view.set_text(ui_app.root, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
-    rt_fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
+    posix_fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
     ui_app.canvas = null;
     ui_app.request_layout(); // request layout
     if (ui_app.last_visibility == ui.visibility.maximize) {
@@ -3012,7 +3623,7 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void ui_app_paint(struct ui_view* view) {
-    rt_assert(ui_app_window() != null);
+    posix_assert(ui_app_window() != null);
     // crc = {0,0} on minimized windows but paint is still called
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0) { ui_view.paint(view); }
 }
@@ -3032,9 +3643,9 @@ static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed);
 
 static void ui_app_dispatch_wm_char(struct ui_view* view, const uint16_t* utf16) {
     char utf8[32 + 1];
-    int32_t utf8bytes = rt_str.utf8_bytes(utf16, -1);
-    rt_swear(utf8bytes < rt_countof(utf8) - 1); // 32 bytes + 0x00
-    rt_str.utf16to8(utf8, rt_countof(utf8), utf16, -1);
+    int32_t utf8bytes = posix_str.utf8_bytes(utf16, -1);
+    posix_swear(utf8bytes < posix_countof(utf8) - 1); // 32 bytes + 0x00
+    posix_str.utf16to8(utf8, posix_countof(utf8), utf16, -1);
     utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
@@ -3045,12 +3656,12 @@ static void ui_app_dispatch_wm_char(struct ui_view* view, const uint16_t* utf16)
 }
 
 static void ui_app_wm_char(struct ui_view* view, const uint16_t* utf16) {
-    int32_t utf16chars = rt_str.len16(utf16);
-    rt_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
+    int32_t utf16chars = posix_str.len16(utf16);
+    posix_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
-    if (utf16chars == 1 && rt_str.utf16_is_high_surrogate(utf16char)) {
+    if (utf16chars == 1 && posix_str.utf16_is_high_surrogate(utf16char)) {
         ui_app_high_surrogate = utf16char;
-    } else if (utf16chars == 1 && rt_str.utf16_is_low_surrogate(utf16char)) {
+    } else if (utf16chars == 1 && posix_str.utf16_is_low_surrogate(utf16char)) {
         if (ui_app_high_surrogate != 0) {
             uint16_t utf16_surrogate_pair[3] = {
                 ui_app_high_surrogate,
@@ -3094,7 +3705,7 @@ static bool ui_app_mouse(struct ui_view* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDOWN || m == WM_LBUTTONUP) ? 0 :
             ((m == WM_MBUTTONDOWN || m == WM_MBUTTONUP) ? 1 :
             ((m == WM_RBUTTONDOWN || m == WM_RBUTTONUP) ? 2 : -1));
-        rt_swear(i >= 0);
+        posix_swear(i >= 0);
         const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
         const bool pressed =
             m == WM_LBUTTONDOWN ||
@@ -3117,7 +3728,7 @@ static bool ui_app_mouse(struct ui_view* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDBLCLK) ? 0 :
             ((m == WM_MBUTTONDBLCLK) ? 1 :
             ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
-        rt_swear(i >= 0);
+        posix_swear(i >= 0);
         if (av != null && av->double_tap != null) {
             const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
             swallow = ui_view.double_tap(av, ix);
@@ -3127,7 +3738,7 @@ static bool ui_app_mouse(struct ui_view* v, int32_t m, int64_t f) {
         // Unexpected mouse message id -- log in debug, ignore in
         // release. Reachable from third-party input drivers that
         // synthesize Win32 messages outside the standard set.
-        rt_assert(false, "ui_app_mouse: unhandled m: 0x%04X", m);
+        posix_assert(false, "ui_app_mouse: unhandled m: 0x%04X", m);
     }
     return swallow;
 }
@@ -3176,7 +3787,7 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     if (!ui_view.is_hidden(ui_app.caption) && inside) {
         uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == lr) {
-//          rt_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+//          posix_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
             swallow = true;
             ui_app_show_sys_menu(screen.x, screen.y);
         }
@@ -3206,10 +3817,10 @@ static void ui_app_toast_paint(void) {
         const int32_t em_w = av->fm->em.w;
         const int32_t em_h = av->fm->em.h;
         if (!hint) {
-            rt_assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
+            posix_assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             av->y = av->h * step / (ui_app_animation_steps - 1);
-//          rt_println("step=%d of %d y=%d", ui_app.animating.step,
+//          posix_println("step=%d of %d y=%d", ui_app.animating.step,
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
@@ -3219,7 +3830,7 @@ static void ui_app_toast_paint(void) {
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
-//          rt_println("ui_app.animating.y: %d av->y: %d",
+//          posix_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         } else {
             av->x = ui_app.animating.x;
@@ -3232,7 +3843,7 @@ static void ui_app_toast_paint(void) {
             const int32_t y = 0 > ui_app.animating.y ? 0 : ui_app.animating.y;
             const int32_t h = ui_app.root->h - em_h;
             av->y = h < y ? h : y;
-//          rt_println("ui_app.animating.y: %d av->y: %d",
+//          posix_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
         int32_t x = av->x - em_w / 4;
@@ -3260,7 +3871,7 @@ static void ui_app_toast_paint(void) {
                     .color_id = ui_color_id_window_text
                 };
                 ui_draw.text(&ta, tx, ty, "%s",
-                                 rt_glyph_multiplication_sign);
+                                 ui_glyph_multiplication_sign);
             }
         }
     }
@@ -3295,7 +3906,7 @@ static void ui_app_toast_cancel(void) {
 
 static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false;
-    rt_swear(v == ui_app.animating.view);
+    posix_swear(v == ui_app.animating.view);
     if (pressed) {
         const struct ui_fm* fm = v->fm;
         const int32_t right = v->x + v->w;
@@ -3386,8 +3997,8 @@ static void ui_app_view_paint(struct ui_view* v) {
 }
 
 static void ui_app_view_layout(void) {
-    rt_not_null(ui_app.window);
-    rt_not_null(ui_app.canvas);
+    posix_not_null(ui_app.window);
+    posix_not_null(ui_app.canvas);
     if (ui_app.no_decor) {
         ui_app.root->x = ui_app.border.w;
         ui_app.root->y = ui_app.border.h;
@@ -3406,7 +4017,7 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_colors.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_colors.get_color(ui_color_id_inactive_title);
-    rt_assert(ui_app.border.w == ui_app.border.h);
+    posix_assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
@@ -3416,7 +4027,7 @@ static void ui_app_view_active_frame_paint(void) {
 
 static void ui_app_paint_stats(void) {
     if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
-    ui_app.paint_time = rt_clock.seconds() - ui_app.now;
+    ui_app.paint_time = posix_clock.seconds() - ui_app.now;
     ui_app.paint_max = ui_app.paint_time > ui_app.paint_max ? ui_app.paint_time : ui_app.paint_max;
     if (ui_app.paint_avg == 0) {
         ui_app.paint_avg = ui_app.paint_time;
@@ -3442,7 +4053,7 @@ static void ui_app_paint_stats(void) {
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
             ui_app.paint_dt_min = ui_app.paint_dt_min < since_last ? ui_app.paint_dt_min : since_last;
         }
-//      rt_println("paint_dt_min: %.6f since_last: %.6f",
+//      posix_println("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
     }
     ui_app.paint_last = ui_app.now;
@@ -3495,7 +4106,7 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
     if (!ui_app.root->state.hidden && (moved || sized) &&
         !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
-        rt_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
+        posix_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
         ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
         ui_app_update_crc();
@@ -3515,19 +4126,19 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
-//      rt_println("wp: 0x%08X", wp);
+//      posix_println("wp: 0x%08X", wp);
         // actual wp == 0x0000
         ui_theme.refresh();
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
-        rt_println("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
+        posix_println("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, rt_countof(ln));
-        rt_fatal_if(n <= 0);
+        int32_t n = GetUserDefaultLocaleName(ln, posix_countof(ln));
+        posix_fatal_if(n <= 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, rt_countof(rln));
-        rt_fatal_if(n <= 0);
+        n = ResolveLocaleName(ln, rln, posix_countof(rln));
+        posix_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        rt_fatal_win32err(SetThreadLocale(lc_id));
+        posix_fatal_win32err(SetThreadLocale(lc_id));
     }
 }
 
@@ -3549,7 +4160,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma push_macro("ui_timers_done")
 
     #define ui_set_timer(t, ms) do {                 \
-        rt_assert(t == 0);                           \
+        posix_assert(t == 0);                           \
         t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
@@ -3591,11 +4202,11 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             if (wp == timer_p[i]) {
                 ui_app.mouse = (struct ui_point){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
-//              rt_println("timer_p[%d] _d && _p timers done", i);
+//              posix_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
             if (wp == timer_d[i]) {
-//              rt_println("timer_p[%d] _d && _p timers done", i);
+//              posix_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
         }
@@ -3604,7 +4215,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         ui_app.show_hint(null, -1, -1, 0); // dismiss hint on any click
         const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
         const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
-//      rt_println("double_click_msec: %d double_click_dt: %.3fs",
+//      posix_println("double_click_msec: %d double_click_dt: %.3fs",
 //               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
@@ -3616,40 +4227,40 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
                 ui_app.mouse = (struct ui_point){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
-//              rt_println("timer_p[%d] _d && _p timers done", ix);
+//              posix_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             } else {
-//              rt_println("timer_p[%d] _d && _p timers done", ix);
+//              posix_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix); // clear timers
                 clicked[ix]  = ui_app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
-//              rt_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
+//              posix_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
 //                          ix, clicked[ix], pt.x, pt.y, ix);
                 if ((ui_app_wc.style & CS_DBLCLKS) == 0) {
                     // only if Windows are not detecting DLBCLKs
-//                  rt_println("ui_set_timer(timer_d[%d])", ix);
+//                  posix_println("ui_set_timer(timer_d[%d])", ix);
                     ui_set_timer(timer_d[ix], double_click_msec);  // 0.5s
                 }
                 ui_set_timer(timer_p[ix], double_click_msec * 3 / 4); // 0.375s
             }
         } else if (up) {
             fp64_t since_clicked = ui_app.now - clicked[ix];
-//          rt_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
+//          posix_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
             // only if Windows are not detecting DLBCLKs
             if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
                  pressed[ix] && since_clicked > double_click_dt) {
                 ui_view.double_tap(ui_app.root, ix);
-//              rt_println("timer_p[%d] _d && _p timers done", ix);
+//              posix_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             }
             swallow = ui_view.tap(ui_app.root, ix, !up);
             ui_kill_timer(timer_p[ix]); // long press is not the case
         } else if (m == double_tap) {
-            rt_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
+            posix_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
             swallow = ui_view.double_tap(ui_app.root, ix);
             ui_timers_done(ix);
-//          rt_println("timer_p[%d] _d && _p timers done", ix);
+//          posix_println("timer_p[%d] _d && _p timers done", ix);
         }
     }
     #pragma pop_macro("ui_timers_done")
@@ -3659,9 +4270,9 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t ui_app_root_hit_test(const struct ui_view* v, struct ui_point pt) {
-    rt_swear(v == ui_app.root);
+    posix_swear(v == ui_app.root);
     if (ui_app.no_decor) {
-        rt_assert(ui_app.border.w == ui_app.border.h);
+        posix_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
         int32_t border = 4 > ui_app.border.w * 2 ? 4 : ui_app.border.w * 2;
@@ -3738,7 +4349,7 @@ static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
 
 static void ui_app_wm_set_focus(void) {
     if (!ui_app.root->state.hidden) {
-        rt_assert(GetActiveWindow() == ui_app_window());
+        posix_assert(GetActiveWindow() == ui_app_window());
         if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
             ui_app.focus->focus_gained(ui_app.focus);
         }
@@ -3755,7 +4366,7 @@ static void ui_app_wm_kill_focus(void) {
 
 static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
 //  NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
-//  rt_println("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
+//  posix_println("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
 //      wp, ui_app.is_maximized(),
 //      szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
 //      szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
@@ -3774,7 +4385,7 @@ static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
         int32_t dpi = wp;
         SIZE* sz = (SIZE*)lp; // in/out
         struct ui_point cell = { sz->cx, sz->cy };
-        rt_println("WM_GETDPISCALEDSIZE dpi %d := %d "
+        posix_println("WM_GETDPISCALEDSIZE dpi %d := %d "
             "size %d,%d *may/must* be adjusted",
             ui_app.dpi.window, dpi, cell.x, cell.y);
     #else
@@ -3803,7 +4414,7 @@ static void ui_app_wm_dpi_changed(void) {
 
 static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
-//  rt_println("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//  posix_println("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
 //          wp, lp, lp, sys_cmd);
     if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
         ui_app.show_window(ui.visibility.min_na);
@@ -3811,7 +4422,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
         ui_app.show_window(ui.visibility.min_na);
     }
-//  if (sys_cmd == SC_KEYMENU) { rt_println("SC_KEYMENU lp: %lld", lp); }
+//  if (sys_cmd == SC_KEYMENU) { posix_println("SC_KEYMENU lp: %lld", lp); }
     // If the selection is in menu handle the key event
     if (sys_cmd == SC_KEYMENU && lp != 0x20) {
         return true; // handled: This prevents the error/beep sound
@@ -3820,7 +4431,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
         return true; // handled: prevent maximizing no decorations window
     }
 //  if (sys_cmd == SC_MOUSEMENU) {
-//      rt_println("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//      posix_println("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
 //  }
     return false; // drop down to to DefWindowProc
 }
@@ -3828,11 +4439,11 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
 static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #ifdef UI_APP_DEBUG // TODO: ui_app.debug.trace.window_position?
         WINDOWPOS* pos = (WINDOWPOS*)lp;
-        rt_println("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+        posix_println("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
         if (pos->flags & SWP_SHOWWINDOW) {
-            rt_println("SWP_SHOWWINDOW");
+            posix_println("SWP_SHOWWINDOW");
         } else if (pos->flags & SWP_HIDEWINDOW) {
-            rt_println("SWP_HIDEWINDOW");
+            posix_println("SWP_HIDEWINDOW");
         }
     #else
         (void)wp; // unused
@@ -3881,9 +4492,9 @@ static void ui_app_wm_input_language_change(uint64_t wp) {
         { RUSSIAN_CHARSET    ,     "RUSSIAN_CHARSET    " },
         { BALTIC_CHARSET     ,     "BALTIC_CHARSET     " }
     };
-    for (int32_t i = 0; i < rt_countof(cs); i++) {
+    for (int32_t i = 0; i < posix_countof(cs); i++) {
         if (cs[i].charset == wp) {
-            rt_println("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
+            posix_println("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
             break;
         }
     }
@@ -3894,7 +4505,7 @@ static void ui_app_wm_input_language_change(uint64_t wp) {
 
 static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-    rt_swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
+    posix_swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
           m == WM_KEYUP   || m == WM_SYSKEYUP);
     uint16_t vk_code   = LOWORD(wp);
     uint16_t key_flags = HIWORD(lp);
@@ -3919,28 +4530,28 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     }
     static BYTE keyboard_state[256];
     uint16_t utf16[3] = {0};
-    rt_fatal_win32err(GetKeyboardState(keyboard_state));
+    posix_fatal_win32err(GetKeyboardState(keyboard_state));
     // HKL low word Language Identifier
     //     high word device handle to the physical layout of the keyboard
     const HKL kl = GetKeyboardLayout(0);
     // Map virtual key to scan code
     UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, kl);
-//  rt_println("virtual_key: %02X keyboard layout: %08X",
+//  posix_println("virtual_key: %02X keyboard layout: %08X",
 //              virtual_key, kl);
     memset(ui_app_decoded_released, 0x00, sizeof(ui_app_decoded_released));
     memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
     // Translate scan code to character
     int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
-                            utf16, rt_countof(utf16), 0, kl);
+                            utf16, posix_countof(utf16), 0, kl);
     if (r > 0) {
-        rt_static_assertion(rt_countof(ui_app_decoded_pressed) ==
-                            rt_countof(ui_app_decoded_released));
-        enum { capacity = (int32_t)rt_countof(ui_app_decoded_released) };
+        posix_static_assertion(posix_countof(ui_app_decoded_pressed) ==
+                            posix_countof(ui_app_decoded_released));
+        enum { capacity = (int32_t)posix_countof(ui_app_decoded_released) };
         char* utf8 = is_key_released ?
             ui_app_decoded_released : ui_app_decoded_pressed;
-        rt_str.utf16to8(utf8, capacity, utf16, -1);
+        posix_str.utf16to8(utf8, capacity, utf16, -1);
         if (ui_app_trace_utf16_keyboard_input) {
-            rt_println("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
+            posix_println("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
                     utf16[0], utf16[1], is_key_released, was_key_down,
                     repeat_count, utf8);
         }
@@ -3948,9 +4559,9 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         // The specified virtual key has no translation for the
         // current state of the keyboard. (E.g. arrows, enter etc)
     } else {
-        rt_assert(r < 0);
+        posix_assert(r < 0);
         // The specified virtual key is a dead key character (accent or diacritic).
-        if (ui_app_trace_utf16_keyboard_input) { rt_println("dead key"); }
+        if (ui_app_trace_utf16_keyboard_input) { posix_println("dead key"); }
     }
 }
 
@@ -3962,26 +4573,26 @@ static void ui_app_ime_composition(int64_t lp) {
             uint16_t utf16[4] = {0};
             uint32_t bytes = ImmGetCompositionStringW(imc, GCS_RESULTSTR, null, 0);
             uint32_t count = bytes / sizeof(uint16_t);
-            if (0 < count && count < rt_countof(utf16) - 1) {
+            if (0 < count && count < posix_countof(utf16) - 1) {
                 ImmGetCompositionStringW(imc, GCS_RESULTSTR, utf16, bytes);
                 utf16[count] = 0x00;
-                rt_str.utf16to8(utf8, rt_countof(utf8), utf16, -1);
-                rt_println("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
+                posix_str.utf16to8(utf8, posix_countof(utf8), utf16, -1);
+                posix_println("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
             }
-            rt_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
+            posix_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
         }
     }
 }
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
-    ui_app.now = rt_clock.seconds();
+    ui_app.now = posix_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
-        rt_assert(ui_app_window() == window);
+        posix_assert(ui_app_window() == window);
     }
-    rt_work_queue.dispatch(&ui_app_queue);
+    posix_work_queue.dispatch(&ui_app_queue);
     ui_app_update_wt_timeout(); // because head might have changed
     const int32_t m  = (int32_t)message;
     const int64_t wp = (int64_t)w_param;
@@ -4095,9 +4706,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
-//          if (m == WM_LBUTTONDOWN)   { rt_println("WM_LBUTTONDOWN"); }
-//          if (m == WM_LBUTTONUP)     { rt_println("WM_LBUTTONUP"); }
-//          if (m == WM_LBUTTONDBLCLK) { rt_println("WM_LBUTTONDBLCLK"); }
+//          if (m == WM_LBUTTONDOWN)   { posix_println("WM_LBUTTONDOWN"); }
+//          if (m == WM_LBUTTONUP)     { posix_println("WM_LBUTTONUP"); }
+//          if (m == WM_LBUTTONDBLCLK) { posix_println("WM_LBUTTONDBLCLK"); }
             if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEHOVER      :
@@ -4112,13 +4723,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
-        case WM_PARENTNOTIFY  : rt_println("WM_PARENTNOTIFY");     break;
-        case WM_ENTERMENULOOP : rt_println("WM_ENTERMENULOOP");    return 0;
-        case WM_EXITMENULOOP  : rt_println("WM_EXITMENULOOP");     return 0;
-        case WM_INITMENU      : rt_println("WM_INITMENU");         return 0;
-        case WM_MENUCHAR      : rt_println("WM_MENUCHAR");         return MNC_CLOSE << 16;
-        case WM_CAPTURECHANGED: rt_println("WM_CAPTURECHANGED");   break;
-        case WM_MENUSELECT    : rt_println("WM_MENUSELECT");       return 0;
+        case WM_PARENTNOTIFY  : posix_println("WM_PARENTNOTIFY");     break;
+        case WM_ENTERMENULOOP : posix_println("WM_ENTERMENULOOP");    return 0;
+        case WM_EXITMENULOOP  : posix_println("WM_EXITMENULOOP");     return 0;
+        case WM_INITMENU      : posix_println("WM_INITMENU");         return 0;
+        case WM_MENUCHAR      : posix_println("WM_MENUCHAR");         return MNC_CLOSE << 16;
+        case WM_CAPTURECHANGED: posix_println("WM_CAPTURECHANGED");   break;
+        case WM_MENUSELECT    : posix_println("WM_MENUSELECT");       return 0;
         #else
         // ***Important***: prevents annoying beeps on Alt+Shortcut
         case WM_MENUCHAR      : return MNC_CLOSE << 16;
@@ -4133,28 +4744,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
 #ifdef UI_APP_USE_WM_IME
         case WM_IME_CHAR:
-            rt_println("WM_IME_CHAR: 0x%04X", wp);
+            posix_println("WM_IME_CHAR: 0x%04X", wp);
             break;
         case WM_IME_NOTIFY:
-            rt_println("WM_IME_NOTIFY");
+            posix_println("WM_IME_NOTIFY");
             break;
         case WM_IME_REQUEST:
-            rt_println("WM_IME_REQUEST");
+            posix_println("WM_IME_REQUEST");
             break;
         case WM_IME_STARTCOMPOSITION:
-            rt_println("WM_IME_STARTCOMPOSITION");
+            posix_println("WM_IME_STARTCOMPOSITION");
             break;
         case WM_IME_ENDCOMPOSITION:
-            rt_println("WM_IME_ENDCOMPOSITION");
+            posix_println("WM_IME_ENDCOMPOSITION");
             break;
         case WM_IME_COMPOSITION:
-            rt_println("WM_IME_COMPOSITION");
+            posix_println("WM_IME_COMPOSITION");
             ui_app_ime_composition(lp);
             break;
 #endif  // UI_APP_USE_WM_IME
         // TODO:
         case WM_UNICHAR       : // only UTF-32 via PostMessage?
-            rt_println("???");
+            posix_println("???");
             // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
             // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
             break;
@@ -4165,16 +4776,16 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 }
 
 static long ui_app_get_window_long(int32_t index) {
-    rt_core.set_err(0);
+    posix_core.set_err(0);
     long v = GetWindowLongA(ui_app_window(), index);
-    rt_fatal_if_error(rt_core.err());
+    posix_fatal_if_error(posix_core.err());
     return v;
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
-    rt_core.set_err(0);
+    posix_core.set_err(0);
     long r = SetWindowLongA(ui_app_window(), index, value); // r previous value
-    rt_fatal_if_error(rt_core.err());
+    posix_fatal_if_error(posix_core.err());
     return r;
 }
 
@@ -4202,14 +4813,14 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     }
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
-        rt_assert(ui_color_is_8bit(color));
+        posix_assert(ui_color_is_8bit(color));
         c = ui_draw.color_rgb(color);
     }
-    return rt_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
+    return posix_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
 
 static void ui_app_set_dwm_attribute(uint32_t mode, void* a, DWORD bytes) {
-    rt_fatal_if_error(DwmSetWindowAttribute(ui_app_window(), mode, a, bytes));
+    posix_fatal_if_error(DwmSetWindowAttribute(ui_app_window(), mode, a, bytes));
 }
 
 static void ui_app_init_dwm(void) {
@@ -4229,7 +4840,7 @@ static void ui_app_init_dwm(void) {
     if (ui_app.no_decor) {
         ui_app_set_dwm_attribute(DWMWA_ALLOW_NCPAINT, &e, sizeof(e));
         MARGINS margins = { 0, 0, 0, 0 };
-        rt_fatal_if_error(
+        posix_fatal_if_error(
             DwmExtendFrameIntoClientArea(ui_app_window(), &margins)
         );
     }
@@ -4237,16 +4848,16 @@ static void ui_app_init_dwm(void) {
 
 static void ui_app_swp(HWND top, int32_t x, int32_t y, int32_t w, int32_t h,
         uint32_t f) {
-    rt_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
+    posix_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
 }
 
 static void ui_app_swp_flags(uint32_t f) {
-    rt_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
+    posix_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
 }
 
 static void ui_app_disable_sys_menu_item(HMENU sys_menu, uint32_t item) {
     const uint32_t f = MF_BYCOMMAND | MF_DISABLED;
-    rt_fatal_win32err(EnableMenuItem(sys_menu, item, f));
+    posix_fatal_win32err(EnableMenuItem(sys_menu, item, f));
 }
 
 static void ui_app_init_sys_menu(void) {
@@ -4255,7 +4866,7 @@ static void ui_app_init_sys_menu(void) {
     // SetPreferredAppMode() failed 0x000005B0(1456) "A menu item was not found."
     // this is why they just disabled instead.
     HMENU sys_menu = GetSystemMenu(ui_app_window(), false);
-    rt_not_null(sys_menu);
+    posix_not_null(sys_menu);
     if (ui_app.no_min || ui_app.no_max) {
         int32_t exclude = WS_SIZEBOX;
         if (ui_app.no_min) { exclude = WS_MINIMIZEBOX; }
@@ -4275,7 +4886,7 @@ static void ui_app_init_sys_menu(void) {
 
 static void ui_app_create_window(const struct ui_rect r) {
     uint16_t class_name[256];
-    rt_str.utf8to16(class_name, rt_countof(class_name), ui_app.class_name, -1);
+    posix_str.utf8to16(class_name, posix_countof(class_name), ui_app.class_name, -1);
     WNDCLASSW* wc = &ui_app_wc;
     // CS_DBLCLKS no longer needed. Because code detects long-press
     // it does double click too. Editor uses both for word and paragraph select.
@@ -4290,19 +4901,19 @@ static void ui_app_create_window(const struct ui_rect r) {
     wc->lpszMenuName = null;
     wc->lpszClassName = class_name;
     ATOM atom = RegisterClassW(wc);
-    rt_fatal_if(atom == 0);
+    posix_fatal_if(atom == 0);
     uint16_t title[256];
-    rt_str.utf8to16(title, rt_countof(title), ui_app.title, -1);
+    posix_str.utf8to16(title, posix_countof(title), ui_app.title, -1);
     HWND window = CreateWindowExW(WS_EX_COMPOSITED | WS_EX_LAYERED,
         class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
-    rt_not_null(ui_app.window);
-    rt_swear(window == ui_app_window());
+    posix_not_null(ui_app.window);
+    posix_swear(window == ui_app_window());
     ui_app.show_window(ui.visibility.hide);
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
-    rt_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
+    posix_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
     ui_app_init_dwm();
     ui_app_init_sys_menu();
@@ -4327,14 +4938,14 @@ static void ui_app_full_screen(bool on) {
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
-            rt_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
+            posix_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
             nwp.showCmd = SW_SHOWNORMAL;
             nwp.rcNormalPosition = (RECT){ui_app.mrc.x, ui_app.mrc.y,
                 ui_app.mrc.x + ui_app.mrc.w, ui_app.mrc.y + ui_app.mrc.h};
-            rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
+            posix_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
-            rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
+            posix_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
             // Restore the saved windowed style: it carries WS_VISIBLE, which
             // ui_app_window_style() omits -- recomputing it here would leave
             // the window styled invisible after leaving full screen.
@@ -4352,21 +4963,21 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(struct ui_view* rt_unused(v)) { return false; }
+static bool ui_app_set_focus(struct ui_view* posix_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
 }
 
 static void ui_app_draw(void) {
-    rt_println("avoid at all cost. bad performance, bad UX");
+    posix_println("avoid at all cost. bad performance, bad UX");
     UpdateWindow(ui_app_window());
 }
 
 static void ui_app_invalidate_rect(const struct ui_rect* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
-//  rt_backtrace_here();
+//  posix_backtrace_here();
 }
 
 static int32_t ui_app_message_loop(void) {
@@ -4380,14 +4991,14 @@ static int32_t ui_app_message_loop(void) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
-    rt_work_queue.flush(&ui_app_queue);
-    rt_assert(msg.message == WM_QUIT);
+    posix_work_queue.flush(&ui_app_queue);
+    posix_assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
 
 static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
-    rt_event.dispose(ui_app_event_invalidate);
+    posix_event.dispose(ui_app_event_invalidate);
     ui_app_event_invalidate = null;
     ui_app_last_next_due_at = 0;
 }
@@ -4477,8 +5088,8 @@ static bool    ui_app_caret_shown;
 static void ui_app_create_caret(int32_t w, int32_t h) {
     ui_app_caret_w = w;
     ui_app_caret_h = h;
-    rt_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
-    rt_assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
+    posix_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
+    posix_assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
 static void ui_app_invalidate_caret(void) {
@@ -4488,13 +5099,13 @@ static void ui_app_invalidate_caret(void) {
         RECT rc = { ui_app_caret_x, ui_app_caret_y,
                     ui_app_caret_x + ui_app_caret_w,
                     ui_app_caret_y + ui_app_caret_h };
-        rt_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
+        posix_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
     }
 }
 
 static void ui_app_show_caret(void) {
-    rt_assert(!ui_app_caret_shown);
-    rt_fatal_win32err(ShowCaret(ui_app_window()));
+    posix_assert(!ui_app_caret_shown);
+    posix_fatal_win32err(ShowCaret(ui_app_window()));
     ui_app_caret_shown = true;
     ui_app_invalidate_caret();
 }
@@ -4503,13 +5114,13 @@ static void ui_app_move_caret(int32_t x, int32_t y) {
     ui_app_invalidate_caret(); // where is was
     ui_app_caret_x = x;
     ui_app_caret_y = y;
-    rt_fatal_win32err(SetCaretPos(x, y));
+    posix_fatal_win32err(SetCaretPos(x, y));
     ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
-    rt_assert(ui_app_caret_shown);
-    rt_fatal_win32err(HideCaret(ui_app_window()));
+    posix_assert(ui_app_caret_shown);
+    posix_fatal_win32err(HideCaret(ui_app_window()));
     ui_app_invalidate_caret();
     ui_app_caret_shown = false;
 }
@@ -4517,14 +5128,14 @@ static void ui_app_hide_caret(void) {
 static void ui_app_destroy_caret(void) {
     ui_app_caret_w = 0;
     ui_app_caret_h = 0;
-    rt_fatal_win32err(DestroyCaret());
+    posix_fatal_win32err(DestroyCaret());
 }
 
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    rt_swear(0 <= kind && kind < rt_countof(beep_id));
-    rt_fatal_win32err(MessageBeep(beep_id[kind]));
+    posix_swear(0 <= kind && kind < posix_countof(beep_id));
+    posix_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
 static void ui_app_enable_sys_command_close(void) {
@@ -4541,10 +5152,10 @@ static void ui_app_console_disable_close(void) {
 }
 
 static int ui_app_console_attach(void) {
-    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : rt_core.err();
+    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : posix_core.err();
     if (r == 0) {
         ui_app_console_disable_close();
-        rt_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
+        posix_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
         printf("\n");
     }
     return r;
@@ -4568,9 +5179,9 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     // width/height in characters
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : posix_core.err();
     if (r != 0) {
-        rt_println("GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
+        posix_println("GetConsoleScreenBufferInfoEx() %s", posix_strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -4581,15 +5192,15 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         COORD c = {w, h};
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
-        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
-//      if (r0 != 0) { rt_println("SetConsoleWindowInfo() %s", rt_strerr(r0)); }
-        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
-//      if (r1 != 0) { rt_println("SetConsoleScreenBufferSize() %s", rt_strerr(r1)); }
+        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : posix_core.err();
+//      if (r0 != 0) { posix_println("SetConsoleWindowInfo() %s", posix_strerr(r0)); }
+        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : posix_core.err();
+//      if (r1 != 0) { posix_println("SetConsoleScreenBufferSize() %s", posix_strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
-            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
-            if (r0 != 0) { rt_println("SetConsoleScreenBufferSize() %s", rt_strerr(r0)); }
-            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
-            if (r1 != 0) { rt_println("SetConsoleWindowInfo() %s", rt_strerr(r1)); }
+            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : posix_core.err();
+            if (r0 != 0) { posix_println("SetConsoleScreenBufferSize() %s", posix_strerr(r0)); }
+            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : posix_core.err();
+            if (r1 != 0) { posix_println("SetConsoleWindowInfo() %s", posix_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -4606,26 +5217,26 @@ static void ui_app_console_largest(void) {
     // and: https://learn.microsoft.com/en-us/windows/console/setconsolemode
     /* DOES NOT WORK:
     DWORD mode = 0;
-    r = GetConsoleMode(console, &mode) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleMode() %s", rt_strerr(r));
+    r = GetConsoleMode(console, &mode) ? 0 : posix_core.err();
+    posix_fatal_if_error(r, "GetConsoleMode() %s", posix_strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
-    r = SetConsoleMode(console, &mode) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "SetConsoleMode() %s", rt_strerr(r));
+    r = SetConsoleMode(console, &mode) ? 0 : posix_core.err();
+    posix_fatal_if_error(r, "SetConsoleMode() %s", posix_strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : posix_core.err();
+    posix_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", posix_strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
     if (c.X > 80) { c.X -= 8; }
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
-    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
+    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : posix_core.err();
+    posix_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", posix_strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
-    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
+    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : posix_core.err();
+    posix_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", posix_strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -4637,11 +5248,11 @@ static void ui_app_make_topmost(void) {
 }
 
 static void ui_app_activate(void) {
-    rt_core.set_err(0);
+    posix_core.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
     if (previous == null) {
-        errno_t e = rt_core.err();
-        if (e != 0) { rt_println("Warning: SetActiveWindow: %s", rt_strerr(e)); }
+        errno_t e = posix_core.err();
+        if (e != 0) { posix_println("Warning: SetActiveWindow: %s", posix_strerr(e)); }
     }
 }
 
@@ -4653,8 +5264,8 @@ static void ui_app_bring_to_foreground(void) {
     // warnings so the app can still run for the interactive launch
     // path that does have foreground rights.
     if (!SetForegroundWindow(ui_app_window())) {
-        rt_println("Warning: SetForegroundWindow: %s",
-                   rt_strerr(rt_core.err()));
+        posix_println("Warning: SetForegroundWindow: %s",
+                   posix_strerr(posix_core.err()));
     }
 }
 
@@ -4669,17 +5280,17 @@ static void ui_app_bring_to_front(void) {
 
 static void ui_app_set_title(const char* title) {
     ui_view.set_text(&ui_caption.title, "%s", title);
-    rt_fatal_win32err(SetWindowTextA(ui_app_window(), rt_nls.str(title)));
+    posix_fatal_win32err(SetWindowTextA(ui_app_window(), posix_nls.str(title)));
 }
 
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
-        rt_swear(mouse_capture == 0);
+        posix_swear(mouse_capture == 0);
         mouse_capture++;
         SetCapture(ui_app_window());
     } else {
-        rt_swear(mouse_capture == 1);
+        posix_swear(mouse_capture == 1);
         mouse_capture--;
         ReleaseCapture();
     }
@@ -4691,14 +5302,14 @@ static void ui_app_move_and_resize(const struct ui_rect* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+    posix_swear(posix_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, rt_countof(text));
-    text[rt_countof(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, posix_countof(text));
+    text[posix_countof(text) - 1] = 0;
     char title[256];
-    rt_str_printf(title, "%s - Console", text);
-    rt_fatal_win32err(SetWindowTextA(cw, title));
+    posix_str_printf(title, "%s - Console", text);
+    posix_fatal_win32err(SetWindowTextA(cw, title));
 }
 
 static void ui_app_restore_console(int32_t *visibility) {
@@ -4709,23 +5320,23 @@ static void ui_app_restore_console(int32_t *visibility) {
         struct ui_rect rc = ui_app_rect2ui(&wr);
         ui_app_load_console_pos(&rc, visibility);
         if (rc.w > 0 && rc.h > 0) {
-//          rt_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
+//          posix_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
-            int32_t r = rt_config.load(ui_app.class_name,
+            int32_t r = posix_config.load(ui_app.class_name,
                 "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
                 int16_t w = (int16_t)(sr.Right - sr.Left + 1 > 80 ? sr.Right - sr.Left + 1 : 80);
                 int16_t h = (int16_t)(sr.Bottom - sr.Top + 1 > 24 ? sr.Bottom - sr.Top + 1 : 24);
-//              rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//              rt_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
+//              posix_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//              posix_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
     	    }
             // do not resize console window just restore it's position
             enum { flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            rt_fatal_win32err(SetWindowPos(cw, null,
+            posix_fatal_win32err(SetWindowPos(cw, null,
                     rc.x, rc.y, rc.w, rc.h, flags));
         } else {
             ui_app_console_largest();
@@ -4752,7 +5363,7 @@ static void ui_app_console_show(bool b) {
 }
 
 static int ui_app_console_create(void) {
-    int r = AllocConsole() ? 0 : rt_core.err();
+    int r = AllocConsole() ? 0 : posix_core.err();
     if (r == 0) {
         ui_app_console_disable_close();
         int32_t visibility = 0;
@@ -4763,15 +5374,15 @@ static int ui_app_console_create(void) {
 }
 
 static fp32_t ui_app_px2in(int32_t pixels) {
-    rt_assert(ui_app.dpi.monitor_max > 0);
-//  rt_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    posix_assert(ui_app.dpi.monitor_max > 0);
+//  posix_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return ui_app.dpi.monitor_max > 0 ?
            (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
-    rt_assert(ui_app.dpi.monitor_max > 0);
-//  rt_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    posix_assert(ui_app.dpi.monitor_max > 0);
+//  posix_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
 
@@ -4781,7 +5392,7 @@ static void ui_app_request_layout(void) {
 }
 
 static void ui_app_show_window(int32_t show) {
-    rt_assert(ui.visibility.hide <= show &&
+    posix_assert(ui.visibility.hide <= show &&
            show <= ui.visibility.force_min);
     // ShowWindow() does not have documented error reporting
     bool was_visible = ShowWindow(ui_app_window(), show);
@@ -4806,36 +5417,36 @@ static void ui_app_show_window(int32_t show) {
 
 static const char* ui_app_open_file(const char* folder,
         const char* pairs[], int32_t n) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
     static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = rt_countof(memory) - 2;
+        int32_t left = posix_countof(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
-            rt_str.utf8to16(s0, left, pairs[i + 0], -1);
-            int32_t n0 = (int32_t)rt_str.len16(s0);
-            rt_assert(n0 > 0);
+            posix_str.utf8to16(s0, left, pairs[i + 0], -1);
+            int32_t n0 = (int32_t)posix_str.len16(s0);
+            posix_assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
-            rt_str.utf8to16(s1, left, pairs[i + 1], -1);
-            int32_t n1 = (int32_t)rt_str.len16(s1);
-            rt_assert(n1 > 0);
+            posix_str.utf8to16(s1, left, pairs[i + 1], -1);
+            int32_t n1 = (int32_t)posix_str.len16(s1);
+            posix_assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
         }
         *s++ = 0;
     }
-    static uint16_t dir[rt_files_max_path];
+    static uint16_t dir[posix_files_max_path];
     dir[0] = 0;
-    rt_str.utf8to16(dir, rt_countof(dir), folder, -1);
-    static uint16_t path[rt_files_max_path];
+    posix_str.utf8to16(dir, posix_countof(dir), folder, -1);
+    static uint16_t path[posix_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
@@ -4844,10 +5455,10 @@ static const char* ui_app_open_file(const char* folder,
     ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    static rt_file_name_t fn;
+    static struct posix_file_name fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        rt_str.utf16to8(fn.s, rt_countof(fn.s), path, -1);
+        posix_str.utf16to8(fn.s, posix_countof(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -4858,43 +5469,43 @@ static const char* ui_app_open_file(const char* folder,
 
 static errno_t ui_app_clipboard_put_image(struct ui_bitmap* im) {
     HDC canvas = GetDC(null);
-    rt_not_null(canvas);
-    HDC src = CreateCompatibleDC(canvas); rt_not_null(src);
-    HDC dst = CreateCompatibleDC(canvas); rt_not_null(dst);
+    posix_not_null(canvas);
+    HDC src = CreateCompatibleDC(canvas); posix_not_null(src);
+    HDC dst = CreateCompatibleDC(canvas); posix_not_null(dst);
     // CreateCompatibleBitmap(dst) will create monochrome bitmap!
     // CreateCompatibleBitmap(canvas) will create display compatible
     HBITMAP texture = CreateCompatibleBitmap(canvas, im->w, im->h);
-    rt_not_null(texture);
-    HBITMAP s = SelectBitmap(src, im->texture); rt_not_null(s);
-    HBITMAP d = SelectBitmap(dst, texture);     rt_not_null(d);
+    posix_not_null(texture);
+    HBITMAP s = SelectBitmap(src, im->texture); posix_not_null(s);
+    HBITMAP d = SelectBitmap(dst, texture);     posix_not_null(d);
     POINT pt = { 0 };
-    rt_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
-    rt_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
+    posix_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
+    posix_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
-    errno_t r = rt_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { rt_println("OpenClipboard() failed %s", rt_strerr(r)); }
+    errno_t r = posix_b2e(OpenClipboard(GetDesktopWindow()));
+    if (r != 0) { posix_println("OpenClipboard() failed %s", posix_strerr(r)); }
     if (r == 0) {
-        r = rt_b2e(EmptyClipboard());
-        if (r != 0) { rt_println("EmptyClipboard() failed %s", rt_strerr(r)); }
+        r = posix_b2e(EmptyClipboard());
+        if (r != 0) { posix_println("EmptyClipboard() failed %s", posix_strerr(r)); }
     }
     if (r == 0) {
-        r = rt_b2e(SetClipboardData(CF_BITMAP, texture));
+        r = posix_b2e(SetClipboardData(CF_BITMAP, texture));
         if (r != 0) {
-            rt_println("SetClipboardData() failed %s", rt_strerr(r));
+            posix_println("SetClipboardData() failed %s", posix_strerr(r));
         }
     }
     if (r == 0) {
-        r = rt_b2e(CloseClipboard());
+        r = posix_b2e(CloseClipboard());
         if (r != 0) {
-            rt_println("CloseClipboard() failed %s", rt_strerr(r));
+            posix_println("CloseClipboard() failed %s", posix_strerr(r));
         }
     }
-    rt_not_null(SelectBitmap(dst, d));
-    rt_not_null(SelectBitmap(src, s));
-    rt_fatal_win32err(DeleteBitmap(texture));
-    rt_fatal_win32err(DeleteDC(dst));
-    rt_fatal_win32err(DeleteDC(src));
-    rt_fatal_win32err(ReleaseDC(null, canvas));
+    posix_not_null(SelectBitmap(dst, d));
+    posix_not_null(SelectBitmap(src, s));
+    posix_fatal_win32err(DeleteBitmap(texture));
+    posix_fatal_win32err(DeleteDC(dst));
+    posix_fatal_win32err(DeleteDC(src));
+    posix_fatal_win32err(ReleaseDC(null, canvas));
     return r;
 }
 
@@ -4915,12 +5526,12 @@ static void window_request_focus(void* w) {
     // Like SetForegroundWindow, SetFocus can fail with ACCESS_DENIED
     // when the process lacks foreground rights (Services-session
     // launch). Soft-warn so the app can run for the interactive case.
-    rt_assert(rt_thread.id() == ui_app.tid, "cannot be called from background thread");
-    rt_core.set_err(0);
+    posix_assert(posix_thread.id() == ui_app.tid, "cannot be called from background thread");
+    posix_core.set_err(0);
     HWND previous = SetFocus((HWND)w);
     if (previous == null) {
-        errno_t e = rt_core.err();
-        if (e != 0) { rt_println("Warning: SetFocus: %s", rt_strerr(e)); }
+        errno_t e = posix_core.err();
+        if (e != 0) { posix_println("Warning: SetFocus: %s", posix_strerr(e)); }
     }
 }
 
@@ -4929,8 +5540,8 @@ static void ui_app_request_focus(void) {
 }
 
 static void ui_app_init(void) {
-    ui_app_event_quit           = rt_event.create_manual();
-    ui_app_event_invalidate     = rt_event.create();
+    ui_app_event_quit           = posix_event.create_manual();
+    ui_app_event_invalidate     = posix_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
     ui_app.post                 = ui_app_post;
     ui_app.draw                 = ui_app_draw;
@@ -4983,8 +5594,8 @@ static void ui_app_init(void) {
     ui_app.root->hit_test = ui_app_root_hit_test;
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
-    rt_assert(ui_app.content->type == ui_view_stack);
-    rt_assert(ui_app.content->background == ui_colors.transparent);
+    posix_assert(ui_app.content->type == ui_view_stack);
+    posix_assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
     ui_app.root->insets  = (struct ui_margins){ 0, 0, 0, 0 };
@@ -5017,19 +5628,19 @@ static void ui_app_set_dpi_awareness(void) {
     // awareness the process already has (typically system-DPI-aware).
     DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
         GetThreadDpiAwarenessContext();
-    errno_t error = rt_b2e(SetProcessDpiAwarenessContext(
+    errno_t error = posix_b2e(SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
-        rt_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
+        posix_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
         HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
         if (hr == E_ACCESSDENIED) {
-            rt_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
+            posix_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
         }
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
         GetThreadDpiAwarenessContext();
     if (dpi_awareness_context_1 == dpi_awareness_context_2) {
-        rt_println("Warning: DPI awareness unchanged; using process default");
+        posix_println("Warning: DPI awareness unchanged; using process default");
     }
 }
 
@@ -5043,7 +5654,7 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
     ui_app.dpi.monitor_max = ui_app.dpi.system;
-//  rt_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
+//  posix_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     struct ui_rect r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -5054,21 +5665,21 @@ static struct ui_rect ui_app_window_initial_rectangle(void) {
     const struct ui_window_sizing* ws = &ui_app.window_sizing;
     // it is not practical and thus not implemented handling
     // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
-    rt_swear((ws->min_w != 0) == (ws->min_h != 0) &&
+    posix_swear((ws->min_w != 0) == (ws->min_h != 0) &&
            ws->min_w >= 0 && ws->min_h >= 0,
           "ui_app.window_sizing .min_w=%.1f .min_h=%.1f", ws->min_w, ws->min_h);
-    rt_swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
+    posix_swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
            ws->ini_w >= 0 && ws->ini_h >= 0,
           "ui_app.window_sizing .ini_w=%.1f .ini_h=%.1f", ws->ini_w, ws->ini_h);
-    rt_swear((ws->max_w != 0) == (ws->max_h != 0) &&
+    posix_swear((ws->max_w != 0) == (ws->max_h != 0) &&
            ws->max_w >= 0 && ws->max_h >= 0,
           "ui_app.window_sizing .max_w=%.1f .max_h=%.1f", ws->max_w, ws->max_h);
     // if max is set then min and ini must be less than max
     if (ws->max_w != 0 || ws->max_h != 0) {
-        rt_swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
+        posix_swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
              ws->min_w, ws->min_h, ws->max_w, ws->max_h);
-        rt_swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
+        posix_swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
                 ws->ini_w, ws->ini_h, ws->max_w, ws->max_h);
     }
@@ -5095,27 +5706,27 @@ static bool ui_app_write_backtrace(const char* s, int32_t n) {
 static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     char fn[1024];
     DWORD ex = ep->ExceptionRecord->ExceptionCode; // exception code
-    // T-connector for intercepting rt_debug.output:
-    bool (*tee)(const char* s, int32_t n) = rt_debug.tee;
-    rt_debug.tee = ui_app_write_backtrace;
-    const char* home = rt_files.known_folder(rt_files.folder.home);
+    // T-connector for intercepting posix_debug.output:
+    bool (*tee)(const char* s, int32_t n) = posix_debug.tee;
+    posix_debug.tee = ui_app_write_backtrace;
+    const char* home = posix_files.known_folder(posix_files.folder.home);
     if (home != null) {
         const char* name = ui_app.class_name  != null ?
                            ui_app.class_name : "ui_app";
-        rt_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
+        posix_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
-    rt_debug.println(null, 0, null,
+    posix_debug.println(null, 0, null,
         "To file and issue report copy this log and");
-    rt_debug.println(null, 0, null,
+    posix_debug.println(null, 0, null,
         "paste it here: https://github.com/leok7v/ui/discussions/4");
-    rt_debug.println(null, 0, null,
-        "%s exception: %s", rt_args.basename(), rt_str.error(ex));
-    rt_backtrace_t bt = {{0}};
-    rt_backtrace.context(rt_thread.self(), ep->ContextRecord, &bt);
-    rt_backtrace.trace(&bt, "*");
-    rt_backtrace.trace_all_but_self();
-    rt_debug.tee = tee;
+    posix_debug.println(null, 0, null,
+        "%s exception: %s", posix_args.basename(), posix_str.error(ex));
+    struct posix_backtrace bt = {{0}};
+    posix_backtrace.context(posix_thread.self(), ep->ContextRecord, &bt);
+    posix_backtrace.trace(&bt, "*");
+    posix_backtrace.trace_all_but_self();
+    posix_debug.tee = tee;
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
         // Open the log via ShellExecuteExA rather than system() so we
@@ -5136,73 +5747,73 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
 #ifdef UI_APP_TEST_POST
 
 // The dispatch_until() is just for testing purposes.
-// Usually rt_work_queue.dispatch(q) will be called inside each
+// Usually posix_work_queue.dispatch(q) will be called inside each
 // iteration of message loop of a dispatch [UI] thread.
 
-static void ui_app_test_dispatch_until(rt_work_queue_t* q, int32_t* i,
+static void ui_app_test_dispatch_until(struct posix_work_queue* q, int32_t* i,
         const int32_t n) {
     while (q->head != null && *i < n) {
-        rt_thread.sleep_for(0.0001); // 100 microseconds
-        rt_work_queue.dispatch(q);
+        posix_thread.sleep_for(0.0001); // 100 microseconds
+        posix_work_queue.dispatch(q);
     }
-    rt_work_queue.flush(q);
+    posix_work_queue.flush(q);
 }
 
 // simple way of passing a single pointer to call_later
 
-static void ui_app_test_every_100ms(rt_work_t* w) {
+static void ui_app_test_every_100ms(struct posix_work* w) {
     int32_t* i = (int32_t*)w->data;
-    rt_println("i: %d", *i);
+    posix_println("i: %d", *i);
     (*i)++;
-    w->when = rt_clock.seconds() + 0.100;
-    rt_work_queue.post(w);
+    w->when = posix_clock.seconds() + 0.100;
+    posix_work_queue.post(w);
 }
 
 static void ui_app_test_work_queue_1(void) {
-    rt_work_queue_t queue = {0};
+    struct posix_work_queue queue = {0};
     // if a single pointer will suffice
     int32_t i = 0;
-    rt_work_t work = {
+    struct posix_work work = {
         .queue = &queue,
-        .when  = rt_clock.seconds() + 0.100,
+        .when  = posix_clock.seconds() + 0.100,
         .work  = ui_app_test_every_100ms,
         .data  = &i
     };
-    rt_work_queue.post(&work);
+    posix_work_queue.post(&work);
     ui_app_test_dispatch_until(&queue, &i, 4);
 }
 
-// extending rt_work_t with extra data:
+// extending struct posix_work with extra data:
 
-typedef struct rt_work_ex_s {
+typedef struct posix_work_ex_s {
     union {
-        rt_work_t base;
-        struct rt_work_s;
+        struct posix_work base;
+        struct posix_work;
     };
     struct { int32_t a; int32_t b; } s;
     int32_t i;
-} rt_work_ex_t;
+} posix_work_ex_t;
 
-static void ui_app_test_every_200ms(rt_work_t* w) {
-    rt_work_ex_t* ex = (rt_work_ex_t*)w;
-    rt_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+static void ui_app_test_every_200ms(struct posix_work* w) {
+    posix_work_ex_t* ex = (posix_work_ex_t*)w;
+    posix_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-    w->when = rt_clock.seconds() + 0.200;
-    rt_work_queue.post(w);
+    w->when = posix_clock.seconds() + 0.200;
+    posix_work_queue.post(w);
 }
 
 static void ui_app_test_work_queue_2(void) {
-    rt_work_queue_t queue = {0};
-    rt_work_ex_t work = {
+    struct posix_work_queue queue = {0};
+    posix_work_ex_t work = {
         .queue = &queue,
-        .when  = rt_clock.seconds() + 0.200,
+        .when  = posix_clock.seconds() + 0.200,
         .work  = ui_app_test_every_200ms,
         .data  = null,
         .s = { .a = 1, .b = 2 },
         .i = 0
     };
-    rt_work_queue.post(&work.base);
+    posix_work_queue.post(&work.base);
     ui_app_test_dispatch_until(&queue, &work.i, 4);
 }
 
@@ -5211,26 +5822,26 @@ static fp64_t ui_app_test_timestamp_2;
 static fp64_t ui_app_test_timestamp_3;
 static fp64_t ui_app_test_timestamp_4;
 
-static void ui_app_test_in_1_second(rt_work_t* rt_unused(work)) {
-    ui_app_test_timestamp_3 = rt_clock.seconds();
-    rt_println("ETA 3 seconds");
+static void ui_app_test_in_1_second(struct posix_work* posix_unused(work)) {
+    ui_app_test_timestamp_3 = posix_clock.seconds();
+    posix_println("ETA 3 seconds");
 }
 
-static void ui_app_test_in_2_seconds(rt_work_t* rt_unused(work)) {
-    ui_app_test_timestamp_2 = rt_clock.seconds();
-    rt_println("ETA 2 seconds");
-    static rt_work_t invoke_in_1_seconds;
-    invoke_in_1_seconds = (rt_work_t){
+static void ui_app_test_in_2_seconds(struct posix_work* posix_unused(work)) {
+    ui_app_test_timestamp_2 = posix_clock.seconds();
+    posix_println("ETA 2 seconds");
+    static struct posix_work invoke_in_1_seconds;
+    invoke_in_1_seconds = (struct posix_work){
         .queue = null, // &ui_app_queue will be used
-        .when = rt_clock.seconds() + 1.0, // seconds
+        .when = posix_clock.seconds() + 1.0, // seconds
         .work = ui_app_test_in_1_second
     };
     ui_app.post(&invoke_in_1_seconds);
 }
 
-static void ui_app_test_in_4_seconds(rt_work_t* rt_unused(work)) {
-    ui_app_test_timestamp_4 = rt_clock.seconds();
-    rt_println("ETA 4 seconds");
+static void ui_app_test_in_4_seconds(struct posix_work* posix_unused(work)) {
+    ui_app_test_timestamp_4 = posix_clock.seconds();
+    posix_println("ETA 4 seconds");
 //  expected sequence of callbacks:
 //  2:732 ui_app_test_in_2_seconds ETA 2 seconds
 //  3:724 ui_app_test_in_1_second  ETA 3 seconds
@@ -5247,18 +5858,18 @@ static void ui_app_test_in_4_seconds(rt_work_t* rt_unused(work)) {
 static void ui_app_test_post(void) {
     ui_app_test_work_queue_1();
     ui_app_test_work_queue_2();
-    rt_println("see Output/Timestamps");
-    static rt_work_t invoke_in_2_seconds;
-    static rt_work_t invoke_in_4_seconds;
-    ui_app_test_timestamp_0 = rt_clock.seconds();
-    invoke_in_2_seconds = (rt_work_t){
+    posix_println("see Output/Timestamps");
+    static struct posix_work invoke_in_2_seconds;
+    static struct posix_work invoke_in_4_seconds;
+    ui_app_test_timestamp_0 = posix_clock.seconds();
+    invoke_in_2_seconds = (struct posix_work){
         .queue = null, // &ui_app_queue will be used
-        .when = rt_clock.seconds() + 2.0, // seconds
+        .when = posix_clock.seconds() + 2.0, // seconds
         .work = ui_app_test_in_2_seconds
     };
-    invoke_in_4_seconds = (rt_work_t){
+    invoke_in_4_seconds = (struct posix_work){
         .queue = null, // &ui_app_queue will be used
-        .when = rt_clock.seconds() + 4.0, // seconds
+        .when = posix_clock.seconds() + 4.0, // seconds
         .work = ui_app_test_in_4_seconds
     };
     ui_app.post(&invoke_in_4_seconds);
@@ -5272,7 +5883,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ui_app_init_windows();
     ui_draw.init();
-    rt_clipboard.put_image = ui_app_clipboard_put_image;
+    posix_clipboard.put_image = ui_app_clipboard_put_image;
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
     int r = 0;
@@ -5296,7 +5907,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app.border.w = max_border < ui_app.border.w ? max_border : ui_app.border.w;
         ui_app.border.h = max_border < ui_app.border.h ? max_border : ui_app.border.h;
     }
-//  rt_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
+//  posix_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
     wr.x -= ui_app.border.w;
@@ -5314,32 +5925,32 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
-    rt_not_null(ui_app.class_name);
-    ui_app_wt = (rt_event_t)CreateWaitableTimerA(null, false, null);
-    rt_thread_t alarm  = rt_thread.start(ui_app_alarm_thread, null);
+    posix_not_null(ui_app.class_name);
+    ui_app_wt = (posix_event_t)CreateWaitableTimerA(null, false, null);
+    posix_thread_t alarm  = posix_thread.start(ui_app_alarm_thread, null);
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
         ui_app_init_fonts(ui_app.dpi.window);
-        rt_thread_t redraw = rt_thread.start(ui_app_redraw_thread, null);
+        posix_thread_t redraw = posix_thread.start(ui_app_redraw_thread, null);
         #ifdef UI_APP_TEST_POST
             ui_app_test_post();
         #endif
         r = ui_app_message_loop();
         // ui_app.fini() must be called before ui_app_dispose()
         if (ui_app.fini != null) { ui_app.fini(); }
-        rt_event.set(ui_app_event_quit);
-        rt_thread.join(redraw, -1);
+        posix_event.set(ui_app_event_quit);
+        posix_thread.join(redraw, -1);
         ui_app_dispose();
         if (r == 0 && ui_app.exit_code != 0) { r = ui_app.exit_code; }
     } else {
         r = ui_app.main();
         if (ui_app.fini != null) { ui_app.fini(); }
     }
-    rt_event.set(ui_app_event_quit);
-    rt_thread.join(alarm, -1);
-    rt_event.dispose(ui_app_event_quit);
+    posix_event.set(ui_app_event_quit);
+    posix_thread.join(alarm, -1);
+    posix_event.dispose(ui_app_event_quit);
     ui_app_event_quit = null;
-    rt_event.dispose(ui_app_wt);
+    posix_event.dispose(ui_app_wt);
     ui_app_wt = null;
     ui_draw.fini();
     return r;
@@ -5347,11 +5958,11 @@ static int ui_app_win_main(HINSTANCE instance) {
 
 #pragma warning(disable: 28251) // inconsistent annotations
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE rt_unused(previous),
-        char* rt_unused(command), int show) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE posix_unused(previous),
+        char* posix_unused(command), int show) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
-    rt_fatal_if_error(CoInitializeEx(0, co_init));
+    posix_fatal_if_error(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
     // Expected manifest.xml containing UTF-8 code page
     // for TranslateMessage and WM_CHAR to deliver UTF-8 characters
@@ -5360,30 +5971,30 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE rt_unused(previous),
     // .rc file must have:
     // 1 RT_MANIFEST "manifest.xml"
     if (GetACP() != 65001) {
-        rt_println("codepage: %d UTF-8 will not be supported", GetACP());
+        posix_println("codepage: %d UTF-8 will not be supported", GetACP());
     }
     // at the moment of writing there is no API call to inform Windows about process
     // preferred codepage except manifest.xml file in resource #1.
     // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
     // TODO: may need to change CreateWindowA() to CreateWindowW() and
     // translate UTF16 to UTF8
-    ui_app.tid = rt_thread.id();
-    rt_nls.init();
+    ui_app.tid = posix_thread.id();
+    posix_nls.init();
     ui_app.visibility = show;
-    rt_args.WinMain();
+    posix_args.WinMain();
     int32_t r = ui_app_win_main(instance);
-    rt_args.fini();
+    posix_args.fini();
     return r;
 }
 
 int main(int argc, const char* argv[], const char** envp) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
-    rt_fatal_if_error(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    rt_args.main(argc, argv, envp);
-    rt_nls.init();
-    ui_app.tid = rt_thread.id();
+    posix_fatal_if_error(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    posix_args.main(argc, argv, envp);
+    posix_nls.init();
+    ui_app.tid = posix_thread.id();
     int r = ui_app.main();
-    rt_args.fini();
+    posix_args.fini();
     return r;
 }
 
@@ -5399,7 +6010,7 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "uxtheme")
 // _______________________________ ui_button.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static void ui_button_every_100ms(struct ui_view* v) { // every 100ms
     if (!v->state.hidden) {
@@ -5487,20 +6098,20 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->callback != null) { b->callback(b); }
     if (pressed != b->state.pressed) {
         if (b->flip) { // warn the client of strange logic:
-            rt_println("strange flip the button with button.flip: true");
+            posix_println("strange flip the button with button.flip: true");
             // if client wants to flip pressed state manually it
             // should do it for the button.flip = false
         }
-//      rt_println("disarmed immediately");
+//      posix_println("disarmed immediately");
         b->p.armed_until = 0;
         b->state.armed = false;
     } else {
         if (b->flip) {
-//          rt_println("disarmed immediately");
+//          posix_println("disarmed immediately");
             b->p.armed_until = 0;
             b->state.armed = false;
         } else {
-//          rt_println("will disarm in 1/4 seconds");
+//          posix_println("will disarm in 1/4 seconds");
             b->p.armed_until = ui_app.now + 0.250;
         }
     }
@@ -5521,13 +6132,13 @@ static void ui_button_character(struct ui_view* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(struct ui_view* v, int64_t key) {
-    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    posix_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
+static bool ui_button_tap(struct ui_view* v, int32_t posix_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     const bool inside = ui_view.inside(v, &ui_app.mouse);
@@ -5546,7 +6157,7 @@ static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
 }
 
 void ui_view_init_button(struct ui_view* v) {
-    rt_assert(v->type == ui_view_button);
+    posix_assert(v->type == ui_view_button);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;
@@ -5569,7 +6180,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 // _______________________________ ui_caption.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 
 #pragma push_macro("ui_caption_glyph_rest")
 #pragma push_macro("ui_caption_glyph_menu")
@@ -5580,14 +6191,14 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  rt_glyph_white_square_with_upper_right_quadrant // instead of rt_glyph_desktop_window
-#define ui_caption_glyph_menu  rt_glyph_trigram_for_heaven
-#define ui_caption_glyph_dark  rt_glyph_crescent_moon
-#define ui_caption_glyph_light rt_glyph_white_sun_with_rays
-#define ui_caption_glyph_mini  rt_glyph_minimize
-#define ui_caption_glyph_maxi  rt_glyph_white_square_with_lower_left_quadrant // instead of rt_glyph_maximize
-#define ui_caption_glyph_full  rt_glyph_square_four_corners
-#define ui_caption_glyph_quit  rt_glyph_cancellation_x
+#define ui_caption_glyph_rest  ui_glyph_white_square_with_upper_right_quadrant // instead of ui_glyph_desktop_window
+#define ui_caption_glyph_menu  ui_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  ui_glyph_crescent_moon
+#define ui_caption_glyph_light ui_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  ui_glyph_minimize
+#define ui_caption_glyph_maxi  ui_glyph_white_square_with_lower_left_quadrant // instead of ui_glyph_maximize
+#define ui_caption_glyph_full  ui_glyph_square_four_corners
+#define ui_caption_glyph_quit  ui_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -5596,30 +6207,30 @@ static void ui_caption_toggle_full(void) {
 }
 
 static void ui_caption_esc_full_screen(struct ui_view* v, const char utf8[]) {
-    rt_swear(v == ui_caption.view.parent);
+    posix_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_caption_quit(ui_button_t* rt_unused(b)) {
+static void ui_caption_quit(ui_button_t* posix_unused(b)) {
     ui_app.close();
 }
 
-static void ui_caption_mini(ui_button_t* rt_unused(b)) {
+static void ui_caption_mini(ui_button_t* posix_unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
 }
 
 static void ui_caption_mode_appearance(void) {
     if (ui_theme.is_app_dark()) {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_light);
-        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
+        posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Light Mode"));
     } else {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_dark);
-        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Dark Mode"));
+        posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Dark Mode"));
     }
 }
 
-static void ui_caption_mode(ui_button_t* rt_unused(b)) {
+static void ui_caption_mode(ui_button_t* posix_unused(b)) {
     bool was_dark = ui_theme.is_app_dark();
     ui_app.light_mode =  was_dark;
     ui_app.dark_mode  = !was_dark;
@@ -5631,16 +6242,16 @@ static void ui_caption_maximize_or_restore(void) {
     ui_view.set_text(&ui_caption.maxi, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
-    rt_str_printf(ui_caption.maxi.hint, "%s",
+    posix_str_printf(ui_caption.maxi.hint, "%s",
         ui_app.is_maximized() ?
-        rt_nls.str("Restore") : rt_nls.str("Maximize"));
+        posix_nls.str("Restore") : posix_nls.str("Maximize"));
     // non-decorated windows on Win32 are "popup" style
     // that cannot be maximized. Full screen will serve
     // the purpose of maximization.
     ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
-static void ui_caption_maxi(ui_button_t* rt_unused(b)) {
+static void ui_caption_maxi(ui_button_t* posix_unused(b)) {
     if (!ui_app.is_maximized()) {
         ui_app.show_window(ui.visibility.maximize);
     } else if (ui_app.is_maximized() || ui_app.is_minimized()) {
@@ -5649,14 +6260,14 @@ static void ui_caption_maxi(ui_button_t* rt_unused(b)) {
     ui_caption_maximize_or_restore();
 }
 
-static void ui_caption_full(ui_button_t* rt_unused(b)) {
+static void ui_caption_full(ui_button_t* posix_unused(b)) {
     ui_caption_toggle_full();
 }
 
 static int64_t ui_caption_hit_test(const struct ui_view* v, struct ui_point pt) {
-    rt_swear(v == &ui_caption.view);
-    rt_assert(ui_view.inside(v, &pt));
-//  rt_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
+    posix_swear(v == &ui_caption.view);
+    posix_assert(ui_view.inside(v, &pt));
+//  posix_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
 //      ui_caption.icon.w, ui_caption.icon.h,
@@ -5691,7 +6302,7 @@ static const struct ui_margins ui_caption_button_button_padding =
       .right = 0.25,  .bottom = 0.0};
 
 static void ui_caption_button_measure(struct ui_view* v) {
-    rt_assert(v->type == ui_view_button);
+    posix_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
     const int32_t dy = ui_app.caption_height - v->h;
@@ -5712,7 +6323,7 @@ static void ui_caption_button_icon_paint(struct ui_view* v) {
     ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(struct ui_view* rt_unused(v)) {
+static void ui_caption_prepare(struct ui_view* posix_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
@@ -5747,7 +6358,7 @@ static void ui_caption_paint(struct ui_view* v) {
 }
 
 static void ui_caption_init(struct ui_view* v) {
-    rt_swear(v == &ui_caption.view, "caption is a singleton");
+    posix_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (struct ui_margins){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
@@ -5788,12 +6399,12 @@ static void ui_caption_init(struct ui_view* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-    rt_str_printf(ui_caption.menu.hint, "%s", rt_nls.str("Menu"));
-    rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
-    rt_str_printf(ui_caption.mini.hint, "%s", rt_nls.str("Minimize"));
-    rt_str_printf(ui_caption.maxi.hint, "%s", rt_nls.str("Maximize"));
-    rt_str_printf(ui_caption.full.hint, "%s", rt_nls.str("Full Screen (ESC to restore)"));
-    rt_str_printf(ui_caption.quit.hint, "%s", rt_nls.str("Close"));
+    posix_str_printf(ui_caption.menu.hint, "%s", posix_nls.str("Menu"));
+    posix_str_printf(ui_caption.mode.hint, "%s", posix_nls.str("Switch to Light Mode"));
+    posix_str_printf(ui_caption.mini.hint, "%s", posix_nls.str("Minimize"));
+    posix_str_printf(ui_caption.maxi.hint, "%s", posix_nls.str("Maximize"));
+    posix_str_printf(ui_caption.full.hint, "%s", posix_nls.str("Full Screen (ESC to restore)"));
+    posix_str_printf(ui_caption.quit.hint, "%s", posix_nls.str("Close"));
     ui_caption.icon.icon     = ui_app.icon;
     ui_caption.icon.padding  = p0;
     ui_caption.icon.paint    = ui_caption_button_icon_paint;
@@ -5825,7 +6436,7 @@ struct ui_caption ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .state.hidden = true
     },
-    .icon   = ui_button(rt_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
@@ -5846,7 +6457,7 @@ struct ui_caption ui_caption =  {
 #pragma pop_macro("ui_caption_glyph_quit")
 // _______________________________ ui_colors.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static inline uint8_t ui_color_clamp_uint8(fp64_t value) {
     return value < 0 ? 0 : (value > 255 ? 255 : (uint8_t)value);
@@ -5900,9 +6511,9 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
         default: r = 0; g = 0; b = 0; break;
     }
-    rt_assert(0 <= r && r <= 255);
-    rt_assert(0 <= g && g <= 255);
-    rt_assert(0 <= b && b <= 255);
+    posix_assert(0 <= r && r <= 255);
+    posix_assert(0 <= g && g <= 255);
+    posix_assert(0 <= b && b <= 255);
     return ui_color_rgba((uint8_t)r, (uint8_t)g, (uint8_t)b, a);
 }
 
@@ -5927,7 +6538,7 @@ static ui_color_t ui_color_saturation(ui_color_t c, fp32_t multiplier) {
 
 static ui_color_t ui_color_interpolate(ui_color_t c0, ui_color_t c1,
         fp32_t multiplier) {
-    rt_assert(0.0f < multiplier && multiplier < 1.0f);
+    posix_assert(0.0f < multiplier && multiplier < 1.0f);
     fp64_t h0, s0, i0, h1, s1, i1;
     ui_color_rgb_to_hsi(ui_color_r(c0), ui_color_g(c0), ui_color_b(c0),
                        &h0, &s0, &i0);
@@ -6028,7 +6639,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    rt_swear(0 < color_id && color_id < rt_countof(ui_theme_colors));
+    posix_swear(0 < color_id && color_id < posix_countof(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;
@@ -6230,7 +6841,7 @@ struct ui_colors_if ui_colors = {
 // _____________________________ ui_containers.c ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 
 static bool ui_containers_debug;
 
@@ -6243,7 +6854,7 @@ static bool ui_containers_debug;
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
 #define debugln(...) do {                                   \
-    if (ui_containers_debug) {  rt_println(__VA_ARGS__); }  \
+    if (ui_containers_debug) {  posix_println(__VA_ARGS__); }  \
 } while (0)
 
 static int32_t ui_layout_nesting;
@@ -6273,11 +6884,11 @@ static int32_t ui_layout_nesting;
 } while (0)
 
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
-    rt_swear(v >= 0);
+    posix_swear(v >= 0);
     if (v == ui.infinity) {
-        rt_str.format(text, count, "%s", rt_glyph_infinity);
+        posix_str.format(text, count, "%s", ui_glyph_infinity);
     } else {
-        rt_str.format(text, count, "%d", v);
+        posix_str.format(text, count, "%d", v);
     }
     return text;
 }
@@ -6290,8 +6901,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         ui_view_debug_id(v),                                                  \
         &v->type, v->x, v->y, v->w, v->h,                                     \
-        ui_stack_finite_int(v->max_w, maxw, rt_countof(maxw)),                \
-        ui_stack_finite_int(v->max_h, maxh, rt_countof(maxh)),                \
+        ui_stack_finite_int(v->max_w, maxw, posix_countof(maxw)),                \
+        ui_stack_finite_int(v->max_h, maxh, posix_countof(maxh)),                \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -6299,14 +6910,14 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
 
 static void ui_span_measure(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_ltrb insets;
     ui_view.inbox(p, null, &insets);
     int32_t w = insets.left;
     int32_t h = 0;
     int32_t max_w = w;
     ui_view_for_each_begin(p, c) {
-        rt_swear(c->max_w == 0 || c->max_w >= c->w,
+        posix_swear(c->max_w == 0 || c->max_w >= c->w,
               "max_w: %d w: %d", c->max_w, c->w);
         if (ui_view.is_hidden(c)) {
             // nothing
@@ -6323,11 +6934,11 @@ static void ui_span_measure(struct ui_view* p) {
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
             } else if (max_w < ui.infinity && c->max_w != 0) {
-                rt_swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
+                posix_swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
                       c->max_w, c->w);
                 max_w += c->max_w;
             } else if (max_w < ui.infinity) {
-                rt_swear(0 <= max_w + cbx.w &&
+                posix_swear(0 <= max_w + cbx.w &&
                       (int64_t)max_w + (int64_t)cbx.w < (int64_t)ui.infinity,
                       "max_w:%d + cbx.w:%d = %d", max_w, cbx.w, max_w + cbx.w);
                 max_w += cbx.w;
@@ -6337,19 +6948,19 @@ static void ui_span_measure(struct ui_view* p) {
         ui_layout_clild(c);
     } ui_view_for_each_end(p, c);
     if (0 < max_w && max_w < ui.infinity) {
-        rt_swear(0 <= max_w + insets.right &&
+        posix_swear(0 <= max_w + insets.right &&
               (int64_t)max_w + (int64_t)insets.right < (int64_t)ui.infinity,
              "max_w:%d + right:%d = %d", max_w, insets.right, max_w + insets.right);
         max_w += insets.right;
     }
-    rt_swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
+    posix_swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
     if (ui_view.is_hidden(p)) {
         p->w = 0;
         p->h = 0;
     } else {
         p->w = w + insets.right;
         p->h = insets.top + h + insets.bottom;
-        rt_swear(p->max_w == 0 || p->max_w >= p->w,
+        posix_swear(p->max_w == 0 || p->max_w >= p->w,
               "max_w: %d is less than actual width: %d", p->max_w, p->w);
     }
     ui_layout_exit(p);
@@ -6372,14 +6983,14 @@ static int32_t ui_span_place_child(struct ui_view* c, struct ui_rect pbx, int32_
     }
     int32_t min_y = pbx.y + padding.top;
     if ((c->align & ui.align.top) != 0) {
-        rt_assert(c->align == ui.align.top);
+        posix_assert(c->align == ui.align.top);
         c->y = min_y;
     } else if ((c->align & ui.align.bottom) != 0) {
-        rt_assert(c->align == ui.align.bottom);
+        posix_assert(c->align == ui.align.bottom);
         const int32_t y = pbx.y + pbx.h - c->h - padding.bottom;
         c->y = min_y > y ? min_y : y;
     } else { // effective height (c->h might have been changed)
-        rt_assert(c->align == ui.align.center,
+        posix_assert(c->align == ui.align.center,
                   "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
         const int32_t y = pbx.y + (pbx.h - ch) / 2 + padding.top;
@@ -6391,7 +7002,7 @@ static int32_t ui_span_place_child(struct ui_view* c, struct ui_rect pbx, int32_
 
 static void ui_span_layout(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_rect pbx; // parent "in" box (sans insets)
     struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6408,7 +7019,7 @@ static void ui_span_layout(struct ui_view* p) {
                 spacers++;
             } else {
                 x = ui_span_place_child(c, pbx, x);
-                rt_swear(c->max_w == 0 || c->max_w >= c->w,
+                posix_swear(c->max_w == 0 || c->max_w >= c->w,
                       "max_w:%d < w:%d", c->max_w, c->w);
                 if (c->max_w > 0) {
                     max_w_count++;
@@ -6438,11 +7049,11 @@ static void ui_span_layout(struct ui_view* p) {
                 struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
-                    rt_swear(padding.left == 0 && padding.right == 0);
+                    posix_swear(padding.left == 0 && padding.right == 0);
                 } else if (c->max_w > 0) {
                     const int32_t max_w = c->max_w < xw ? c->max_w : xw;
                     int64_t proportional = (xw * (int64_t)max_w) / max_w_sum;
-                    rt_assert(proportional <= (int64_t)INT32_MAX);
+                    posix_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t cw = (int32_t)proportional;
                     c->w = c->max_w < c->w + cw ? c->max_w : c->w + cw;
                     k++;
@@ -6455,7 +7066,7 @@ static void ui_span_layout(struct ui_view* p) {
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
-        rt_swear(k == max_w_count);
+        posix_swear(k == max_w_count);
     }
     // excess width after max_w of non-spacers taken into account
     xw = 0 > pbx.x + pbx.w - x ? 0 : pbx.x + pbx.w - x;
@@ -6486,7 +7097,7 @@ static void ui_span_layout(struct ui_view* p) {
 
 static void ui_list_measure(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_rect pbx; // parent "in" box (sans insets)
     struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6494,7 +7105,7 @@ static void ui_list_measure(struct ui_view* p) {
     int32_t h = insets.top;
     int32_t w = 0;
     ui_view_for_each_begin(p, c) {
-        rt_swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
+        posix_swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
@@ -6509,11 +7120,11 @@ static void ui_list_measure(struct ui_view* p) {
                 if (c->max_h == ui.infinity) {
                     max_h = ui.infinity;
                 } else if (max_h < ui.infinity && c->max_h != 0) {
-                    rt_swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
+                    posix_swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
                           c->max_h, c->h);
                     max_h += c->max_h;
                 } else if (max_h < ui.infinity) {
-                    rt_swear(0 <= max_h + cbx.h &&
+                    posix_swear(0 <= max_h + cbx.h &&
                           (int64_t)max_h + (int64_t)cbx.h < (int64_t)ui.infinity,
                           "max_h:%d + ch:%d = %d", max_h, cbx.h, max_h + cbx.h);
                     max_h += cbx.h;
@@ -6524,7 +7135,7 @@ static void ui_list_measure(struct ui_view* p) {
         }
     } ui_view_for_each_end(p, c);
     if (max_h < ui.infinity) {
-        rt_swear(0 <= max_h + insets.bottom &&
+        posix_swear(0 <= max_h + insets.bottom &&
               (int64_t)max_h + (int64_t)insets.bottom < (int64_t)ui.infinity,
              "max_h:%d + bottom:%d = %d",
               max_h, insets.bottom, max_h + insets.bottom);
@@ -6554,14 +7165,14 @@ static int32_t ui_list_place_child(struct ui_view* c, struct ui_rect pbx, int32_
     }
     int32_t min_x = pbx.x + padding.left;
     if ((c->align & ui.align.left) != 0) {
-        rt_assert(c->align == ui.align.left);
+        posix_assert(c->align == ui.align.left);
         c->x = min_x;
     } else if ((c->align & ui.align.right) != 0) {
-        rt_assert(c->align == ui.align.right);
+        posix_assert(c->align == ui.align.right);
         const int32_t x = pbx.x + pbx.w - c->w - padding.right;
         c->x = min_x > x ? min_x : x;
     } else {
-        rt_assert(c->align == ui.align.center,
+        posix_assert(c->align == ui.align.center,
                   "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
         const int32_t x = pbx.x + (pbx.w - cw) / 2 + padding.left;
@@ -6573,7 +7184,7 @@ static int32_t ui_list_place_child(struct ui_view* c, struct ui_rect pbx, int32_
 
 static void ui_list_layout(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_rect pbx; // parent "in" box (sans insets)
     struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6592,7 +7203,7 @@ static void ui_list_layout(struct ui_view* p) {
             spacers++;
         } else {
             y = ui_list_place_child(c, pbx, y);
-            rt_swear(c->max_h == 0 || c->max_h >= c->h,
+            posix_swear(c->max_h == 0 || c->max_h >= c->h,
                   "max_h:%d < h:%d", c->max_h, c->h);
             if (c->max_h > 0) {
                 // clamp max_h to the effective parent height
@@ -6621,7 +7232,7 @@ static void ui_list_layout(struct ui_view* p) {
                 if (c->type != ui_view_spacer && c->max_h > 0) {
                     const int32_t max_h = c->max_h < xh ? c->max_h : xh;
                     int64_t proportional = (xh * (int64_t)max_h) / max_h_sum;
-                    rt_assert(proportional <= (int64_t)INT32_MAX);
+                    posix_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t ch = (int32_t)proportional;
                     c->h = c->max_h < c->h + ch ? c->max_h : c->h + ch;
                     k++;
@@ -6632,7 +7243,7 @@ static void ui_list_layout(struct ui_view* p) {
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
-        rt_swear(k == max_h_count);
+        posix_swear(k == max_h_count);
     }
     // excess height after max_h of non-spacers taken into account
     xh = 0 > pbx.y + pbx.h - y ? 0 : pbx.y + pbx.h - y; // excess height
@@ -6693,7 +7304,7 @@ static void ui_stack_child_3x3(struct ui_view* c, int32_t *row, int32_t *col) {
 
 static void ui_stack_measure(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_rect pbx; // parent "in" box (sans insets)
     struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6712,12 +7323,12 @@ static void ui_stack_measure(struct ui_view* p) {
         }
     } ui_view_for_each_end(p, c);
     if (ui_containers_debug) {
-        for (int32_t r = 0; r < rt_countof(sides); r++) {
+        for (int32_t r = 0; r < posix_countof(sides); r++) {
             char text[1024];
             text[0] = 0;
-            for (int32_t c = 0; c < rt_countof(sides[r]); c++) {
+            for (int32_t c = 0; c < posix_countof(sides[r]); c++) {
                 char line[128];
-                rt_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+                posix_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
             }
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);
@@ -6746,7 +7357,7 @@ static void ui_stack_measure(struct ui_view* p) {
 
 static void ui_stack_layout(struct ui_view* p) {
     ui_layout_enter(p);
-    rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
+    posix_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     struct ui_rect pbx; // parent "in" box (sans insets)
     struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6765,10 +7376,10 @@ static void ui_stack_layout(struct ui_view* p) {
             if (ch > 0) {
                 c->h = ch < ph ? ch : ph;
             }
-            rt_swear((c->align & (ui.align.left|ui.align.right)) !=
+            posix_swear((c->align & (ui.align.left|ui.align.right)) !=
                                (ui.align.left|ui.align.right),
                    "align: left|right 0x%02X", c->align);
-            rt_swear((c->align & (ui.align.top|ui.align.bottom)) !=
+            posix_swear((c->align & (ui.align.top|ui.align.bottom)) !=
                                (ui.align.top|ui.align.bottom),
                    "align: top|bottom 0x%02X", c->align);
             int32_t min_x = pbx.x + padding.left;
@@ -6802,7 +7413,7 @@ static void ui_container_paint(struct ui_view* v) {
         !ui_color_is_transparent(v->background)) {
         ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      rt_println("%s undefined", ui_view_debug_id(v));
+//      posix_println("%s undefined", ui_view_debug_id(v));
     }
 }
 
@@ -6818,7 +7429,7 @@ static void ui_view_container_init(struct ui_view* v) {
 }
 
 void ui_view_init_span(struct ui_view* v) {
-    rt_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
+    posix_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
@@ -6828,7 +7439,7 @@ void ui_view_init_span(struct ui_view* v) {
 }
 
 void ui_view_init_list(struct ui_view* v) {
-    rt_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
+    posix_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
@@ -6838,7 +7449,7 @@ void ui_view_init_list(struct ui_view* v) {
 }
 
 void ui_view_init_spacer(struct ui_view* v) {
-    rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
+    posix_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->w = 0;
     v->h = 0;
@@ -6864,8 +7475,7 @@ void ui_view_init_stack(struct ui_view* v) {
 #pragma pop_macro("debugln")
 // ________________________________ ui_core.c _________________________________
 
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
 
 #define UI_WM_ANIMATE  (WM_APP + 0x7FFF)
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
@@ -7026,8 +7636,7 @@ struct ui_if ui = {
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
 // ________________________________ ui_draw.c _________________________________
 
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
 
 #pragma push_macro("ui_draw_with_hdc")
 #pragma push_macro("ui_draw_hdc_with_font")
@@ -7063,17 +7672,17 @@ static void ui_draw_fini(void) {
 }
 
 static ui_pen_t ui_draw_set_pen(ui_pen_t p) {
-    rt_not_null(p);
+    posix_not_null(p);
     return (ui_pen_t)SelectPen(ui_draw_hdc(), (HPEN)p);
 }
 
 static ui_brush_t ui_draw_set_brush(ui_brush_t b) {
-    rt_not_null(b);
+    posix_not_null(b);
     return (ui_brush_t)SelectBrush(ui_draw_hdc(), b);
 }
 
 static uint32_t ui_draw_color_rgb(ui_color_t c) {
-    rt_assert(ui_color_is_8bit(c));
+    posix_assert(ui_color_is_8bit(c));
     return (COLORREF)(c & 0xFFFFFFFF);
 }
 
@@ -7086,20 +7695,20 @@ static ui_color_t ui_draw_set_text_color(ui_color_t c) {
 }
 
 static ui_font_t ui_draw_set_font(ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
 }
 
 static void ui_draw_begin(struct ui_bitmap* image) {
-    rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
+    posix_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        rt_swear(image->texture != null);
+        posix_swear(image->texture != null);
         ui_draw_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
         ui_draw_context.texture = SelectBitmap(ui_draw_hdc(),
                                              (HBITMAP)image->texture);
     } else {
         ui_draw_context.hdc = (HDC)ui_app.canvas;
-        rt_swear(ui_draw_context.texture == null);
+        posix_swear(ui_draw_context.texture == null);
     }
     ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
     struct ui_rect rc = image != null ?
@@ -7114,9 +7723,9 @@ static void ui_draw_end(void) {
         ui_draw_context.dxd = null;
     }
     if (ui_draw_context.hdc != (HDC)ui_app.canvas) {
-        rt_swear(ui_draw_context.texture != null); // 1x1 bitmap
+        posix_swear(ui_draw_context.texture != null); // 1x1 bitmap
         SelectBitmap(ui_draw_context.hdc, (HBITMAP)ui_draw_context.texture);
-        rt_fatal_win32err(DeleteDC(ui_draw_context.hdc));
+        posix_fatal_win32err(DeleteDC(ui_draw_context.hdc));
     }
     memset(&ui_draw_context, 0x00, sizeof(ui_draw_context));
 }
@@ -7128,14 +7737,14 @@ static ui_pen_t ui_draw_set_colored_pen(ui_color_t c) {
 }
 
 static ui_pen_t ui_draw_create_pen(ui_color_t c, int32_t width) {
-    rt_assert(width >= 1);
+    posix_assert(width >= 1);
     ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_draw_color_ref(c));
-    rt_not_null(pen);
+    posix_not_null(pen);
     return pen;
 }
 
 static void ui_draw_delete_pen(ui_pen_t p) {
-    rt_fatal_win32err(DeletePen(p));
+    posix_fatal_win32err(DeletePen(p));
 }
 
 static ui_brush_t ui_draw_create_brush(ui_color_t c) {
@@ -7159,7 +7768,7 @@ static void ui_draw_pixel(int32_t x, int32_t y, ui_color_t c) {
 }
 
 static void ui_draw_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    rt_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
+    posix_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
 }
 
 static void ui_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
@@ -7276,7 +7885,7 @@ static void ui_draw_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     } else if (bpp == 4) {
         ui_draw.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
     } else {
-        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
+        posix_fatal("bpp: %d not {1, 3, 4}", bpp);
     }
 }
 
@@ -7288,7 +7897,7 @@ static void ui_draw_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 }
 
 static BITMAPINFOHEADER ui_draw_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    posix_assert(w > 0 && h >= 0); // h cannot be negative?
     BITMAPINFOHEADER bi = {
         .biSize = sizeof(BITMAPINFOHEADER),
         .biPlanes = 1,
@@ -7325,7 +7934,7 @@ static void ui_draw_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    posix_assert(w > 0 && h >= 0); // h cannot be negative?
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
     bi->bmiHeader.biHeight = -h;  // top down image
@@ -7338,7 +7947,7 @@ static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp) {
-    rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
+    posix_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
@@ -7348,15 +7957,15 @@ static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32
             ui_draw_init_bitmap_info(w, h, bpp, bi),
             DIB_RGB_COLORS, &image->pixels, null, 0x0
     );
-    rt_fatal_if(image->texture == null || image->pixels == null);
-    rt_fatal_win32err(DeleteDC(c));
+    posix_fatal_if(image->texture == null || image->pixels == null);
+    posix_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_draw_bitmap_init_rgbx(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
+    posix_fatal_if(bpp != 4, "bpp: %d", bpp);
     ui_draw_create_dib_section(image, w, h, bpp);
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -7400,7 +8009,7 @@ static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, i
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
+    posix_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
     ui_draw_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
@@ -7485,8 +8094,8 @@ static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, i
 static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         struct ui_bitmap* image, fp64_t alpha) {
-    rt_assert(image->bpp > 0);
-    rt_assert(0 <= alpha && alpha <= 1);
+    posix_assert(image->bpp > 0);
+    posix_assert(0 <= alpha && alpha <= 1);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, alpha, true);
@@ -7495,7 +8104,7 @@ static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         struct ui_bitmap* image) {
-    rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    posix_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, 1.0, false);
@@ -7508,61 +8117,61 @@ static void ui_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_draw_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
                                                    true, 0, spif));
     uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
         0, (void*)s, spif));
 }
 
 static void ui_draw_font_smoothing_contrast(int32_t c) {
-    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    posix_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
+    posix_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
-rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
-rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
-rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
-rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+posix_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
+posix_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
+posix_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
+posix_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+posix_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
+posix_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
+posix_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
 static ui_font_t ui_draw_create_font(const char* family, int32_t h, int32_t q) {
-    rt_assert(h > 0);
+    posix_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
+    posix_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
-    rt_str_printf(lf.lfFaceName, "%s", family);
+    posix_str_printf(lf.lfFaceName, "%s", family);
     if (ui_font_quality_default <= q &&
         q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
+        posix_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
 static ui_font_t ui_draw_font(ui_font_t f, int32_t h, int32_t q) {
-    rt_assert(f != null && h > 0);
+    posix_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
+    posix_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     if (ui_font_quality_default <= q &&
         q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
+        posix_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
 static void ui_draw_delete_font(ui_font_t f) {
-    rt_fatal_win32err(DeleteFont(f));
+    posix_fatal_win32err(DeleteFont(f));
 }
 
 // guaranteed to return dc != null even if not painting
@@ -7579,7 +8188,7 @@ static HDC ui_draw_get_dc(void) {
     if (hdc == null && ui_app.window == null) {
         hdc = CreateICA("DISPLAY", null, null, null);
     }
-    rt_not_null(hdc);
+    posix_not_null(hdc);
     return hdc;
 }
 
@@ -7603,7 +8212,7 @@ static void ui_draw_release_dc(HDC hdc) {
 } while (0)
 
 #define ui_draw_hdc_with_font(f, ...) do {    \
-    rt_not_null(f);                          \
+    posix_not_null(f);                          \
     HDC hdc = ui_draw_get_dc();               \
     HFONT font_ = SelectFont(hdc, (HFONT)f); \
     { __VA_ARGS__ }                          \
@@ -7619,63 +8228,63 @@ static void ui_draw_dump_hdc_fm(HDC hdc) {
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
     TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    posix_fatal_win32err(GetTextMetricsA(hdc, &tm));
     char pitch[64] = { 0 };
     if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
     if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    rt_println("tm: .pitch_and_family: %s", pitch);
-    rt_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+    posix_println("tm: .pitch_and_family: %s", pitch);
+    posix_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
             tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    rt_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+    posix_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
             tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    rt_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+    posix_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    rt_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+    posix_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    posix_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    posix_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
-    rt_println("otm: .Ascent       : %2d   .Descent        : %2d",
+    posix_println("otm: .Ascent       : %2d   .Descent        : %2d",
             otm.otmAscent, otm.otmDescent);
-    rt_println(".otmLineGap        : %2u", otm.otmLineGap);
-    rt_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
+    posix_println(".otmLineGap        : %2u", otm.otmLineGap);
+    posix_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
             otm.otmrcFontBox.left, otm.otmrcFontBox.top,
             otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
-    rt_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
+    posix_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
             otm.otmusMinimumPPEM);
-    rt_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+    posix_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
             otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
             otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
-    rt_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+    posix_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
             otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
             otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
-    rt_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+    posix_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
             otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-    rt_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+    posix_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
             otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
     int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
     fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
-    rt_println("height: %.1fpt", pts);
+    posix_println("height: %.1fpt", pts);
 }
 
 static void ui_draw_dump_fm(ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
 }
 
 static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    posix_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    posix_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    posix_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // "tm.tmAscent" The ascent (units above the base line) of characters
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
@@ -7716,7 +8325,7 @@ static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     // Negative from the bottom (font.height)
     // tm.Descent: The descent (units below the base line) of characters.
     // Positive from the baseline down
-    rt_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
+    posix_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
            -otm.otmDescent <= tm.tmDescent,
            "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
     // "Mac" typography is ignored because it's usefulness is unclear.
@@ -7726,28 +8335,28 @@ static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
 }
 
 static void ui_draw_update_fm(struct ui_fm* fm, ui_font_t f) {
-    rt_not_null(f);
+    posix_not_null(f);
     SIZE em = {0, 0}; // "m"
     *fm = (struct ui_fm){ .font = f };
 //  ui_draw.dump_fm(f);
     ui_draw_hdc_with_font(f, {
         ui_draw_get_fm(hdc, fm);
-        // rt_glyph_nbsp and "M" have the same result
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
+        // ui_glyph_nbsp and "M" have the same result
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc,
-            rt_glyph_three_em_dash, 1, &e3));
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc,
+            ui_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-//      rt_println("vl: %d %d", vl.cx, vl.cy);
-//      rt_println("e3: %d %d", e3.cx, e3.cy);
-//      rt_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//      posix_println("vl: %d %d", vl.cx, vl.cy);
+//      posix_println("e3: %d %d", e3.cx, e3.cy);
+//      posix_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
-    rt_assert(fm->baseline <= fm->height);
+    posix_assert(fm->baseline <= fm->height);
     fm->em = (struct ui_wh){ .w = fm->height, .h = fm->height };
-//  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
+//  posix_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
 static int32_t ui_draw_draw_utf16(ui_font_t font, const char* s, int32_t n,
@@ -7757,23 +8366,23 @@ if (0) {
     HDC hdc = ui_draw_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        posix_println("em: %d %d", em.cx, em.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        posix_println("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        rt_println("vl: %d %d", vl.cx, vl.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
-        rt_println("e3: %d %d", e3.cx, e3.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        posix_println("vl: %d %d", vl.cx, vl.cy);
+        posix_fatal_win32err(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        posix_println("e3: %d %d", e3.cx, e3.cy);
     }
 }
-    int32_t count = rt_str.utf16_chars(s, -1);
-    rt_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    int32_t count = posix_str.utf16_chars(s, -1);
+    posix_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    rt_swear(count <= rt_countof(ws), "find another way to draw!");
-    rt_str.utf8to16(ws, count, s, -1);
+    posix_swear(count <= posix_countof(ws), "find another way to draw!");
+    posix_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
         ui_draw_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
@@ -7801,14 +8410,14 @@ struct ui_draw_dtp { // draw text parameters
 };
 
 static void ui_draw_text_draw(struct ui_draw_dtp* p) {
-    rt_not_null(p);
+    posix_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    rt_str.format_va(text, rt_countof(text), p->format, p->va);
-    text[rt_countof(text) - 1] = 0;
-    int32_t k = (int32_t)rt_str.len(text);
+    posix_str.format_va(text, posix_countof(text), p->format, p->va);
+    text[posix_countof(text) - 1] = 0;
+    int32_t k = (int32_t)posix_str.len(text);
     if (k > 0) {
-        rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        posix_swear(k > 0 && k < posix_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         const bool measure_only = (p->flags & DT_CALCRECT) != 0;
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
         const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
@@ -7842,10 +8451,10 @@ static struct ui_wh ui_draw_text_with_flags(const struct ui_ta* ta,
     if (!ta->measure) {
         c = ta->color;
         if (ui_color_is_undefined(c)) {
-            rt_swear(ta->color_id > 0);
+            posix_swear(ta->color_id > 0);
             c = ui_colors.get_color(ta->color_id);
         } else {
-            rt_swear(ta->color_id == 0);
+            posix_swear(ta->color_id == 0);
         }
     }
     struct ui_draw_dtp p = {
@@ -7895,7 +8504,7 @@ static struct ui_wh ui_draw_multiline(const struct ui_ta* ta,
 
 static struct ui_wh ui_draw_glyphs_placement(const struct ui_ta* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    posix_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
 }
 
@@ -7919,7 +8528,7 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
         (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
-        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
+        posix_fatal_if(true, "curl.exe --silent --fail --create-dirs "
             "https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h "
             "--output ext/stb_bitmap.h");
         return null;
@@ -7928,7 +8537,7 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
 
 static void ui_draw_bitmap_dispose(struct ui_bitmap* image) {
     dxd_bitmap_dispose(&image->dxd);
-    rt_fatal_win32err(DeleteBitmap(image->texture));
+    posix_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(struct ui_bitmap));
 }
 
@@ -8055,7 +8664,7 @@ struct ui_draw_if ui_draw = {
 // ______________________________ ui_edit_doc.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 
 #undef UI_EDIT_STR_TEST
 #undef UI_EDIT_DOC_TEST
@@ -8083,18 +8692,18 @@ struct ui_draw_if ui_draw = {
 #pragma push_macro("ui_edit_doc_dump")
 
 #define ui_edit_pg_dump(pg)                              \
-    rt_debug.println(__FILE__, __LINE__, __func__,       \
+    posix_debug.println(__FILE__, __LINE__, __func__,       \
                     "pn:%d gp:%d", (pg)->pn, (pg)->gp)
 
 #define ui_edit_range_dump(r)                            \
-    rt_debug.println(__FILE__, __LINE__, __func__,       \
+    posix_debug.println(__FILE__, __LINE__, __func__,       \
             "from {pn:%d gp:%d} to {pn:%d gp:%d}",       \
     (r)->from.pn, (r)->from.gp, (r)->to.pn, (r)->to.gp);
 
 #define ui_edit_text_dump(t) do {                        \
     for (int32_t i_ = 0; i_ < (t)->np; i_++) {           \
         const struct ui_edit_str* p_ = &t->ps[i_];            \
-        rt_debug.println(__FILE__, __LINE__, __func__,   \
+        posix_debug.println(__FILE__, __LINE__, __func__,   \
             "ps[%d].%d: %.*s", i_, p_->b, p_->b, p_->u); \
     }                                                    \
 } while (0)
@@ -8103,7 +8712,7 @@ struct ui_draw_if ui_draw = {
 #define ui_edit_doc_dump(d) do {                                \
     for (int32_t i_ = 0; i_ < (d)->text.np; i_++) {             \
         const struct ui_edit_str* p_ = &(d)->text.ps[i_];            \
-        rt_debug.println(__FILE__, __LINE__, __func__,          \
+        posix_debug.println(__FILE__, __LINE__, __func__,          \
             "ps[%d].b:%d.c:%d: %p %.*s", i_, p_->b, p_->c,      \
             p_, p_->b, p_->u);                                  \
     }                                                           \
@@ -8116,17 +8725,17 @@ struct ui_draw_if ui_draw = {
 
 #define ui_edit_check_zeros(a_, b_) do {                                    \
     for (int32_t i_ = 0; i_ < (int32_t)(b_); i_++) {                        \
-        rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
+        posix_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
     }                                                                       \
 } while (0)
 
 #define ui_edit_check_pg_inside_text(t_, pg_)                               \
-    rt_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
+    posix_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
            0 <= (pg_)->gp && (pg_)->gp <= (t_)->ps[(pg_)->pn].g)
 
 #define ui_edit_check_range_inside_text(t_, r_) do {                        \
-    rt_assert((r_)->from.pn <= (r_)->to.pn);                                   \
-    rt_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
+    posix_assert((r_)->from.pn <= (r_)->to.pn);                                   \
+    posix_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
     ui_edit_check_pg_inside_text(t_, (&(r_)->from));                        \
     ui_edit_check_pg_inside_text(t_, (&(r_)->to));                          \
 } while (0)
@@ -8145,7 +8754,7 @@ static union ui_edit_range ui_edit_text_all_on_null(const struct ui_edit_text* t
     if (range != null) {
         r = *range;
     } else {
-        rt_assert(t->np >= 1);
+        posix_assert(t->np >= 1);
         r.from.pn = 0;
         r.from.gp = 0;
         r.to.pn = t->np - 1;
@@ -8204,12 +8813,12 @@ static union ui_edit_range ui_edit_text_end_range(const struct ui_edit_text* t) 
 }
 
 static uint64_t ui_edit_range_uint64(const struct ui_edit_pg pg) {
-    rt_assert(pg.pn >= 0 && pg.gp >= 0);
+    posix_assert(pg.pn >= 0 && pg.gp >= 0);
     return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
 }
 
 static struct ui_edit_pg ui_edit_range_pg(uint64_t uint64) {
-    rt_assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
+    posix_assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
     return (struct ui_edit_pg){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
 }
 
@@ -8265,10 +8874,10 @@ static bool ui_edit_doc_realloc_ps_no_init(struct ui_edit_str* *ps,
     for (int32_t i = new_np; i < old_np; i++) { ui_edit_str.free(&(*ps)[i]); }
     bool ok = true;
     if (new_np == 0) {
-        rt_heap.free(*ps);
+        posix_heap.free(*ps);
         *ps = null;
     } else {
-        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(struct ui_edit_str)) == 0;
+        ok = posix_heap.realloc_zero((void**)ps, new_np * sizeof(struct ui_edit_str)) == 0;
     }
     return ok;
 }
@@ -8279,7 +8888,7 @@ static bool ui_edit_doc_realloc_ps(struct ui_edit_str* *ps,
     if (ok) {
         for (int32_t i = old_np; i < new_np; i++) {
             ok = ui_edit_str.init(&(*ps)[i], null, 0, false);
-            rt_swear(ok, "because .init(\"\", 0) does NOT allocate memory");
+            posix_swear(ok, "because .init(\"\", 0) does NOT allocate memory");
         }
     }
     return ok;
@@ -8307,18 +8916,18 @@ static bool ui_edit_text_init(struct ui_edit_text* t,
             lf = k < b && s[k] == '\n';
             if (np >= n) {
                 int32_t n1_5 = n * 3 / 2; // n * 1.5
-                rt_assert(n1_5 > n);
+                posix_assert(n1_5 > n);
                 ok = ui_edit_doc_realloc_ps(&ps, n, n1_5);
                 if (ok) { n = n1_5; }
             }
             if (ok) {
                 // insider knowledge about ui_edit_str allocation behaviour:
-                rt_assert(ps[np].c == 0 && ps[np].b == 0 &&
+                posix_assert(ps[np].c == 0 && ps[np].b == 0 &&
                        ps[np].g2b[0] == 0);
                 ui_edit_str.free(&ps[np]);
                 // process "\r\n" strings
                 const int32_t e = k > i && s[k - 1] == '\r' ? k - 1 : k;
-                const int32_t bytes = e - i; rt_assert(bytes >= 0);
+                const int32_t bytes = e - i; posix_assert(bytes >= 0);
                 const char* u = bytes == 0 ? null : s + i;
                 // str.init may allocate str.g2b[] on the heap and may fail
                 ok = ui_edit_str.init(&ps[np], u, bytes, heap && bytes > 0);
@@ -8335,19 +8944,19 @@ static bool ui_edit_text_init(struct ui_edit_text* t,
         }
     }
     if (ok && np == 0) { // special case empty string to a single paragraph
-        rt_assert(b <= 0 && (b == 0 || s[0] == 0x00));
+        posix_assert(b <= 0 && (b == 0 || s[0] == 0x00));
         np = 1; // ps[0] is already initialized as empty str
         ok = ui_edit_doc_realloc_ps(&ps, n, 1);
-        rt_swear(ok, "shrinking ps[] above");
+        posix_swear(ok, "shrinking ps[] above");
     }
     if (ok) {
-        rt_assert(np > 0);
+        posix_assert(np > 0);
         t->np = np;
         t->ps = ps;
     } else if (ps != null) {
         bool shrink = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
-        rt_swear(shrink);
-        rt_heap.free(ps);
+        posix_swear(shrink);
+        posix_heap.free(ps);
         t->np = 0;
         t->ps = null;
     }
@@ -8357,10 +8966,10 @@ static bool ui_edit_text_init(struct ui_edit_text* t,
 static void ui_edit_text_dispose(struct ui_edit_text* t) {
     if (t->np != 0) {
         ui_edit_doc_realloc_ps(&t->ps, t->np, 0);
-        rt_assert(t->ps == null);
+        posix_assert(t->ps == null);
         t->np = 0;
     } else {
-        rt_assert(t->np == 0 && t->ps == null);
+        posix_assert(t->np == 0 && t->ps == null);
     }
 }
 
@@ -8433,11 +9042,11 @@ static bool ui_edit_doc_subscribe(struct ui_edit_doc* t, struct ui_edit_notify* 
     bool ok = true;
     struct ui_edit_listener* o = t->listeners;
     if (o == null) {
-        ok = rt_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
+        ok = posix_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
         if (ok) { o = t->listeners; }
     } else {
-        while (o->next != null) { rt_swear(o->notify != notify); o = o->next; }
-        ok = rt_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
+        while (o->next != null) { posix_swear(o->notify != notify); o = o->next; }
+        ok = posix_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
         if (ok) { o->next->prev = o; o = o->next; }
     }
     if (ok) { o->notify = notify; }
@@ -8450,16 +9059,16 @@ static void ui_edit_doc_unsubscribe(struct ui_edit_doc* t, struct ui_edit_notify
     while (o != null) {
         struct ui_edit_listener* n = o->next;
         if (o->notify == notify) {
-            rt_assert(!removed);
+            posix_assert(!removed);
             if (o->prev != null) { o->prev->next = n; }
             if (o->next != null) { o->next->prev = o->prev; }
             if (o == t->listeners) { t->listeners = n; }
-            rt_heap.free(o);
+            posix_heap.free(o);
             removed = true;
         }
         o = n;
     }
-    rt_swear(removed);
+    posix_swear(removed);
 }
 
 static bool ui_edit_doc_copy_text(const struct ui_edit_doc* d,
@@ -8486,7 +9095,7 @@ static bool ui_edit_doc_copy_text(const struct ui_edit_doc* d,
         } else {
             bytes = p->b;
         }
-        rt_assert(t->ps[pn - r.from.pn].g == 0);
+        posix_assert(t->ps[pn - r.from.pn].g == 0);
         const char* u_or_null = bytes == 0 ? null : u;
         ui_edit_str.replace(&t->ps[pn - r.from.pn], 0, 0, u_or_null, bytes);
     }
@@ -8519,17 +9128,17 @@ static void ui_edit_doc_copy(const struct ui_edit_doc* d,
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
         if (bytes > 0) {
-            rt_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            posix_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            rt_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            posix_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    rt_swear(c + 1 == b, "c: %d b: %d", c, b);
+    posix_swear(c + 1 == b, "c: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -8537,9 +9146,9 @@ static bool ui_edit_text_insert_2_or_more(struct ui_edit_text* t, int32_t pn,
         const struct ui_edit_str* s, const struct ui_edit_text* insert,
         const struct ui_edit_str* e) {
     // insert 2 or more paragraphs
-    rt_assert(0 <= pn && pn < t->np);
+    posix_assert(0 <= pn && pn < t->np);
     const int32_t np = t->np + insert->np - 1;
-    rt_assert(np > 0);
+    posix_assert(np > 0);
     struct ui_edit_str* ps = null; // ps[np]
     bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
     if (ok) {
@@ -8556,7 +9165,7 @@ static bool ui_edit_text_insert_2_or_more(struct ui_edit_text* t, int32_t pn,
             const int32_t ix = pn + insert->np - 1; // last `insert` index
             ok = ui_edit_str.init(&ps[ix], e->u, e->b, true);
         }
-        rt_assert(t->np - pn - 1 >= 0);
+        posix_assert(t->np - pn - 1 >= 0);
         memmove(ps + pn + insert->np, t->ps + pn + 1,
                (size_t)(t->np - pn - 1) * sizeof(struct ui_edit_str));
         if (ok) {
@@ -8578,18 +9187,18 @@ static bool ui_edit_text_insert_2_or_more(struct ui_edit_text* t, int32_t pn,
 static bool ui_edit_text_insert_1(struct ui_edit_text* t,
         const struct ui_edit_pg ip, // insertion point
         const struct ui_edit_text* insert) {
-    rt_assert(0 <= ip.pn && ip.pn < t->np);
+    posix_assert(0 <= ip.pn && ip.pn < t->np);
     struct ui_edit_str* str = &t->ps[ip.pn]; // string in document text
-    rt_assert(insert->np == 1);
+    posix_assert(insert->np == 1);
     struct ui_edit_str* ins = &insert->ps[0]; // string to insert
-    rt_assert(0 <= ip.gp && ip.gp <= str->g);
+    posix_assert(0 <= ip.gp && ip.gp <= str->g);
     // ui_edit_str.replace() is all or nothing:
     return ui_edit_str.replace(str, ip.gp, ip.gp, ins->u, ins->b);
 }
 
 static bool ui_edit_substr_append(struct ui_edit_str* d, const struct ui_edit_str* s1,
     int32_t gp1, const struct ui_edit_str* s2) { // s1[0:gp1] + s2
-    rt_assert(d != s1 && d != s2);
+    posix_assert(d != s1 && d != s2);
     const int32_t b = s1->g2b[gp1];
     bool ok = ui_edit_str.init(d, b == 0 ? null : s1->u, b, true);
     if (ok) {
@@ -8602,7 +9211,7 @@ static bool ui_edit_substr_append(struct ui_edit_str* d, const struct ui_edit_st
 
 static bool ui_edit_append_substr(struct ui_edit_str* d, const struct ui_edit_str* s1,
     const struct ui_edit_str* s2, int32_t gp2) {  // s1 + s2[gp1:*]
-    rt_assert(d != s1 && d != s2);
+    posix_assert(d != s1 && d != s2);
     bool ok = ui_edit_str.init(d, s1->b == 0 ? null : s1->u, s1->b, true);
     if (ok) {
         const int32_t o = s2->g2b[gp2]; // offset (bytes)
@@ -8701,7 +9310,7 @@ static bool ui_edit_text_copy_text(const struct ui_edit_text* t,
         } else {
             bytes = p->b;
         }
-        rt_assert(to->ps[pn - r.from.pn].g == 0);
+        posix_assert(to->ps[pn - r.from.pn].g == 0);
         const char* u_or_null = bytes == 0 ? null : u;
         ui_edit_str.replace(&to->ps[pn - r.from.pn], 0, 0, u_or_null, bytes);
     }
@@ -8733,18 +9342,18 @@ static void ui_edit_text_copy(const struct ui_edit_text* t,
             bytes = p->b;
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
-        rt_swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
+        posix_swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
         if (bytes > 0) {
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            rt_swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
+            posix_swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    rt_swear(c + 1 == b, "d: %d b: %d", c, b);
+    posix_swear(c + 1 == b, "d: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -8872,7 +9481,7 @@ static bool ui_edit_doc_replace_undoable(struct ui_edit_doc* d,
             struct ui_edit_to_do* next = d->redo->next;
             d->redo->next = null;
             ui_edit_doc.dispose_to_do(d->redo);
-            rt_heap.free(d->redo);
+            posix_heap.free(d->redo);
             d->redo = next;
         }
     }
@@ -8881,7 +9490,7 @@ static bool ui_edit_doc_replace_undoable(struct ui_edit_doc* d,
 
 static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
         struct ui_edit_text* it) {
-    rt_assert((b == 0) == (u == null || u[0] == 0x00));
+    posix_assert((b == 0) == (u == null || u[0] == 0x00));
     return ui_edit_text.init(it, b != 0 ? u : null, b, true);
 }
 
@@ -8889,19 +9498,19 @@ static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
 static bool ui_edit_doc_coalesce_undo(struct ui_edit_doc* d, struct ui_edit_text* i) {
     struct ui_edit_to_do* undo = d->undo;
     struct ui_edit_to_do* next = undo->next;
-//  rt_println("i: %.*s", i->ps[0].b, i->ps[0].u);
+//  posix_println("i: %.*s", i->ps[0].b, i->ps[0].u);
 //  if (i->np == 1 && i->ps[0].g == 1) {
-//      rt_println("an: %d", ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b)));
+//      posix_println("an: %d", ui_edit_str.is_letter(posix_str.utf32(i->ps[0].u, i->ps[0].b)));
 //  }
     bool coalesced = false;
     const bool alpha_numeric = i->np == 1 && i->ps[0].g == 1 &&
-        ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b));
+        ui_edit_str.is_letter(posix_str.utf32(i->ps[0].u, i->ps[0].b));
     if (alpha_numeric && next != null) {
         const union ui_edit_range ur = undo->range;
         const struct ui_edit_text* ut = &undo->text;
         const union ui_edit_range nr = next->range;
         const struct ui_edit_text* nt = &next->text;
-//      rt_println("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
+//      posix_println("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
 //          nt->ps[0].b, nt->ps[0].u, nr.from.pn, nr.from.gp, nr.to.pn, nr.to.gp,
 //          ut->ps[0].b, ut->ps[0].u, ur.from.pn, ur.from.gp, ur.to.pn, ur.to.gp);
         const bool c =
@@ -8914,11 +9523,11 @@ static bool ui_edit_doc_coalesce_undo(struct ui_edit_doc* d, struct ui_edit_text
             const struct ui_edit_str* str = &d->text.ps[nr.from.pn];
             const int32_t* g2b = str->g2b;
             const char* utf8 = str->u + g2b[nr.to.gp - 1];
-            uint32_t utf32 = rt_str.utf32(utf8, g2b[nr.to.gp] - g2b[nr.to.gp - 1]);
+            uint32_t utf32 = posix_str.utf32(utf8, g2b[nr.to.gp] - g2b[nr.to.gp - 1]);
             coalesced = ui_edit_str.is_letter(utf32);
         }
         if (coalesced) {
-//          rt_println("coalesced");
+//          posix_println("coalesced");
             next->range.to.gp++;
             d->undo = next;
             undo->next = null;
@@ -8933,7 +9542,7 @@ static bool ui_edit_doc_replace(struct ui_edit_doc* d,
     struct ui_edit_text* t = &d->text;
     const union ui_edit_range r = ui_edit_text.ordered(t, range);
     struct ui_edit_to_do* undo = null;
-    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(struct ui_edit_to_do)) == 0;
+    bool ok = posix_heap.alloc_zero((void**)&undo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
         struct ui_edit_text i = {0};
         ok = ui_edit_utf8_to_heap_text(u, b, &i);
@@ -8942,7 +9551,7 @@ static bool ui_edit_doc_replace(struct ui_edit_doc* d,
             if (ok) {
                 if (ui_edit_doc_coalesce_undo(d, &i)) {
                     ui_edit_doc.dispose_to_do(undo);
-                    rt_heap.free(undo);
+                    posix_heap.free(undo);
                     undo = null;
                 }
             }
@@ -8950,7 +9559,7 @@ static bool ui_edit_doc_replace(struct ui_edit_doc* d,
         }
         if (!ok) {
             ui_edit_doc.dispose_to_do(undo);
-            rt_heap.free(undo);
+            posix_heap.free(undo);
             undo = null;
         }
     }
@@ -8961,12 +9570,12 @@ static bool ui_edit_doc_do(struct ui_edit_doc* d, struct ui_edit_to_do* to_do,
         struct ui_edit_to_do* *stack) {
     const union ui_edit_range* r = &to_do->range;
     struct ui_edit_to_do* redo = null;
-    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(struct ui_edit_to_do)) == 0;
+    bool ok = posix_heap.alloc_zero((void**)&redo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
         ok = ui_edit_doc_replace_text(d, r, &to_do->text, redo);
         if (ok) {
             ui_edit_doc.dispose_to_do(to_do);
-            rt_heap.free(to_do);
+            posix_heap.free(to_do);
         }
         if (ok) {
             redo->next = *stack;
@@ -8974,7 +9583,7 @@ static bool ui_edit_doc_do(struct ui_edit_doc* d, struct ui_edit_to_do* to_do,
         } else {
             if (redo != null) {
                 ui_edit_doc.dispose_to_do(redo);
-                rt_heap.free(redo);
+                posix_heap.free(redo);
             }
         }
     }
@@ -9010,13 +9619,13 @@ static bool ui_edit_doc_init(struct ui_edit_doc* d, const char* utf8,
     memset(d, 0x00, sizeof(*d));
     if (bytes < 0) {
         size_t n = strlen(utf8);
-        rt_swear(n < INT32_MAX);
+        posix_swear(n < INT32_MAX);
         bytes = (int32_t)n;
     }
-    rt_assert((utf8 == null) == (bytes == 0));
+    posix_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
-            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(struct ui_edit_str)) == 0;
+            ok = posix_heap.alloc_zero((void**)&d->text.ps, sizeof(struct ui_edit_str)) == 0;
             if (ok) {
                 d->text.np = 1;
                 ok = ui_edit_str.init(&d->text.ps[0], null, 0, false);
@@ -9033,7 +9642,7 @@ static void ui_edit_doc_dispose(struct ui_edit_doc* d) {
         ui_edit_str.free(&d->text.ps[i]);
     }
     if (d->text.ps != null) {
-        rt_heap.free(d->text.ps);
+        posix_heap.free(d->text.ps);
         d->text.ps = null;
     }
     d->text.np  = 0;
@@ -9041,21 +9650,21 @@ static void ui_edit_doc_dispose(struct ui_edit_doc* d) {
         struct ui_edit_to_do* next = d->undo->next;
         d->undo->next = null;
         ui_edit_doc.dispose_to_do(d->undo);
-        rt_heap.free(d->undo);
+        posix_heap.free(d->undo);
         d->undo = next;
     }
     while (d->redo != null) {
         struct ui_edit_to_do* next = d->redo->next;
         d->redo->next = null;
         ui_edit_doc.dispose_to_do(d->redo);
-        rt_heap.free(d->redo);
+        posix_heap.free(d->redo);
         d->redo = next;
     }
-    rt_assert(d->listeners == null, "unsubscribe listeners?");
+    posix_assert(d->listeners == null, "unsubscribe listeners?");
     while (d->listeners != null) {
         struct ui_edit_listener* next = d->listeners->next;
         d->listeners->next = null;
-        rt_heap.free(d->listeners);
+        posix_heap.free(d->listeners);
         d->listeners = next;
     }
     ui_edit_check_zeros(d, sizeof(*d));
@@ -9143,32 +9752,32 @@ struct ui_edit_str_if ui_edit_str = {
 
 #define ui_edit_str_check(s) do {                                   \
     /* check the s struct constrains */                             \
-    rt_assert(s->b >= 0);                                              \
-    rt_assert(s->c == 0 || s->c >= s->b);                              \
-    rt_assert(s->g >= 0);                                              \
+    posix_assert(s->b >= 0);                                              \
+    posix_assert(s->c == 0 || s->c >= s->b);                              \
+    posix_assert(s->g >= 0);                                              \
     /* s->g2b[] may be null (not heap allocated) when .b == 0 */    \
-    if (s->g == 0) { rt_assert(s->b == 0); }                           \
+    if (s->g == 0) { posix_assert(s->b == 0); }                           \
     if (s->g > 0) {                                                 \
-        rt_assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
+        posix_assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
     }                                                               \
     for (int32_t i = 1; i < s->g; i++) {                            \
-        rt_assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
+        posix_assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
                    s->g2b[i] - s->g2b[i - 1] <= 4);                 \
-        rt_assert(s->g2b[i] - s->g2b[i - 1] ==                         \
-            rt_str.utf8bytes(                                 \
+        posix_assert(s->g2b[i] - s->g2b[i - 1] ==                         \
+            posix_str.utf8bytes(                                 \
             s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
 
 #define ui_edit_str_check_from_to(s, f, t) do {                     \
-    rt_assert(0 <= f && f <= s->g);                                    \
-    rt_assert(0 <= t && t <= s->g);                                    \
-    rt_assert(f <= t);                                                 \
+    posix_assert(0 <= f && f <= s->g);                                    \
+    posix_assert(0 <= t && t <= s->g);                                    \
+    posix_assert(f <= t);                                                 \
 } while (0)
 
 #define ui_edit_str_check_empty(u, b) do {                          \
-    if (b == 0) { rt_assert(u != null && u[0] == 0x00); }              \
-    if (u == null || u[0] == 0x00) { rt_assert(b == 0); }              \
+    if (b == 0) { posix_assert(u != null && u[0] == 0x00); }              \
+    if (u == null || u[0] == 0x00) { posix_assert(b == 0); }              \
 } while (0)
 
 
@@ -9187,43 +9796,43 @@ struct ui_edit_str_if ui_edit_str = {
 #define ui_edit_str_parameters(u, b) do {                           \
     if (u == null) { u = ui_edit_str_empty_utf8; }                  \
     if (b < 0)  {                                                   \
-        rt_assert(strlen(u) < INT32_MAX);                              \
+        posix_assert(strlen(u) < INT32_MAX);                              \
         b = (int32_t)strlen(u);                                     \
     }                                                               \
     ui_edit_str_check_empty(u, b);                                  \
 } while (0)
 
 static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp) {
-    rt_swear(bytes >= 0);
+    posix_swear(bytes >= 0);
     bool ok = true;
     int32_t c = 0;
     int32_t i = 0;
     if (bytes > 0) {
         while (c < gp && ok) {
-            rt_assert(i < bytes);
-            const int32_t b = rt_str.utf8bytes(utf8 + i, bytes - i);
+            posix_assert(i < bytes);
+            const int32_t b = posix_str.utf8bytes(utf8 + i, bytes - i);
             ok = 0 < b && i + b <= bytes;
             if (ok) { i += b; c++; }
         }
     }
-    rt_assert(i <= bytes);
+    posix_assert(i <= bytes);
     return ok ? i : -1;
 }
 
 static void ui_edit_str_free(struct ui_edit_str* s) {
     if (s->g2b != null && s->g2b != ui_edit_str_g2b_ascii) {
-        rt_heap.free(s->g2b);
+        posix_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
-            for (int32_t i = 0; i < rt_countof(ui_edit_str_g2b_ascii); i++) {
-                rt_assert(ui_edit_str_g2b_ascii[i] == i);
+            for (int32_t i = 0; i < posix_countof(ui_edit_str_g2b_ascii); i++) {
+                posix_assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
     }
     s->g2b = null;
     s->g = 0;
     if (s->c > 0) {
-        rt_heap.free(s->u);
+        posix_heap.free(s->u);
         s->u = null;
         s->c = 0;
         s->b = 0;
@@ -9237,12 +9846,12 @@ static void ui_edit_str_free(struct ui_edit_str* s) {
 static bool ui_edit_str_init_g2b(struct ui_edit_str* s) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     // start with number of glyphs == number of bytes (ASCII text):
-    bool ok = rt_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
+    bool ok = posix_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
     int32_t i = 0; // index in u[] string
     int32_t k = 1; // glyph number
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
     while (i < s->b && ok) {
-        const int32_t b = rt_str.utf8bytes(s->u + i, s->b - i);
+        const int32_t b = posix_str.utf8bytes(s->u + i, s->b - i);
         ok = b > 0 && i + b <= s->b;
         if (ok) {
             i += b;
@@ -9251,13 +9860,13 @@ static bool ui_edit_str_init_g2b(struct ui_edit_str* s) {
         }
     }
     if (ok) {
-        rt_assert(0 < k && k <= s->b + 1);
+        posix_assert(0 < k && k <= s->b + 1);
         s->g2b[0] = 0;
-        rt_assert(s->g2b[k - 1] == s->b);
+        posix_assert(s->g2b[k - 1] == s->b);
         s->g = k - 1;
         if (k < s->b + 1) {
-            ok = rt_heap.realloc(&s->g2b, k * _4_bytes) == 0;
-            rt_assert(ok, "shrinking - should always be ok");
+            ok = posix_heap.realloc(&s->g2b, k * _4_bytes) == 0;
+            posix_assert(ok, "shrinking - should always be ok");
         }
     }
     return ok;
@@ -9265,7 +9874,7 @@ static bool ui_edit_str_init_g2b(struct ui_edit_str* s) {
 
 static bool ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b,
         bool heap) {
-    enum { n = rt_countof(ui_edit_str_g2b_ascii) };
+    enum { n = posix_countof(ui_edit_str_g2b_ascii) };
     if (ui_edit_str_g2b_ascii[n - 1] != n - 1) {
         for (int32_t i = 0; i < n; i++) { ui_edit_str_g2b_ascii[i] = i; }
     }
@@ -9276,10 +9885,10 @@ static bool ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b,
     if (b == 0) { // cast below intentionally removes "const" qualifier
         s->g2b = (int32_t*)ui_edit_str_g2b_ascii;
         s->u = (char*)u;
-        rt_assert(s->c == 0 && u[0] == 0x00);
+        posix_assert(s->c == 0 && u[0] == 0x00);
     } else {
         if (heap) {
-            ok = rt_heap.alloc((void**)&s->u, b) == 0;
+            ok = posix_heap.alloc((void**)&s->u, b) == 0;
             if (ok) { s->c = b; memmove(s->u, u, (size_t)b); }
         } else {
             s->u = (char*)u;
@@ -9312,15 +9921,15 @@ static int32_t ui_edit_str_bytes(struct ui_edit_str* s,
 static bool ui_edit_str_move_g2b_to_heap(struct ui_edit_str* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
-        if (s->b == s->g && s->g < rt_countof(ui_edit_str_g2b_ascii) - 1) {
-//          rt_println("forcefully moving to heap");
+        if (s->b == s->g && s->g < posix_countof(ui_edit_str_g2b_ascii) - 1) {
+//          posix_println("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
-            // than rt_countof(ui_edit_str_g2b_ascii) - 1 but the
+            // than posix_countof(ui_edit_str_g2b_ascii) - 1 but the
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
-        ok = rt_heap.alloc(&s->g2b, bytes) == 0;
+        ok = posix_heap.alloc(&s->g2b, bytes) == 0;
         if (ok) { memmove(s->g2b, ui_edit_str_g2b_ascii, (size_t)bytes); }
     }
     return ok;
@@ -9328,23 +9937,23 @@ static bool ui_edit_str_move_g2b_to_heap(struct ui_edit_str* s) {
 
 static bool ui_edit_str_move_to_heap(struct ui_edit_str* s, int32_t c) {
     bool ok = true;
-    rt_assert(c >= s->b, "can expand cannot shrink");
+    posix_assert(c >= s->b, "can expand cannot shrink");
     if (s->c == 0) { // s->u points outside of the heap
         const char* o = s->u;
-        ok = rt_heap.alloc((void**)&s->u, c) == 0;
+        ok = posix_heap.alloc((void**)&s->u, c) == 0;
         if (ok) { memmove(s->u, o, (size_t)s->b); }
     } else if (s->c < c) {
-        ok = rt_heap.realloc((void**)&s->u, c) == 0;
+        ok = posix_heap.realloc((void**)&s->u, c) == 0;
     }
     if (ok) { s->c = c; }
     return ok;
 }
 
 static bool ui_edit_str_expand(struct ui_edit_str* s, int32_t c) {
-    rt_swear(c > 0);
+    posix_swear(c > 0);
     bool ok = ui_edit_str_move_to_heap(s, c);
     if (ok && c > s->c) {
-        if (rt_heap.realloc((void**)&s->u, c) == 0) {
+        if (posix_heap.realloc((void**)&s->u, c) == 0) {
             s->c = c;
         } else {
             ok = false;
@@ -9355,28 +9964,28 @@ static bool ui_edit_str_expand(struct ui_edit_str* s, int32_t c) {
 
 static void ui_edit_str_shrink(struct ui_edit_str* s) {
     if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
-        rt_assert(s->u != ui_edit_str_empty_utf8);
+        posix_assert(s->u != ui_edit_str_empty_utf8);
         if (s->b == 0) {
-            rt_heap.free(s->u);
+            posix_heap.free(s->u);
             s->u = ui_edit_str_empty_utf8;
         } else {
-            bool ok = rt_heap.realloc((void**)&s->u, s->b) == 0;
-            rt_swear(ok, "smaller size is always expected to be ok");
+            bool ok = posix_heap.realloc((void**)&s->u, s->b) == 0;
+            posix_swear(ok, "smaller size is always expected to be ok");
         }
         s->c = s->b;
     }
     // Optimize memory for short ASCII only strings:
     if (s->g2b != ui_edit_str_g2b_ascii) {
-        if (s->g == s->b && s->g < rt_countof(ui_edit_str_g2b_ascii) - 1) {
+        if (s->g == s->b && s->g < posix_countof(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
-                rt_heap.free(s->g2b);
+                posix_heap.free(s->g2b);
                 s->g2b = ui_edit_str_g2b_ascii;
             }
         } else {
-//          const int32_t b64 = rt_min(s->b, 64);
-//          rt_println("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
+//          const int32_t b64 = posix_min(s->b, 64);
+//          posix_println("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
 }
@@ -9386,12 +9995,12 @@ static bool ui_edit_str_remove(struct ui_edit_str* s, int32_t f, int32_t t) {
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
     const int32_t bytes_to_remove = s->g2b[t] - s->g2b[f];
-    rt_assert(bytes_to_remove >= 0);
+    posix_assert(bytes_to_remove >= 0);
     if (bytes_to_remove > 0) {
         ok = ui_edit_str_move_to_heap(s, s->b);
         if (ok) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
-            rt_assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
+            posix_assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
             memmove(s->u + s->g2b[f], s->u + s->g2b[t], (size_t)bytes_to_shift);
             if (s->g2b != ui_edit_str_g2b_ascii) {
                 memmove(s->g2b + f, s->g2b + t,
@@ -9401,7 +10010,7 @@ static bool ui_edit_str_remove(struct ui_edit_str* s, int32_t f, int32_t t) {
                 }
             } else {
                 // no need to shrink g2b[] for ASCII only strings:
-                for (int32_t i = 0; i <= s->g; i++) { rt_assert(s->g2b[i] == i); }
+                for (int32_t i = 0; i <= s->g; i++) { posix_assert(s->g2b[i] == i); }
             }
             s->b -= bytes_to_remove;
             s->g -= t - f;
@@ -9431,13 +10040,13 @@ static bool ui_edit_str_replace(struct ui_edit_str* s,
         const int32_t glyphs_to_remove = t - f; // only for readability
         if (ok) {
             const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
-            rt_assert(ins.g2b != null); // pacify code analysis
-            rt_assert(bytes > 0);
+            posix_assert(ins.g2b != null); // pacify code analysis
+            posix_assert(bytes > 0);
             const int32_t c = s->b > bytes ? s->b : bytes;
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
-                                   bytes < rt_countof(ui_edit_str_g2b_ascii) - 1;
+                                   bytes < posix_countof(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
                 if (!all_ascii) {
@@ -9451,9 +10060,9 @@ static bool ui_edit_str_replace(struct ui_edit_str* s,
                            s->u + s->g2b[f] + bytes_to_remove,
                            (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                     if (all_ascii) {
-                        rt_assert(s->g2b == ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b == ui_edit_str_g2b_ascii);
                     } else {
-                        rt_assert(s->g2b != ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b != ui_edit_str_g2b_ascii);
                         memmove(s->g2b + f + glyphs_to_insert,
                                s->g2b + f + glyphs_to_remove,
                                (size_t)(s->g - t + 1) * _4_bytes);
@@ -9461,13 +10070,13 @@ static bool ui_edit_str_replace(struct ui_edit_str* s,
                     memmove(s->u + s->g2b[f], ins.u, (size_t)ins.b);
                 } else {
                     if (all_ascii) {
-                        rt_assert(s->g2b == ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b == ui_edit_str_g2b_ascii);
                     } else {
-                        rt_assert(s->g2b != ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b != ui_edit_str_g2b_ascii);
                         const int32_t g = s->g + glyphs_to_insert -
                                                  glyphs_to_remove;
-                        rt_assert(g > s->g);
-                        ok = rt_heap.realloc(&s->g2b,
+                        posix_assert(g > s->g);
+                        ok = posix_heap.realloc(&s->g2b,
                                              (size_t)(g + 1) * _4_bytes) == 0;
                     }
                     // need to shift bytes staring with s.g2b[t] toward the end
@@ -9476,9 +10085,9 @@ static bool ui_edit_str_replace(struct ui_edit_str* s,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                         if (all_ascii) {
-                            rt_assert(s->g2b == ui_edit_str_g2b_ascii);
+                            posix_assert(s->g2b == ui_edit_str_g2b_ascii);
                         } else {
-                            rt_assert(s->g2b != ui_edit_str_g2b_ascii);
+                            posix_assert(s->g2b != ui_edit_str_g2b_ascii);
                             memmove(s->g2b + f + glyphs_to_insert,
                                     s->g2b + f + glyphs_to_remove,
                                     (size_t)(s->g - t + 1) * _4_bytes);
@@ -9488,33 +10097,33 @@ static bool ui_edit_str_replace(struct ui_edit_str* s,
                 }
                 if (ok) {
                     if (!all_ascii) {
-                        rt_assert(s->g2b != null && s->g2b != ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b != null && s->g2b != ui_edit_str_g2b_ascii);
                         for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
                             s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
                         }
                     } else {
-                        rt_assert(s->g2b == ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b == ui_edit_str_g2b_ascii);
                         for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
-                            rt_assert(ui_edit_str_g2b_ascii[i] == i);
-                            rt_assert(ins.g2b[i - f] + s->g2b[f] == i);
+                            posix_assert(ui_edit_str_g2b_ascii[i] == i);
+                            posix_assert(ins.g2b[i - f] + s->g2b[f] == i);
                         }
                     }
                     s->b += bytes_to_insert - bytes_to_remove;
                     s->g += glyphs_to_insert - glyphs_to_remove;
-                    rt_assert(s->b == bytes);
+                    posix_assert(s->b == bytes);
                     if (!all_ascii) {
-                        rt_assert(s->g2b != ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b != ui_edit_str_g2b_ascii);
                         for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
                             s->g2b[i] += bytes_to_insert - bytes_to_remove;
                         }
                         s->g2b[s->g] = s->b;
                     } else {
-                        rt_assert(s->g2b == ui_edit_str_g2b_ascii);
+                        posix_assert(s->g2b == ui_edit_str_g2b_ascii);
                         for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
-                            rt_assert(s->g2b[i] == i);
-                            rt_assert(ui_edit_str_g2b_ascii[i] == i);
+                            posix_assert(s->g2b[i] == i);
+                            posix_assert(ui_edit_str_g2b_ascii[i] == i);
                         }
-                        rt_assert(s->g2b[s->g] == s->b);
+                        posix_assert(s->g2b[s->g] == s->b);
                     }
                 }
             }
@@ -9731,7 +10340,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         "", ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
     };
     const int32_t gb[] = {0, 1, 2, 3, 4}; // number of bytes per codepoint
-    enum { n = rt_countof(gs) };
+    enum { n = posix_countof(gs) };
     int32_t npn = 1; // n to the power of n
     for (int32_t i = 0; i < n; i++) { npn *= n; }
     int32_t gix_src[n] = {0};
@@ -9748,13 +10357,13 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         for (int32_t j = 0; j < n; j++) {
             if (gix_src[j] > 0) {
                 strcat(src, gs[gix_src[j]]);
-                rt_assert(1 <= ngx && ngx <= n);
+                posix_assert(1 <= ngx && ngx <= n);
                 g2p[ngx] = g2p[ngx - 1] + gb[gix_src[j]];
                 ngx++;
             }
         }
         if (i % 100 == 99) {
-            rt_println("%2d%% [%d][%d][%d][%d][%d] "
+            posix_println("%2d%% [%d][%d][%d][%d][%d] "
                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\": \"%s\"",
                 (i * 100) / npn,
                 gix_src[0], gix_src[1], gix_src[2], gix_src[3], gix_src[4],
@@ -9764,7 +10373,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         struct ui_edit_str s = {0};
         // reference constructor does not copy to heap:
         bool ok = ui_edit_str_init(&s, src, -1, false);
-        rt_swear(ok);
+        posix_swear(ok);
         for (int32_t f = 0; f <= s.g; f++) { // from
             for (int32_t t = f; t <= s.g; t++) { // to
                 int32_t gix_rep[n] = {0};
@@ -9778,27 +10387,27 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                     char rep[128] = {0};
                     for (int32_t j = 0; j < n; j++) { strcat(rep, gs[gix_rep[j]]); }
                     char e1[128] = {0}; // expected based on s.g2b[]
-                    snprintf(e1, rt_countof(e1), "%.*s%s%.*s",
+                    snprintf(e1, posix_countof(e1), "%.*s%s%.*s",
                         s.g2b[f], src,
                         rep,
                         s.b - s.g2b[t], src + s.g2b[t]
                     );
                     char e2[128] = {0}; // expected based on gs[]
-                    snprintf(e2, rt_countof(e1), "%.*s%s%.*s",
+                    snprintf(e2, posix_countof(e1), "%.*s%s%.*s",
                         g2p[f], src,
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
                     );
-                    rt_swear(strcmp(e1, e2) == 0,
+                    posix_swear(strcmp(e1, e2) == 0,
                         "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
                     struct ui_edit_str c = {0}; // copy
                     ok = ui_edit_str_init(&c, src, -1, true);
-                    rt_swear(ok);
+                    posix_swear(ok);
                     ok = ui_edit_str_replace(&c, f, t, rep, -1);
-                    rt_swear(ok);
-                    rt_swear(memcmp(c.u, e1, c.b) == 0,
+                    posix_swear(ok);
+                    posix_swear(memcmp(c.u, e1, c.b) == 0,
                            "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                            "expected: \"%s\"",
                            s.b, s.c, s.b, s.u, s.g,
@@ -9814,7 +10423,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
 static void ui_edit_str_test_glyph_bytes(void) {
     #pragma push_macro("glyph_bytes_test")
     #define glyph_bytes_test(s, b, expectancy) \
-        rt_swear(rt_str.utf8bytes(s, b) == expectancy)
+        posix_swear(posix_str.utf8bytes(s, b) == expectancy)
     // Valid Sequences
     glyph_bytes_test("a", 1, 1);
     glyph_bytes_test(ui_edit_gbp, 2, 2);
@@ -9848,11 +10457,11 @@ static void ui_edit_str_test(void) {
     {
         struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        rt_swear(ok);
-        rt_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
-        rt_swear(s.g == 5 && s.g2b != null);
+        posix_swear(ok);
+        posix_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
+        posix_swear(s.g == 5 && s.g2b != null);
         for (int32_t i = 0; i <= s.g; i++) {
-            rt_swear(s.g2b[i] == i);
+            posix_swear(s.g2b[i] == i);
         }
         ui_edit_str_free(&s);
     }
@@ -9863,40 +10472,40 @@ static void ui_edit_str_test(void) {
         struct ui_edit_str s = {0};
         const int32_t n = (int32_t)strlen(currencies);
         bool ok = ui_edit_str_init(&s, money, n, true);
-        rt_swear(ok);
-        rt_swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
-        rt_swear(s.g == 4 && s.g2b != null);
+        posix_swear(ok);
+        posix_swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
+        posix_swear(s.g == 4 && s.g2b != null);
         const int32_t g2b[] = {0, 1, 3, 6, 10};
         for (int32_t i = 0; i <= s.g; i++) {
-            rt_swear(s.g2b[i] == g2b[i]);
+            posix_swear(s.g2b[i] == g2b[i]);
         }
         ui_edit_str_free(&s);
     }
     {
         struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        rt_swear(ok);
+        posix_swear(ok);
         ok = ui_edit_str_replace(&s, 1, 4, null, 0);
-        rt_swear(ok);
-        rt_swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
-        rt_swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
+        posix_swear(ok);
+        posix_swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
+        posix_swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
         ui_edit_str_free(&s);
     }
     {
         struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "Hello world", -1, false);
-        rt_swear(ok);
+        posix_swear(ok);
         ok = ui_edit_str_replace(&s, 5, 6, " cruel ", -1);
-        rt_swear(ok);
+        posix_swear(ok);
         ok = ui_edit_str_replace(&s, 0, 5, "Goodbye", -1);
-        rt_swear(ok);
+        posix_swear(ok);
         ok = ui_edit_str_replace(&s, s.g - 5, s.g, "Universe", -1);
-        rt_swear(ok);
-        rt_swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
+        posix_swear(ok);
+        posix_swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
         for (int32_t i = 1; i < s.g; i++) {
-            rt_swear(s.g2b[i] == i); // because every glyph is ASCII
+            posix_swear(s.g2b[i] == i); // because every glyph is ASCII
         }
-        rt_swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
+        posix_swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
         ui_edit_str_free(&s);
     }
     #ifdef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
@@ -9920,7 +10529,7 @@ static void ui_edit_str_test(void) {
 #pragma pop_macro("ui_edit_str_check")
 
 #ifdef UI_EDIT_STR_TEST
-    rt_static_init(ui_edit_str) { ui_edit_str.test(); }
+    posix_static_init(ui_edit_str) { ui_edit_str.test(); }
 #endif
 
 // tests:
@@ -9928,12 +10537,12 @@ static void ui_edit_str_test(void) {
 static void ui_edit_doc_test_big_text(void) {
     enum { MB10 = 10 * 1000 * 1000 };
     char* text = null;
-    rt_heap.alloc(&text, MB10);
+    posix_heap.alloc(&text, MB10);
     memset(text, 'a', (size_t)MB10 - 1);
     char* p = text;
     uint32_t seed = 0x1;
     for (;;) {
-        int32_t n = rt_num.random32(&seed) % 40 + 40;
+        int32_t n = posix_num.random32(&seed) % 40 + 40;
         if (p + n >= text + MB10) { break; }
         p += n;
         *p = '\n';
@@ -9941,9 +10550,9 @@ static void ui_edit_doc_test_big_text(void) {
     text[MB10 - 1] = 0x00;
     struct ui_edit_text t = {0};
     bool ok = ui_edit_text.init(&t, text, MB10, false);
-    rt_swear(ok);
+    posix_swear(ok);
     ui_edit_text.dispose(&t);
-    rt_heap.free(text);
+    posix_heap.free(text);
 }
 
 static void ui_edit_doc_test_paragraphs(void) {
@@ -9953,11 +10562,11 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // empty string to paragraphs:
             struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
-            rt_swear(ok);
-            rt_swear(t.ps != null && t.np == 1);
-            rt_swear(t.ps[0].u[0] == 0 &&
+            posix_swear(ok);
+            posix_swear(t.ps != null && t.np == 1);
+            posix_swear(t.ps[0].u[0] == 0 &&
                   t.ps[0].c == 0);
-            rt_swear(t.ps[0].b == 0 &&
+            posix_swear(t.ps[0].b == 0 &&
                   t.ps[0].g == 0);
             ui_edit_text.dispose(&t);
         }
@@ -9966,28 +10575,28 @@ static void ui_edit_doc_test_paragraphs(void) {
             const int32_t n = (int32_t)strlen(hello);
             struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
-            rt_swear(ok);
-            rt_swear(t.ps != null && t.np == 1);
-            rt_swear(t.ps[0].u == hello);
-            rt_swear(t.ps[0].c == 0);
-            rt_swear(t.ps[0].b == n);
-            rt_swear(t.ps[0].g == n);
+            posix_swear(ok);
+            posix_swear(t.ps != null && t.np == 1);
+            posix_swear(t.ps[0].u == hello);
+            posix_swear(t.ps[0].c == 0);
+            posix_swear(t.ps[0].b == n);
+            posix_swear(t.ps[0].g == n);
             ui_edit_text.dispose(&t);
         }
         {   // string with "\n" at the end
             const char* hello = "hello\n";
             struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            rt_swear(ok);
-            rt_swear(t.ps != null && t.np == 2);
-            rt_swear(t.ps[0].u == hello);
-            rt_swear(t.ps[0].c == 0);
-            rt_swear(t.ps[0].b == 5);
-            rt_swear(t.ps[0].g == 5);
-            rt_swear(t.ps[1].u[0] == 0x00);
-            rt_swear(t.ps[0].c == 0);
-            rt_swear(t.ps[1].b == 0);
-            rt_swear(t.ps[1].g == 0);
+            posix_swear(ok);
+            posix_swear(t.ps != null && t.np == 2);
+            posix_swear(t.ps[0].u == hello);
+            posix_swear(t.ps[0].c == 0);
+            posix_swear(t.ps[0].b == 5);
+            posix_swear(t.ps[0].g == 5);
+            posix_swear(t.ps[1].u[0] == 0x00);
+            posix_swear(t.ps[0].c == 0);
+            posix_swear(t.ps[1].b == 0);
+            posix_swear(t.ps[1].g == 0);
             ui_edit_text.dispose(&t);
         }
         {   // two string separated by "\n"
@@ -9995,16 +10604,16 @@ static void ui_edit_doc_test_paragraphs(void) {
             const char* world = hello + 6;
             struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            rt_swear(ok);
-            rt_swear(t.ps != null && t.np == 2);
-            rt_swear(t.ps[0].u == hello);
-            rt_swear(t.ps[0].c == 0);
-            rt_swear(t.ps[0].b == 5);
-            rt_swear(t.ps[0].g == 5);
-            rt_swear(t.ps[1].u == world);
-            rt_swear(t.ps[0].c == 0);
-            rt_swear(t.ps[1].b == 5);
-            rt_swear(t.ps[1].g == 5);
+            posix_swear(ok);
+            posix_swear(t.ps != null && t.np == 2);
+            posix_swear(t.ps[0].u == hello);
+            posix_swear(t.ps[0].c == 0);
+            posix_swear(t.ps[0].b == 5);
+            posix_swear(t.ps[0].g == 5);
+            posix_swear(t.ps[1].u == world);
+            posix_swear(t.ps[0].c == 0);
+            posix_swear(t.ps[1].b == 5);
+            posix_swear(t.ps[1].g == 5);
             ui_edit_text.dispose(&t);
         }
     }
@@ -10020,13 +10629,13 @@ struct ui_edit_doc_test_notify {
 };
 
 static void ui_edit_doc_test_before(struct ui_edit_notify* n,
-        const struct ui_edit_notify_info* rt_unused(ni)) {
+        const struct ui_edit_notify_info* posix_unused(ni)) {
     struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_before++;
 }
 
 static void ui_edit_doc_test_after(struct ui_edit_notify* n,
-        const struct ui_edit_notify_info* rt_unused(ni)) {
+        const struct ui_edit_notify_info* posix_unused(ni)) {
     struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_after++;
 }
@@ -10039,11 +10648,11 @@ static struct {
 static void ui_edit_doc_test_0(void) {
     struct ui_edit_doc edit_doc = {0};
     struct ui_edit_doc* d = &edit_doc;
-    rt_swear(ui_edit_doc.init(d, null, 0, false));
+    posix_swear(ui_edit_doc.init(d, null, 0, false));
     struct ui_edit_text ins_text = {0};
-    rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    posix_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     struct ui_edit_to_do undo = {0};
-    rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    posix_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -10052,11 +10661,11 @@ static void ui_edit_doc_test_0(void) {
 static void ui_edit_doc_test_1(void) {
     struct ui_edit_doc edit_doc = {0};
     struct ui_edit_doc* d = &edit_doc;
-    rt_swear(ui_edit_doc.init(d, null, 0, false));
+    posix_swear(ui_edit_doc.init(d, null, 0, false));
     struct ui_edit_text ins_text = {0};
-    rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    posix_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     struct ui_edit_to_do undo = {0};
-    rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    posix_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -10066,7 +10675,7 @@ static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
         struct ui_edit_doc edit_doc = {0};
         struct ui_edit_doc* d = &edit_doc;
-        rt_swear(ui_edit_doc.init(d, null, 0, false));
+        posix_swear(ui_edit_doc.init(d, null, 0, false));
         struct ui_edit_notify notify1 = {0};
         struct ui_edit_notify notify2 = {0};
         struct ui_edit_doc_test_notify before_and_after = {0};
@@ -10075,18 +10684,18 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc.subscribe(d, &notify1);
         ui_edit_doc.subscribe(d, &before_and_after.notify);
         ui_edit_doc.subscribe(d, &notify2);
-        rt_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
+        posix_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
         const char* hello = "hello\nworld";
-        rt_swear(ui_edit_doc.replace(d, null, hello, -1));
+        posix_swear(ui_edit_doc.replace(d, null, hello, -1));
         struct ui_edit_text t = {0};
-        rt_swear(ui_edit_doc.copy_text(d, null, &t));
-        rt_swear(t.np == 2);
-        rt_swear(t.ps[0].b == 5);
-        rt_swear(t.ps[0].g == 5);
-        rt_swear(memcmp(t.ps[0].u, "hello", 5) == 0);
-        rt_swear(t.ps[1].b == 5);
-        rt_swear(t.ps[1].g == 5);
-        rt_swear(memcmp(t.ps[1].u, "world", 5) == 0);
+        posix_swear(ui_edit_doc.copy_text(d, null, &t));
+        posix_swear(t.np == 2);
+        posix_swear(t.ps[0].b == 5);
+        posix_swear(t.ps[0].g == 5);
+        posix_swear(memcmp(t.ps[0].u, "hello", 5) == 0);
+        posix_swear(t.ps[1].b == 5);
+        posix_swear(t.ps[1].g == 5);
+        posix_swear(memcmp(t.ps[1].u, "world", 5) == 0);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &notify1);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
@@ -10097,23 +10706,23 @@ static void ui_edit_doc_test_2(void) {
     {   // three string separated by "\n"
         struct ui_edit_doc edit_doc = {0};
         struct ui_edit_doc* d = &edit_doc;
-        rt_swear(ui_edit_doc.init(d, null, 0, false));
+        posix_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s = "Goodbye" "\n" "Cruel" "\n" "Universe";
-        rt_swear(ui_edit_doc.replace(d, null, s, -1));
+        posix_swear(ui_edit_doc.replace(d, null, s, -1));
         struct ui_edit_text t = {0};
-        rt_swear(ui_edit_doc.copy_text(d, null, &t));
+        posix_swear(ui_edit_doc.copy_text(d, null, &t));
         ui_edit_text.dispose(&t);
         union ui_edit_range r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
-        rt_swear(ui_edit_doc.replace(d, &r, null, 0));
-        rt_swear(d->text.np == 1);
-        rt_swear(d->text.ps[0].b == 9);
-        rt_swear(d->text.ps[0].g == 9);
-        rt_swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
-        rt_swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
-        rt_swear(d->text.np == 1);
-        rt_swear(d->text.ps[0].b == 0);
-        rt_swear(d->text.ps[0].g == 0);
+        posix_swear(ui_edit_doc.replace(d, &r, null, 0));
+        posix_swear(d->text.np == 1);
+        posix_swear(d->text.ps[0].b == 9);
+        posix_swear(d->text.ps[0].g == 9);
+        posix_swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
+        posix_swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
+        posix_swear(d->text.np == 1);
+        posix_swear(d->text.ps[0].b == 0);
+        posix_swear(d->text.ps[0].g == 0);
         ui_edit_doc.dispose(d);
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
@@ -10121,21 +10730,21 @@ static void ui_edit_doc_test_2(void) {
         struct ui_edit_doc edit_doc = {0};
         struct ui_edit_doc* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
-        for (int32_t i = 0; i < rt_countof(ins); i++) {
-            rt_swear(ui_edit_doc.init(d, null, 0, false));
+        for (int32_t i = 0; i < posix_countof(ins); i++) {
+            posix_swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
-            rt_swear(ui_edit_doc.replace(d, null, s, -1));
+            posix_swear(ui_edit_doc.replace(d, null, s, -1));
             union ui_edit_range r = { .from = {.pn = 0, .gp =  7},
                                   .to   = {.pn = 0, .gp = 12} };
             struct ui_edit_text ins_text = {0};
             ui_edit_text.init(&ins_text, ins[i], -1, false);
             struct ui_edit_to_do undo = {0};
-            rt_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
+            posix_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
             struct ui_edit_to_do redo = {0};
-            rt_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
+            posix_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
             ui_edit_doc.dispose_to_do(&undo);
             undo.range = (union ui_edit_range){0};
-            rt_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
+            posix_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
             ui_edit_doc.dispose_to_do(&redo);
             ui_edit_doc.dispose_to_do(&undo);
             ui_edit_text.dispose(&ins_text);
@@ -10151,32 +10760,32 @@ static void ui_edit_doc_test_3(void) {
         struct ui_edit_doc_test_notify before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
-        rt_swear(ui_edit_doc.init(d, null, 0, false));
-        rt_swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
+        posix_swear(ui_edit_doc.init(d, null, 0, false));
+        posix_swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
         const char* s = "Goodbye Cruel Universe";
         const int32_t before = before_and_after.count_before;
         const int32_t after  = before_and_after.count_after;
-        rt_swear(ui_edit_doc.replace(d, null, s, -1));
+        posix_swear(ui_edit_doc.replace(d, null, s, -1));
         const int32_t bytes = (int32_t)strlen(s);
-        rt_swear(before + 1 == before_and_after.count_before);
-        rt_swear(after  + 1 == before_and_after.count_after);
-        rt_swear(d->text.np == 1);
-        rt_swear(ui_edit_doc.bytes(d, null) == bytes);
+        posix_swear(before + 1 == before_and_after.count_before);
+        posix_swear(after  + 1 == before_and_after.count_after);
+        posix_swear(d->text.np == 1);
+        posix_swear(ui_edit_doc.bytes(d, null) == bytes);
         struct ui_edit_text t = {0};
-        rt_swear(ui_edit_doc.copy_text(d, null, &t));
-        rt_swear(t.np == 1);
-        rt_swear(t.ps[0].b == bytes);
-        rt_swear(t.ps[0].g == bytes);
-        rt_swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
+        posix_swear(ui_edit_doc.copy_text(d, null, &t));
+        posix_swear(t.np == 1);
+        posix_swear(t.ps[0].b == bytes);
+        posix_swear(t.ps[0].g == bytes);
+        posix_swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
         // with "\n" and 0x00 at the end:
         int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
         char* p = null;
-        rt_swear(rt_heap.alloc((void**)&p, utf8bytes) == 0);
+        posix_swear(posix_heap.alloc((void**)&p, utf8bytes) == 0);
         p[utf8bytes - 1] = 0xFF;
         ui_edit_doc.copy(d, null, p, utf8bytes);
-        rt_swear(p[utf8bytes - 1] == 0x00);
-        rt_swear(memcmp(p, s, bytes) == 0);
-        rt_heap.free(p);
+        posix_swear(p[utf8bytes - 1] == 0x00);
+        posix_swear(memcmp(p, s, bytes) == 0);
+        posix_heap.free(p);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
         ui_edit_doc.dispose(d);
@@ -10184,25 +10793,25 @@ static void ui_edit_doc_test_3(void) {
     {
         struct ui_edit_doc edit_doc = {0};
         struct ui_edit_doc* d = &edit_doc;
-        rt_swear(ui_edit_doc.init(d, null, 0, false));
+        posix_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s =
             "Hello World"
             "\n"
             "Goodbye Cruel Universe";
-        rt_swear(ui_edit_doc.replace(d, null, s, -1));
-        rt_swear(ui_edit_doc.undo(d));
-        rt_swear(ui_edit_doc.bytes(d, null) == 0);
-        rt_swear(ui_edit_doc.utf8bytes(d, null) == 1);
-        rt_swear(ui_edit_doc.redo(d));
+        posix_swear(ui_edit_doc.replace(d, null, s, -1));
+        posix_swear(ui_edit_doc.undo(d));
+        posix_swear(ui_edit_doc.bytes(d, null) == 0);
+        posix_swear(ui_edit_doc.utf8bytes(d, null) == 1);
+        posix_swear(ui_edit_doc.redo(d));
         {
             int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
             char* p = null;
-            rt_swear(rt_heap.alloc((void**)&p, utf8bytes) == 0);
+            posix_swear(posix_heap.alloc((void**)&p, utf8bytes) == 0);
             p[utf8bytes - 1] = 0xFF;
             ui_edit_doc.copy(d, null, p, utf8bytes);
-            rt_swear(p[utf8bytes - 1] == 0x00);
-            rt_swear(memcmp(p, s, utf8bytes) == 0);
-            rt_heap.free(p);
+            posix_swear(p[utf8bytes - 1] == 0x00);
+            posix_swear(memcmp(p, s, utf8bytes) == 0);
+            posix_heap.free(p);
         }
         ui_edit_doc.dispose(d);
     }
@@ -10212,20 +10821,20 @@ static void ui_edit_doc_test_4(void) {
     {
         struct ui_edit_doc edit_doc = {0};
         struct ui_edit_doc* d = &edit_doc;
-        rt_swear(ui_edit_doc.init(d, null, 0, false));
+        posix_swear(ui_edit_doc.init(d, null, 0, false));
         union ui_edit_range r = {0};
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "a", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "a", -1));
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "b", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "b", -1));
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "c", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "c", -1));
         r = ui_edit_text.end_range(&d->text);
-        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        posix_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         ui_edit_doc.dispose(d);
     }
 }
@@ -10233,8 +10842,8 @@ static void ui_edit_doc_test_4(void) {
 static void ui_edit_doc_test(void) {
     {
         union ui_edit_range r = { .from = {0,0}, .to = {0,0} };
-        rt_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
-        rt_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
+        posix_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
+        posix_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
     #ifdef UI_EDIT_DOC_TEST_PARAGRAPHS
         ui_edit_doc_test_paragraphs();
@@ -10311,13 +10920,13 @@ struct ui_edit_doc_if ui_edit_doc = {
 #pragma push_macro("ui_edit_check_zeros")
 
 #ifdef UI_EDIT_DOC_TEST
-    rt_static_init(ui_edit_doc) { ui_edit_doc.test(); }
+    posix_static_init(ui_edit_doc) { ui_edit_doc.test(); }
 #endif
 
 // ______________________________ ui_edit_view.c ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 
 // TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
@@ -10368,7 +10977,7 @@ static void ui_edit_invalidate_parent(const struct ui_edit_view* e, const struct
 }
 
 static void ui_edit_invalidate_rect(const struct ui_edit_view* e, const struct ui_rect rc) {
-    rt_assert(rc.w >= 0 && rc.h > 0); // w may be zero for empty selection
+    posix_assert(rc.w >= 0 && rc.h > 0); // w may be zero for empty selection
     if (rc.w > 0 && rc.h > 0) {
         ui_view.invalidate(&e->view, &rc);
         ui_edit_invalidate_parent(e, &rc);
@@ -10411,29 +11020,29 @@ static struct ui_rect ui_edit_selection_rect(struct ui_edit_view* e) {
 
 #if 0
 static void ui_edit_text_width_gp(struct ui_edit_view* e, const char* utf8, int32_t bytes) {
-    const int32_t glyphs = rt_str.glyphs(utf8, bytes);
-    rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
-    int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
+    const int32_t glyphs = posix_str.glyphs(utf8, bytes);
+    posix_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
+    int32_t* x = (int32_t*)posix_stackalloc((glyphs + 1) * sizeof(int32_t));
     const struct ui_ta ta = { .fm = e->fm };
     struct ui_wh wh = ui_draw.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
-//  rt_println("wh: %dx%d", wh.w, wh.h);
+//  posix_println("wh: %dx%d", wh.w, wh.h);
 }
 #endif
 
 static int32_t ui_edit_text_width(struct ui_edit_view* e, const char* s, int32_t n) {
-//  fp64_t time = rt_clock.seconds();
+//  fp64_t time = posix_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
     const struct ui_ta ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_draw.text(&ta, 0, 0, "%.*s", n, s).w;
-//  time = (rt_clock.seconds() - time) * 1000.0;
+//  time = (posix_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
 //  time_sum += time;
 //  length_sum += n;
-//  rt_println("avg=%.6fms per char total %.3fms", time_sum / length_sum, time_sum);
+//  posix_println("avg=%.6fms per char total %.3fms", time_sum / length_sum, time_sum);
     return x;
 }
 
@@ -10449,7 +11058,7 @@ static int32_t ui_edit_word_break_at(struct ui_edit_view* e, int32_t pn, int32_t
     int32_t count = 0; // stats logging
     int32_t chars = 0;
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     struct ui_edit_paragraph* p = &e->para[pn];
     const struct ui_edit_str* str = &dt->ps[pn];
     int32_t k = 1; // at least 1 glyph
@@ -10462,7 +11071,7 @@ static int32_t ui_edit_word_break_at(struct ui_edit_view* e, int32_t pn, int32_t
         gp = p->run[rn].gp;
         bp = p->run[rn].bp;
     } else {
-        rt_assert(rn == 0);
+        posix_assert(rn == 0);
     }
     if (gp < str->g - 1) {
         const char* text = str->u + bp;
@@ -10481,13 +11090,13 @@ static int32_t ui_edit_word_break_at(struct ui_edit_view* e, int32_t pn, int32_t
         }
         if (w < width) {
             k = gc;
-            rt_assert(1 <= k && k <= str->g - gp);
+            posix_assert(1 <= k && k <= str->g - gp);
         } else {
             int32_t i = 0;
             int32_t j = gc;
             k = (i + j) / 2;
             while (i < j) {
-                rt_assert(allow_zero || 1 <= k && k < gc + 1);
+                posix_assert(allow_zero || 1 <= k && k < gc + 1);
                 const int32_t n = g2b[k + 1] - bp;
                 int32_t px = ui_edit_text_width(e, text, n);
                 count++;
@@ -10496,11 +11105,11 @@ static int32_t ui_edit_word_break_at(struct ui_edit_view* e, int32_t pn, int32_t
                 if (px < width) { i = k + 1; } else { j = k; }
                 if (!allow_zero && (i + j) / 2 == 0) { break; }
                 k = (i + j) / 2;
-                rt_assert(allow_zero || 1 <= k && k <= str->g - gp);
+                posix_assert(allow_zero || 1 <= k && k <= str->g - gp);
             }
         }
     }
-    rt_assert(allow_zero || 1 <= k && k <= str->g - gp);
+    posix_assert(allow_zero || 1 <= k && k <= str->g - gp);
     return k;
 }
 
@@ -10511,7 +11120,7 @@ static int32_t ui_edit_word_break(struct ui_edit_view* e, int32_t pn, int32_t rn
 static int32_t ui_edit_glyph_at_x(struct ui_edit_view* e, int32_t pn, int32_t rn,
         int32_t x) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     if (x == 0 || dt->ps[pn].b == 0) {
         return 0;
     } else {
@@ -10522,15 +11131,15 @@ static int32_t ui_edit_glyph_at_x(struct ui_edit_view* e, int32_t pn, int32_t rn
 static struct ui_edit_glyph ui_edit_glyph_at(struct ui_edit_view* e, struct ui_edit_pg p) {
     struct ui_edit_text* dt = &e->doc->text; // document text
     struct ui_edit_glyph g = { .s = "", .bytes = 0 };
-    rt_assert(0 <= p.pn && p.pn < dt->np);
+    posix_assert(0 <= p.pn && p.pn < dt->np);
     const struct ui_edit_str* str = &dt->ps[p.pn];
     const int32_t bytes = str->b;
     const char* s = str->u;
     const int32_t bp = str->g2b[p.gp];
     if (bp < bytes) {
         g.s = s + bp;
-        g.bytes = rt_str.utf8bytes(g.s, bytes - bp);
-        rt_swear(g.bytes > 0);
+        g.bytes = posix_str.utf8bytes(g.s, bytes - bp);
+        posix_swear(g.bytes > 0);
     }
     return g;
 }
@@ -10539,24 +11148,24 @@ static struct ui_edit_glyph ui_edit_glyph_at(struct ui_edit_view* e, struct ui_e
 
 static const struct ui_edit_run* ui_edit_paragraph_runs(struct ui_edit_view* e, int32_t pn,
         int32_t* runs) {
-//  fp64_t time = rt_clock.seconds();
-    rt_assert(e->w > 0);
+//  fp64_t time = posix_clock.seconds();
+    posix_assert(e->w > 0);
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     const struct ui_edit_run* r = null;
     if (e->para[pn].run != null) {
         *runs = e->para[pn].runs;
         r = e->para[pn].run;
     } else {
-        rt_assert(0 <= pn && pn < dt->np);
+        posix_assert(0 <= pn && pn < dt->np);
         struct ui_edit_paragraph* p = &e->para[pn];
         const struct ui_edit_str* str = &dt->ps[pn];
         if (p->run == null) {
-            rt_assert(p->runs == 0 && p->run == null);
+            posix_assert(p->runs == 0 && p->run == null);
             const int32_t max_runs = str->b + 1;
-            bool ok = rt_heap.alloc((void**)&p->run, max_runs *
+            bool ok = posix_heap.alloc((void**)&p->run, max_runs *
                                     sizeof(struct ui_edit_run)) == 0;
-            rt_swear(ok);
+            posix_swear(ok);
             struct ui_edit_run* run = p->run;
             run[0].bp = 0;
             run[0].gp = 0;
@@ -10568,13 +11177,13 @@ static const struct ui_edit_run* ui_edit_paragraph_runs(struct ui_edit_view* e, 
                 int32_t pixels = ui_edit_text_width(e, str->u, str->g2b[gc]);
                 run[0].pixels = pixels;
             } else {
-                rt_assert(gc < str->g);
+                posix_assert(gc < str->g);
                 int32_t rc = 0; // runs count
                 int32_t ix = 0; // glyph index from to start of paragraph
                 const char* text = str->u;
                 int32_t bytes = str->b;
                 while (bytes > 0) {
-                    rt_assert(rc < max_runs);
+                    posix_assert(rc < max_runs);
                     run[rc].bp = (int32_t)(text - str->u);
                     run[rc].gp = ix;
                     int32_t glyphs = ui_edit_word_break(e, pn, rc);
@@ -10586,8 +11195,8 @@ static const struct ui_edit_run* ui_edit_paragraph_runs(struct ui_edit_view* e, 
                         while (i > 0 && text[i - 1] != 0x20) { i--; }
                         if (i > 0 && i != utf8bytes) {
                             utf8bytes = i;
-                            glyphs = rt_str.glyphs(text, utf8bytes);
-                            rt_assert(glyphs >= 0);
+                            glyphs = posix_str.glyphs(text, utf8bytes);
+                            posix_assert(glyphs >= 0);
                             pixels = ui_edit_text_width(e, text, utf8bytes);
                         }
                     }
@@ -10596,25 +11205,25 @@ static const struct ui_edit_run* ui_edit_paragraph_runs(struct ui_edit_view* e, 
                     run[rc].pixels = pixels;
                     rc++;
                     text += utf8bytes;
-                    rt_assert(0 <= utf8bytes && utf8bytes <= bytes);
+                    posix_assert(0 <= utf8bytes && utf8bytes <= bytes);
                     bytes -= utf8bytes;
                     ix += glyphs;
                 }
-                rt_assert(rc > 0);
+                posix_assert(rc > 0);
                 p->runs = rc; // truncate heap capacity array:
-                ok = rt_heap.realloc((void**)&p->run, rc * sizeof(struct ui_edit_run)) == 0;
-                rt_swear(ok);
+                ok = posix_heap.realloc((void**)&p->run, rc * sizeof(struct ui_edit_run)) == 0;
+                posix_swear(ok);
             }
         }
         *runs = p->runs;
         r = p->run;
     }
-    rt_assert(r != null && *runs >= 1);
+    posix_assert(r != null && *runs >= 1);
     return r;
 }
 
 static int32_t ui_edit_paragraph_run_count(struct ui_edit_view* e, int32_t pn) {
-    rt_swear(e->w > 0);
+    posix_swear(e->w > 0);
     struct ui_edit_text* dt = &e->doc->text; // document text
     int32_t runs = 0;
     if (e->w > 0 && 0 <= pn && pn < dt->np) {
@@ -10625,35 +11234,35 @@ static int32_t ui_edit_paragraph_run_count(struct ui_edit_view* e, int32_t pn) {
 
 static int32_t ui_edit_glyphs_in_paragraph(struct ui_edit_view* e, int32_t pn) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     (void)ui_edit_paragraph_run_count(e, pn); // word break into runs
     return dt->ps[pn].g;
 }
 
 static void ui_edit_create_caret(struct ui_edit_view* e) {
-    rt_fatal_if(e->focused);
-    rt_assert(ui_app.is_active());
-    rt_assert(ui_app.focused());
+    posix_fatal_if(e->focused);
+    posix_assert(ui_app.is_active());
+    posix_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     const int32_t cw = 1 > (int32_t)px ? 1 : (int32_t)px;
     e->caret_width = 3 < cw ? 3 : cw;
     ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
-//  rt_println("e->focused := true %s", ui_view_debug_id(&e->view));
+//  posix_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
 
 static void ui_edit_destroy_caret(struct ui_edit_view* e) {
-    rt_fatal_if(!e->focused);
+    posix_fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
-//  rt_println("e->focused := false %s", ui_view_debug_id(&e->view));
+//  posix_println("e->focused := false %s", ui_view_debug_id(&e->view));
 }
 
 static void ui_edit_show_caret(struct ui_edit_view* e) {
     if (e->focused) {
-        rt_assert(ui_app.is_active());
-        rt_assert(ui_app.focused());
-        rt_assert((e->caret.x < 0) == (e->caret.y < 0));
+        posix_assert(ui_app.is_active());
+        posix_assert(ui_app.focused());
+        posix_assert((e->caret.x < 0) == (e->caret.y < 0));
         const struct ui_ltrb insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
         int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
@@ -10663,7 +11272,7 @@ static void ui_edit_show_caret(struct ui_edit_view* e) {
 //      fatal_if_false(SetCaretBlinkTime(500));
         ui_app.show_caret();
         e->shown++;
-        rt_assert(e->shown == 1);
+        posix_assert(e->shown == 1);
     }
 }
 
@@ -10671,34 +11280,34 @@ static void ui_edit_hide_caret(struct ui_edit_view* e) {
     if (e->focused) {
         ui_app.hide_caret();
         e->shown--;
-        rt_assert(e->shown == 0);
+        posix_assert(e->shown == 0);
     }
 }
 
 static void ui_edit_allocate_runs(struct ui_edit_view* e) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(e->para == null);
-    rt_assert(dt->np > 0);
-    rt_assert(e->para == null);
-    bool done = rt_heap.alloc_zero((void**)&e->para,
+    posix_assert(e->para == null);
+    posix_assert(dt->np > 0);
+    posix_assert(e->para == null);
+    bool done = posix_heap.alloc_zero((void**)&e->para,
                 dt->np * sizeof(e->para[0])) == 0;
-    rt_swear(done, "out of memory - cannot continue");
+    posix_swear(done, "out of memory - cannot continue");
 }
 
 static void ui_edit_invalidate_run(struct ui_edit_view* e, int32_t i) {
     if (e->para[i].run != null) {
-        rt_assert(e->para[i].runs > 0);
-        rt_heap.free(e->para[i].run);
+        posix_assert(e->para[i].runs > 0);
+        posix_heap.free(e->para[i].run);
         e->para[i].run = null;
         e->para[i].runs = 0;
     } else {
-        rt_assert(e->para[i].runs == 0);
+        posix_assert(e->para[i].runs == 0);
     }
 }
 
 static void ui_edit_invalidate_runs(struct ui_edit_view* e, int32_t f, int32_t t,
         int32_t np) { // [from..to] inclusive inside [0..np - 1]
-    rt_swear(e->para != null && f <= t && 0 <= f && t < np);
+    posix_swear(e->para != null && f <= t && 0 <= f && t < np);
     for (int32_t i = f; i <= t; i++) { ui_edit_invalidate_run(e, i); }
 }
 
@@ -10708,9 +11317,9 @@ static void ui_edit_invalidate_all_runs(struct ui_edit_view* e) {
 }
 
 static void ui_edit_dispose_runs(struct ui_edit_view* e, int32_t np) {
-    rt_assert(e->para != null);
+    posix_assert(e->para != null);
     ui_edit_invalidate_runs(e, 0, np - 1, np);
-    rt_heap.free(e->para);
+    posix_heap.free(e->para);
     e->para = null;
 }
 
@@ -10745,20 +11354,20 @@ static void ui_edit_view_set_font(struct ui_edit_view* e, struct ui_fm* f) {
 
 static struct ui_edit_pr ui_edit_pg_to_pr(struct ui_edit_view* e, const struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pg.pn && pg.pn < dt->np);
+    posix_assert(0 <= pg.pn && pg.pn < dt->np);
     const struct ui_edit_str* str = &dt->ps[pg.pn];
     struct ui_edit_pr pr = { .pn = pg.pn, .rn = -1 };
     if (str->b == 0) { // empty
-        rt_assert(pg.gp == 0);
+        posix_assert(pg.gp == 0);
         pr.rn = 0;
     } else {
-        rt_assert(0 <= pg.pn && pg.pn < dt->np);
+        posix_assert(0 <= pg.pn && pg.pn < dt->np);
         int32_t runs = 0;
         const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
         if (pg.gp == str->g + 1) {
             pr.rn = runs - 1; // TODO: past last glyph ??? is this correct?
         } else {
-            rt_assert(0 <= pg.gp && pg.gp <= str->g);
+            posix_assert(0 <= pg.gp && pg.gp <= str->g);
             for (int32_t j = 0; j < runs && pr.rn < 0; j++) {
                 const int32_t last_run = j == runs - 1;
                 const int32_t start = run[j].gp;
@@ -10767,7 +11376,7 @@ static struct ui_edit_pr ui_edit_pg_to_pr(struct ui_edit_view* e, const struct u
                     pr.rn = j;
                 }
             }
-            rt_assert(pr.rn >= 0);
+            posix_assert(pr.rn >= 0);
         }
     }
     return pr;
@@ -10775,15 +11384,15 @@ static struct ui_edit_pr ui_edit_pg_to_pr(struct ui_edit_view* e, const struct u
 
 static int32_t ui_edit_runs_between(struct ui_edit_view* e, const struct ui_edit_pg pg0,
         const struct ui_edit_pg pg1) {
-    rt_assert(ui_edit_range.uint64(pg0) <= ui_edit_range.uint64(pg1));
+    posix_assert(ui_edit_range.uint64(pg0) <= ui_edit_range.uint64(pg1));
     int32_t rn0 = ui_edit_pg_to_pr(e, pg0).rn;
     int32_t rn1 = ui_edit_pg_to_pr(e, pg1).rn;
     int32_t rc = 0;
     if (pg0.pn == pg1.pn) {
-        rt_assert(rn0 <= rn1);
+        posix_assert(rn0 <= rn1);
         rc = rn1 - rn0;
     } else {
-        rt_assert(pg0.pn < pg1.pn);
+        posix_assert(pg0.pn < pg1.pn);
         for (int32_t i = pg0.pn; i < pg1.pn; i++) {
             const int32_t runs = ui_edit_paragraph_run_count(e, i);
             if (i == pg0.pn) {
@@ -10802,7 +11411,7 @@ static struct ui_edit_pg ui_edit_scroll_pg(struct ui_edit_view* e) {
     const struct ui_edit_run* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
     // layout may decrease number of runs when view is growing:
     if (e->scroll.rn >= runs) { e->scroll.rn = runs - 1; }
-    rt_assert(0 <= e->scroll.rn && e->scroll.rn < runs,
+    posix_assert(0 <= e->scroll.rn && e->scroll.rn < runs,
             "e->scroll.rn: %d runs: %d", e->scroll.rn, runs);
     return (struct ui_edit_pg) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
 }
@@ -10815,13 +11424,13 @@ static int32_t ui_edit_first_visible_run(struct ui_edit_view* e, int32_t pn) {
 
 static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pg.pn && pg.pn < dt->np);
+    posix_assert(0 <= pg.pn && pg.pn < dt->np);
     struct ui_point pt = { .x = -1, .y = 0 };
     const int32_t spn = e->scroll.pn + 1;
     const int32_t mp = spn > pg.pn + 1 ? spn : pg.pn + 1;
     const int32_t pn = mp < dt->np - 1 ? mp : dt->np - 1;
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
-        rt_assert(0 <= i && i < dt->np);
+        posix_assert(0 <= i && i < dt->np);
         const struct ui_edit_str* str = &dt->ps[i];
         int32_t runs = 0;
         const struct ui_edit_run* run = ui_edit_paragraph_runs(e, i, &runs);
@@ -10834,7 +11443,7 @@ static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_
                     const char* s = str->u + run[j].bp;
                     const uint32_t bp2e = str->b - run[j].bp; // to end of str
                     int32_t ofs = ui_edit_str.gp_to_bp(s, bp2e, pg.gp - run[j].gp);
-                    rt_swear(ofs >= 0);
+                    posix_swear(ofs >= 0);
                     pt.x = ui_edit_text_width(e, s, ofs);
                     break;
                 }
@@ -10845,7 +11454,7 @@ static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
     } else {
-        rt_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
+        posix_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
             pt.x, pt.y, e->edit.w, e->edit.h);
         pt = (struct ui_point){-1, -1};
     }
@@ -10854,7 +11463,7 @@ static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_
 
 static int32_t ui_edit_glyph_width_px(struct ui_edit_view* e, const struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pg.pn && pg.pn < dt->np);
+    posix_assert(0 <= pg.pn && pg.pn < dt->np);
     const struct ui_edit_str* str = &dt->ps[pg.pn];
     const char* text = str->u;
     int32_t gc = str->g;
@@ -10862,14 +11471,14 @@ static int32_t ui_edit_glyph_width_px(struct ui_edit_view* e, const struct ui_ed
         return 0; // empty paragraph
     } else if (pg.gp < gc) {
         const int32_t bp = ui_edit_str.gp_to_bp(text, str->b, pg.gp);
-        rt_swear(bp >= 0);
+        posix_swear(bp >= 0);
         const char* s = text + bp;
-        int32_t bytes_in_glyph = rt_str.utf8bytes(s, str->b - bp);
-        rt_swear(bytes_in_glyph > 0);
+        int32_t bytes_in_glyph = posix_str.utf8bytes(s, str->b - bp);
+        posix_swear(bytes_in_glyph > 0);
         int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
     } else {
-        rt_assert(pg.gp == gc, "only next position past last glyph is allowed");
+        posix_assert(pg.gp == gc, "only next position past last glyph is allowed");
         return 0;
     }
 }
@@ -10881,7 +11490,7 @@ static struct ui_edit_pg ui_edit_xy_to_pg(struct ui_edit_view* e, int32_t x, int
     struct ui_edit_pg pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
     for (int32_t i = e->scroll.pn; i < dt->np && pg.pn < 0; i++) {
-        rt_assert(0 <= i && i < dt->np);
+        posix_assert(0 <= i && i < dt->np);
         const struct ui_edit_str* str = &dt->ps[i];
         int32_t runs = 0;
         const struct ui_edit_run* run = ui_edit_paragraph_runs(e, i, &runs);
@@ -10922,7 +11531,7 @@ static void ui_edit_set_caret(struct ui_edit_view* e, int32_t x, int32_t y) {
         // caret in i.left .. e->view.w - i.right
         //          i.top  .. e->view.h - i.bottom
         // coordinate space
-        rt_swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
+        posix_swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
         e->caret.x = x;
         e->caret.y = y;
     }
@@ -10964,11 +11573,11 @@ static struct ui_edit_pg ui_edit_view_last_fully_visible(struct ui_edit_view* e)
 
 static void ui_edit_scroll_up(struct ui_edit_view* e, int32_t run_count) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
+    posix_assert(0 < run_count, "does it make sense to have 0 scroll?");
     struct ui_edit_pg eot  = ui_edit_view_end_of_text(e);
     while (run_count > 0) {
         struct ui_edit_pg lfv = ui_edit_view_last_fully_visible(e);
-        rt_println("eot: %d:%d lfv: %d:%d", eot.pn, eot.gp, lfv.pn, lfv.gp);
+        posix_println("eot: %d:%d lfv: %d:%d", eot.pn, eot.gp, lfv.pn, lfv.gp);
         if (ui_edit_range.compare(lfv, eot) == 0) {
             run_count = 0;
         } else {
@@ -10981,10 +11590,10 @@ static void ui_edit_scroll_up(struct ui_edit_view* e, int32_t run_count) {
                 e->scroll.rn = 0;
                 run_count--;
             } else {
-                rt_println("???");
+                posix_println("???");
                 run_count = 0; // enough
             }
-            rt_assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
+            posix_assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
         }
     }
     ui_edit_if_sle_layout(e);
@@ -10995,7 +11604,7 @@ static void ui_edit_scroll_up(struct ui_edit_view* e, int32_t run_count) {
 // scroll position decrements moves up (north)
 
 static void ui_edit_scroll_down(struct ui_edit_view* e, int32_t run_count) {
-    rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
+    posix_assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
         e->scroll.rn = e->scroll.rn < runs - 1 ? e->scroll.rn : runs - 1;
@@ -11005,8 +11614,8 @@ static void ui_edit_scroll_down(struct ui_edit_view* e, int32_t run_count) {
         } else if (e->scroll.rn > 0) {
             e->scroll.rn--;
         }
-        rt_assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
-        rt_assert(0 <= e->scroll.rn &&
+        posix_assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
+        posix_assert(0 <= e->scroll.rn &&
                     e->scroll.rn < ui_edit_paragraph_run_count(e, e->scroll.pn));
         run_count--;
     }
@@ -11016,9 +11625,9 @@ static void ui_edit_scroll_down(struct ui_edit_view* e, int32_t run_count) {
 
 static void ui_edit_scroll_into_view(struct ui_edit_view* e, const struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pg.pn && pg.pn < dt->np && dt->np > 0);
+    posix_assert(0 <= pg.pn && pg.pn < dt->np && dt->np > 0);
     if (e->inside.bottom > 0) {
-        if (e->sle) { rt_assert(pg.pn == 0); }
+        if (e->sle) { posix_assert(pg.pn == 0); }
         const int32_t rn = ui_edit_pg_to_pr(e, pg).rn;
         const uint64_t scroll = (uint64_t)e->scroll.pn << 32 | e->scroll.rn;
         const uint64_t caret  = (uint64_t)pg.pn << 32 | rn;
@@ -11053,7 +11662,7 @@ static void ui_edit_scroll_into_view(struct ui_edit_view* e, const struct ui_edi
             // single line edit control fits vertically - no scroll
         } else {
             ui_edit_invalidate_view(e);
-            rt_assert(caret >= last);
+            posix_assert(caret >= last);
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
@@ -11082,7 +11691,7 @@ static void ui_edit_move_caret(struct ui_edit_view* e, const struct ui_edit_pg p
     if (e->w > 0) { // width == 0 means no measure/layout yet
         struct ui_rect before = ui_edit_selection_rect(e);
         struct ui_edit_text* dt = &e->doc->text; // document text
-        rt_assert(0 <= pg.pn && pg.pn < dt->np);
+        posix_assert(0 <= pg.pn && pg.pn < dt->np);
         // single line edit control cannot move caret past fist paragraph
         if (!e->sle || pg.pn < dt->np) {
             e->selection.a[1] = pg;
@@ -11099,14 +11708,14 @@ static void ui_edit_move_caret(struct ui_edit_view* e, const struct ui_edit_pg p
 static struct ui_edit_pg ui_edit_insert_inline(struct ui_edit_view* e, struct ui_edit_pg pg,
         const char* text, int32_t bytes) {
     // insert_inline() inserts text (not containing '\n' in it)
-    rt_assert(bytes > 0);
-    for (int32_t i = 0; i < bytes; i++) { rt_assert(text[i] != '\n'); }
+    posix_assert(bytes > 0);
+    for (int32_t i = 0; i < bytes; i++) { posix_assert(text[i] != '\n'); }
     union ui_edit_range r = { .from = pg, .to = pg };
     int32_t g = 0;
     if (ui_edit_doc.replace(e->doc, &r, text, bytes)) {
         struct ui_edit_text t = {0};
         if (ui_edit_text.init(&t, text, bytes, false)) {
-            rt_assert(t.ps != null && t.np == 1);
+            posix_assert(t.ps != null && t.np == 1);
             g = t.np == 1 && t.ps != null ? t.ps[0].g : 0;
             ui_edit_text.dispose(&t);
         }
@@ -11127,27 +11736,27 @@ static struct ui_edit_pg ui_edit_insert_paragraph_break(struct ui_edit_view* e,
 }
 
 static bool ui_edit_is_blank(struct ui_edit_glyph g) {
-    return g.bytes == 0 || ui_edit_str.is_blank(rt_str.utf32(g.s, g.bytes));
+    return g.bytes == 0 || ui_edit_str.is_blank(posix_str.utf32(g.s, g.bytes));
 }
 
 static bool ui_edit_is_punctuation(struct ui_edit_glyph g) {
-    uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
+    uint32_t utf32 = g.bytes > 0 ? posix_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 && ui_edit_str.is_punctuation(utf32);
 }
 
 static bool ui_edit_is_alphanumeric(struct ui_edit_glyph g) {
     return g.bytes > 0 &&
-        ui_edit_str.is_alphanumeric(rt_str.utf32(g.s, g.bytes));
+        ui_edit_str.is_alphanumeric(posix_str.utf32(g.s, g.bytes));
 }
 
 static bool ui_edit_is_cjk_or_emoji_or_symbol(struct ui_edit_glyph g) {
-    uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
+    uint32_t utf32 = g.bytes > 0 ? posix_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 &&
         (ui_edit_str.is_cjk_or_emoji(utf32) || ui_edit_str.is_symbol(utf32));
 }
 
 static bool ui_edit_is_break(struct ui_edit_glyph g) {
-    uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
+    uint32_t utf32 = g.bytes > 0 ? posix_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 &&
        (ui_edit_str.is_blank(utf32) ||
         ui_edit_str.is_punctuation(utf32) ||
@@ -11177,7 +11786,7 @@ static struct ui_edit_glyph ui_edit_right_of(struct ui_edit_view* e, struct ui_e
 static struct ui_edit_pg ui_edit_skip_left_blanks(struct ui_edit_view* e,
     struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_swear(pg.pn <= dt->np - 1);
+    posix_swear(pg.pn <= dt->np - 1);
     while (pg.gp > 0) {
         pg.gp--;
         struct ui_edit_glyph glyph = ui_edit_glyph_at(e, pg);
@@ -11192,7 +11801,7 @@ static struct ui_edit_pg ui_edit_skip_left_blanks(struct ui_edit_view* e,
 static struct ui_edit_pg ui_edit_skip_right_blanks(struct ui_edit_view* e,
     struct ui_edit_pg pg) {
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_swear(pg.pn <= dt->np - 1);
+    posix_swear(pg.pn <= dt->np - 1);
     int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
     struct ui_edit_glyph glyph = ui_edit_glyph_at(e, pg);
     while (pg.gp < glyphs && glyph.bytes > 0 && ui_edit_is_blank(glyph)) {
@@ -11206,7 +11815,7 @@ static union ui_edit_range ui_edit_word_range(struct ui_edit_view* e, struct ui_
     union ui_edit_range r = { .from = pg, .to = pg };
     struct ui_edit_text* dt = &e->doc->text; // document text
     if (0 <= pg.pn && 0 <= pg.gp) {
-        rt_swear(pg.pn <= dt->np - 1);
+        posix_swear(pg.pn <= dt->np - 1);
         // number of glyphs in paragraph:
         int32_t ng = ui_edit_glyphs_in_paragraph(e, pg.pn);
         if (pg.gp > ng) { pg.gp = 0 > ng ? 0 : ng; }
@@ -11390,20 +11999,20 @@ static void ui_edit_view_key_up(struct ui_edit_view* e) {
     if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
         struct ui_point pt = ui_edit_pg_to_xy(e, to);
-        rt_assert(pt.x >= 0 && pt.y >= 0);
+        posix_assert(pt.x >= 0 && pt.y >= 0);
         if (pt.y == 0) {
             ui_edit_scroll_down(e, 1);
         } else {
             pt.y -= 1;
         }
         ui_edit_reuse_last_x(e, &pt);
-        rt_assert(pt.y >= 0);
+        posix_assert(pt.y >= 0);
         to = ui_edit_xy_to_pg(e, pt.x, pt.y);
         if (to.pn >= 0 && to.gp >= 0) {
             int32_t rn0 = ui_edit_pg_to_pr(e, pg).rn;
             int32_t rn1 = ui_edit_pg_to_pr(e, to).rn;
             if (rn1 > 0 && rn0 == rn1) { // same run
-                rt_assert(to.gp > 0, "word break must not break on zero gp");
+                posix_assert(to.gp > 0, "word break must not break on zero gp");
                 int32_t runs = 0;
                 const struct ui_edit_run* run = ui_edit_paragraph_runs(e, to.pn, &runs);
                 to.gp = run[rn1].gp;
@@ -11448,7 +12057,7 @@ static void ui_edit_view_key_home(struct ui_edit_view* e) {
         e->selection.a[1].gp = 0;
     } else {
         int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
-        rt_assert(0 <= rn && rn < runs);
+        posix_assert(0 <= rn && rn < runs);
         const int32_t gp = para->run[rn].gp;
         if (e->selection.a[1].gp != gp) {
             // first Home keystroke moves caret to start of run
@@ -11473,12 +12082,12 @@ static void ui_edit_view_key_eol(struct ui_edit_view* e) {
     const struct ui_edit_text* dt = &e->doc->text; // document text
     int32_t pn = e->selection.a[1].pn;
     int32_t gp = e->selection.a[1].gp;
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     const struct ui_edit_str* str = &dt->ps[pn];
     int32_t runs = 0;
     const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pn, &runs);
     int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
-    rt_assert(0 <= rn && rn < runs);
+    posix_assert(0 <= rn && rn < runs);
     if (rn == runs - 1) {
         e->selection.a[1].gp = str->g;
     } else if (e->selection.a[1].gp == str->g) {
@@ -11585,7 +12194,7 @@ static void ui_edit_view_key_backspace(struct ui_edit_view* e) {
 }
 
 static void ui_edit_view_key_enter(struct ui_edit_view* e) {
-    rt_assert(!e->ro);
+    posix_assert(!e->ro);
     if (!e->sle) {
         ui_edit_view.erase(e);
         e->selection.a[1] = ui_edit_insert_paragraph_break(e, e->selection.a[1]);
@@ -11598,7 +12207,7 @@ static void ui_edit_view_key_enter(struct ui_edit_view* e) {
 
 static bool ui_edit_view_key_pressed(struct ui_view* v, int64_t key) {
     bool swallow = false;
-    rt_assert(v->type == ui_view_text);
+    posix_assert(v->type == ui_view_text);
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     struct ui_edit_text* dt = &e->doc->text; // document text
     if (e->focused) {
@@ -11648,8 +12257,8 @@ static void ui_edit_redo(struct ui_edit_view* e) {
 }
 
 static void ui_edit_character(struct ui_view* v, const char* utf8) {
-    rt_assert(v->type == ui_view_text);
-    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    posix_assert(v->type == ui_view_text);
+    posix_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     #pragma push_macro("ui_edit_ctrl")
     #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
     struct ui_edit_view* e = (struct ui_edit_view*)v;
@@ -11673,7 +12282,7 @@ static void ui_edit_character(struct ui_view* v, const char* utf8) {
         }
         if (0x20u <= (uint8_t)ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
-            int32_t bytes = rt_str.utf8bytes(utf8, len);
+            int32_t bytes = posix_str.utf8bytes(utf8, len);
             if (bytes > 0) {
                 ui_edit_view.erase(e); // remove selected text to be replaced by glyph
                 e->selection.a[1] = ui_edit_insert_inline(e,
@@ -11681,7 +12290,7 @@ static void ui_edit_character(struct ui_view* v, const char* utf8) {
                 e->selection.a[0] = e->selection.a[1];
                 ui_edit_move_caret(e, e->selection.a[1]);
             } else {
-                rt_println("invalid UTF8: 0x%02X%02X%02X%02X",
+                posix_println("invalid UTF8: 0x%02X%02X%02X%02X",
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
@@ -11702,7 +12311,7 @@ static void ui_edit_select_word(struct ui_edit_view* e, int32_t x, int32_t y) {
             ui_edit_range.compare(r.to, pg) != 0) {
             e->selection = r;
             ui_edit_caret_to(e, r.to);
-//          rt_println("e->selection.a[1] = %d.%d", to.pn, to.gp);
+//          posix_println("e->selection.a[1] = %d.%d", to.pn, to.gp);
             ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
             e->edit.buttons = 0;
         }
@@ -11736,11 +12345,11 @@ static void ui_edit_select_paragraph(struct ui_edit_view* e, int32_t x, int32_t 
 
 static void ui_edit_click(struct ui_edit_view* e, int32_t x, int32_t y) {
     // x, y in 0..e->w, 0->e.h coordinate space
-    rt_assert(0 <= x && x < e->w && 0 <= y && y < e->h);
+    posix_assert(0 <= x && x < e->w && 0 <= y && y < e->h);
     struct ui_edit_text* dt = &e->doc->text; // document text
     struct ui_edit_pg pg = ui_edit_xy_to_pg(e, x, y);
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
-        rt_swear(dt->np > 0 && pg.pn < dt->np);
+        posix_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
         if (pg.gp > glyphs) { pg.gp = 0 > glyphs ? 0 : glyphs; }
         ui_edit_move_caret(e, pg);
@@ -11755,7 +12364,7 @@ static void ui_edit_mouse_button_up(struct ui_edit_view* e, int32_t ix) {
     e->edit.buttons &= ~(1 << ix);
 }
 
-static bool ui_edit_tap(struct ui_view* v, int32_t rt_unused(ix), bool pressed) {
+static bool ui_edit_tap(struct ui_view* v, int32_t posix_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
@@ -11775,7 +12384,7 @@ static bool ui_edit_tap(struct ui_view* v, int32_t rt_unused(ix), bool pressed) 
     return true;
 }
 
-static bool ui_edit_long_press(struct ui_view* v, int32_t rt_unused(ix)) {
+static bool ui_edit_long_press(struct ui_view* v, int32_t posix_unused(ix)) {
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -11786,7 +12395,7 @@ static bool ui_edit_long_press(struct ui_view* v, int32_t rt_unused(ix)) {
     return true;
 }
 
-static bool ui_edit_double_tap(struct ui_view* v, int32_t rt_unused(ix)) {
+static bool ui_edit_double_tap(struct ui_view* v, int32_t posix_unused(ix)) {
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -11802,7 +12411,7 @@ static void ui_edit_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
         const int32_t dy = dx_dy.y;
         // TODO: maybe make a use of dx in single line no-word-break edit control?
         if (ui_app.focus == v) {
-            rt_assert(v->type == ui_view_text);
+            posix_assert(v->type == ui_view_text);
             struct ui_edit_view* e = (struct ui_edit_view*)v;
             int32_t lines = (abs(dy) + ui_edit_line_height(e) - 1) / ui_edit_line_height(e);
             if (dy > 0) {
@@ -11821,7 +12430,7 @@ static void ui_edit_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
             const int32_t y = e->caret.y - e->inside.top;
             struct ui_edit_pg pg = ui_edit_xy_to_pg(e, x, y);
             if (pg.pn >= 0 && pg.gp >= 0) {
-                rt_assert(pg.gp <= e->doc->text.ps[pg.pn].g);
+                posix_assert(pg.gp <= e->doc->text.ps[pg.pn].g);
                 ui_edit_move_caret(e, pg);
             } else {
                 ui_edit_click(e, x, y);
@@ -11831,9 +12440,9 @@ static void ui_edit_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
 }
 
 static bool ui_edit_focus_gained(struct ui_view* v) {
-    rt_assert(v->type == ui_view_text);
+    posix_assert(v->type == ui_view_text);
     struct ui_edit_view* e = (struct ui_edit_view*)v;
-    rt_assert(v->focusable);
+    posix_assert(v->focusable);
     if (ui_app.focused() && !e->focused) {
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
@@ -11845,7 +12454,7 @@ static bool ui_edit_focus_gained(struct ui_view* v) {
 }
 
 static void ui_edit_focus_lost(struct ui_view* v) {
-    rt_assert(v->type == ui_view_text);
+    posix_assert(v->type == ui_view_text);
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     if (e->focused) {
         ui_edit_hide_caret(e);
@@ -11876,7 +12485,7 @@ static void ui_edit_select_all(struct ui_edit_view* e) {
 }
 
 static int32_t ui_edit_view_save(struct ui_edit_view* e, char* text, int32_t* bytes) {
-    rt_not_null(bytes);
+    posix_not_null(bytes);
     enum {
         error_insufficient_buffer = 122, // ERROR_INSUFFICIENT_BUFFER
         error_more_data = 234            // ERROR_MORE_DATA
@@ -11885,12 +12494,12 @@ static int32_t ui_edit_view_save(struct ui_edit_view* e, char* text, int32_t* by
     const int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, null);
     if (text == null) {
         *bytes = utf8bytes;
-        r = rt_core.error.more_data;
+        r = posix_core.error.more_data;
     } else if (*bytes < utf8bytes) {
-        r = rt_core.error.insufficient_buffer;
+        r = posix_core.error.insufficient_buffer;
     } else {
         ui_edit_doc.copy(e->doc, null, text, utf8bytes);
-        rt_assert(text[utf8bytes - 1] == 0x00);
+        posix_assert(text[utf8bytes - 1] == 0x00);
     }
     return r;
 }
@@ -11899,12 +12508,12 @@ static void ui_edit_view_copy(struct ui_edit_view* e) {
     int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
     if (utf8bytes > 0) {
         char* text = null;
-        bool ok = rt_heap.alloc((void**)&text, utf8bytes) == 0;
-        rt_swear(ok);
+        bool ok = posix_heap.alloc((void**)&text, utf8bytes) == 0;
+        posix_swear(ok);
         ui_edit_doc.copy(e->doc, &e->selection, text, utf8bytes);
-        rt_assert(text[utf8bytes - 1] == 0x00); // verify zero termination
-        rt_clipboard.put_text(text);
-        rt_heap.free(text);
+        posix_assert(text[utf8bytes - 1] == 0x00); // verify zero termination
+        posix_clipboard.put_text(text);
+        posix_heap.free(text);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = e->x + e->caret.x;
         int32_t y = e->y + e->caret.y - ui_edit_line_height(e);
@@ -11926,7 +12535,7 @@ static void ui_edit_view_cut(struct ui_edit_view* e) {
 
 static struct ui_edit_pg ui_edit_paste_text(struct ui_edit_view* e,
         const char* text, int32_t bytes) {
-    rt_assert(!e->ro);
+    posix_assert(!e->ro);
     struct ui_edit_text t = {0};
     ui_edit_text.init(&t, text, bytes, false);
     union ui_edit_range r = ui_edit_text.all_on_null(&t, null);
@@ -11956,13 +12565,13 @@ static void ui_edit_view_paste(struct ui_edit_view* e) {
     if (!e->ro) {
         struct ui_edit_pg pg = e->selection.a[1];
         int32_t bytes = 0;
-        rt_clipboard.get_text(null, &bytes);
+        posix_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
             char* text = null;
-            bool ok = rt_heap.alloc((void**)&text, bytes) == 0;
-            rt_swear(ok);
-            int32_t r = rt_clipboard.get_text(text, &bytes);
-            rt_fatal_if_error(r);
+            bool ok = posix_heap.alloc((void**)&text, bytes) == 0;
+            posix_swear(ok);
+            int32_t r = posix_clipboard.get_text(text, &bytes);
+            posix_fatal_if_error(r);
             if (bytes > 0 && text[bytes - 1] == 0) {
                 bytes--; // clipboard includes zero terminator
             }
@@ -11971,14 +12580,14 @@ static void ui_edit_view_paste(struct ui_edit_view* e) {
                 pg = ui_edit_paste_text(e, text, bytes);
                 ui_edit_move_caret(e, pg);
             }
-            rt_heap.free(text);
+            posix_heap.free(text);
         }
     }
 }
 
 static void ui_edit_prepare_sle(struct ui_edit_view* e) {
     struct ui_view* v = &e->view;
-    rt_swear(e->sle && v->w > 0);
+    posix_swear(e->sle && v->w > 0);
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
     const int32_t prc = ui_edit_paragraph_run_count(e, 0);
@@ -12007,7 +12616,7 @@ static void ui_edit_insets(struct ui_edit_view* e) {
 }
 
 static void ui_edit_measure(struct ui_view* v) { // bottom up
-    rt_assert(v->type == ui_view_text);
+    posix_assert(v->type == ui_view_text);
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     if (v->w > 0 && e->sle) { ui_edit_prepare_sle(e); }
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
@@ -12020,8 +12629,8 @@ static void ui_edit_measure(struct ui_view* v) { // bottom up
 }
 
 static void ui_edit_layout(struct ui_view* v) { // top down
-    rt_assert(v->type == ui_view_text);
-    rt_assert(v->w > 0 && v->h > 0); // could be `if'
+    posix_assert(v->type == ui_view_text);
+    posix_assert(v->w > 0 && v->h > 0); // could be `if'
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     ui_edit_insets(e);
     // fully visible runs
@@ -12033,7 +12642,7 @@ static void ui_edit_layout(struct ui_view* v) { // top down
     const struct ui_edit_pg scroll = v->w == 0 ? (struct ui_edit_pg){0, 0} :
                                             ui_edit_scroll_pg(e);
     e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
-    rt_assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
+    posix_assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
     if (e->sle) { // single line edit (if changed on the fly):
         e->selection.a[0].pn = 0; // only has single paragraph
         e->selection.a[1].pn = 0;
@@ -12054,7 +12663,7 @@ static void ui_edit_layout(struct ui_view* v) { // top down
         ui_edit_destroy_caret(e);
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
-        rt_assert(e->focused);
+        posix_assert(e->focused);
     }
 }
 
@@ -12079,7 +12688,7 @@ static void ui_edit_paint_selection(struct ui_edit_view* e, int32_t y, const str
             int32_t to  = (int32_t)end;
             int32_t ofs0 = ui_edit_str.gp_to_bp(text, r->bytes, fro);
             int32_t ofs1 = ui_edit_str.gp_to_bp(text, r->bytes, to);
-            rt_swear(ofs0 >= 0 && ofs1 >= 0);
+            posix_swear(ofs0 >= 0 && ofs1 >= 0);
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
             // Theme-aware selection color (was hardcoded MSVC dark blue).
@@ -12102,15 +12711,15 @@ static void ui_edit_paint_selection(struct ui_edit_view* e, int32_t y, const str
 static int32_t ui_edit_paint_paragraph(struct ui_edit_view* e,
         const struct ui_ta* ta, int32_t x, int32_t y, int32_t pn,
         struct ui_rect rc) {
-    static const char* ww = rt_glyph_south_west_arrow_with_hook;
+    static const char* ww = ui_glyph_south_west_arrow_with_hook;
     struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(0 <= pn && pn < dt->np);
+    posix_assert(0 <= pn && pn < dt->np);
     const struct ui_edit_str* str = &dt->ps[pn];
     int32_t runs = 0;
     const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
-//      rt_println("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
+//      posix_println("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
         if (rc.y - ui_edit_line_height(e) <= y && y < rc.y + rc.h) {
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
@@ -12126,8 +12735,8 @@ static int32_t ui_edit_paint_paragraph(struct ui_edit_view* e,
 }
 
 static void ui_edit_paint(struct ui_view* v) {
-    rt_assert(v->type == ui_view_text);
-    rt_assert(!ui_view.is_hidden(v));
+    posix_assert(v->type == ui_view_text);
+    posix_assert(!ui_view.is_hidden(v));
     struct ui_edit_view* e = (struct ui_edit_view*)v;
     struct ui_edit_text* dt = &e->doc->text; // document text
     // drawing text is really expensive, only paint what's needed:
@@ -12146,7 +12755,7 @@ static void ui_edit_paint(struct ui_view* v) {
         const struct ui_ta ta = { .fm = v->fm, .color = v->color };
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = v->y + e->inside.bottom;
-        rt_assert(pn < dt->np);
+        posix_assert(pn < dt->np);
         for (int32_t i = pn; i < dt->np && y < bottom; i++) {
             y = ui_edit_paint_paragraph(e, &ta, x, y, i, rc);
         }
@@ -12179,8 +12788,8 @@ static bool ui_edit_reallocate_runs(struct ui_edit_view* e, int32_t p,
     bool ok = true;
     int32_t old_np = dt->np - inserted + deleted;
     int32_t new_np = dt->np;
-    rt_assert(old_np > 0 && new_np > 0 && e->para != null);
-    rt_assert(0 <= p && p < old_np);
+    posix_assert(old_np > 0 && new_np > 0 && e->para != null);
+    posix_assert(0 <= p && p < old_np);
     // Invalidate the modified anchor paragraph p.
     ui_edit_invalidate_run(e, p);
     // Free the run caches of every deleted paragraph before we either
@@ -12193,19 +12802,19 @@ static bool ui_edit_reallocate_runs(struct ui_edit_view* e, int32_t p,
         int32_t move_src = p + deleted + 1;
         int32_t move_dst = p + inserted + 1;
         int32_t move_count = old_np - move_src;
-        rt_assert(move_count >= 0);
+        posix_assert(move_count >= 0);
         if (new_np < old_np) { // shrinking: move first, then realloc down
             if (move_count > 0) {
                 memmove(e->para + move_dst, e->para + move_src,
                         (size_t)move_count * sizeof(e->para[0]));
             }
-            ok = rt_heap.realloc((void**)&e->para,
+            ok = posix_heap.realloc((void**)&e->para,
                                  (size_t)new_np * sizeof(e->para[0])) == 0;
-            rt_swear(ok, "shrinking");
+            posix_swear(ok, "shrinking");
         } else { // growing: realloc up first, then move tail into the gap
-            ok = rt_heap.realloc((void**)&e->para,
+            ok = posix_heap.realloc((void**)&e->para,
                                  (size_t)new_np * sizeof(e->para[0])) == 0;
-            rt_swear(ok, "growing");
+            posix_swear(ok, "growing");
             if (ok && move_count > 0) {
                 memmove(e->para + move_dst, e->para + move_src,
                         (size_t)move_count * sizeof(e->para[0]));
@@ -12226,9 +12835,9 @@ static void ui_edit_before(struct ui_edit_notify* notify,
          const struct ui_edit_notify_info* ni) {
     struct ui_edit_notify_view* n = (struct ui_edit_notify_view*)notify;
     struct ui_edit_view* e = (struct ui_edit_view*)n->that;
-    rt_swear(e->doc == ni->d);
+    posix_swear(e->doc == ni->d);
     const struct ui_edit_text* dt = &e->doc->text; // document text
-    rt_assert(dt->np > 0);
+    posix_assert(dt->np > 0);
     // `n->data` is number of paragraphs before replace(); stash
     // unconditionally so after() can read it even when the view is
     // hidden (per-view caches must stay synchronized with the doc).
@@ -12247,18 +12856,18 @@ static void ui_edit_after(struct ui_edit_notify* notify,
     struct ui_edit_notify_view* n = (struct ui_edit_notify_view*)notify;
     struct ui_edit_view* e = (struct ui_edit_view*)n->that;
     const struct ui_edit_text* dt = &ni->d->text; // document text
-    rt_assert(ni->d == e->doc && dt->np > 0);
+    posix_assert(ni->d == e->doc && dt->np > 0);
     // Per-view cache maintenance must run regardless of visibility, or
     // a hidden view's e->para[] / scroll.pn / selection drifts out of
     // sync with the document and the first paint after the view is
     // shown reads past the end / out of range. Only the repaint
     // scheduling stays inside the (w>0, h>0) gate.
     const int32_t np = (int32_t)n->data;
-    rt_swear(dt->np == np - ni->deleted + ni->inserted);
+    posix_swear(dt->np == np - ni->deleted + ni->inserted);
     ui_edit_reallocate_runs(e, ni->r->from.pn, ni->deleted, ni->inserted);
     e->selection = *ni->x;
     struct ui_edit_pg* pg = e->selection.a;
-    for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
+    for (int32_t i = 0; i < posix_countof(e->selection.a); i++) {
         const int32_t pn = dt->np - 1 < pg[i].pn ? dt->np - 1 : pg[i].pn;
         pg[i].pn = 0 > pn ? 0 : pn;
         const int32_t gp = dt->ps[pg[i].pn].g < pg[i].gp ? dt->ps[pg[i].pn].g : pg[i].gp;
@@ -12280,14 +12889,14 @@ static void ui_edit_after(struct ui_edit_notify* notify,
 
 static void ui_edit_view_init(struct ui_edit_view* e, struct ui_edit_doc* d) {
     memset(e, 0, sizeof(*e));
-    rt_assert(d != null && d->text.np > 0);
+    posix_assert(d != null && d->text.np > 0);
     e->doc = d;
-    rt_assert(d->text.np > 0);
+    posix_assert(d->text.np > 0);
     e->listener.that = (void*)e;
     e->listener.data = 0;
     e->listener.notify.before = ui_edit_before;
     e->listener.notify.after  = ui_edit_after;
-    rt_static_assertion(offsetof(struct ui_edit_notify_view, notify) == 0);
+    posix_static_assertion(offsetof(struct ui_edit_notify_view, notify) == 0);
     ui_edit_doc.subscribe(d, &e->listener.notify);
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
@@ -12352,7 +12961,7 @@ struct ui_edit_view_if ui_edit_view = {
 // _______________________________ ui_fuzzing.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 
 // TODO: Ctrl+A Ctrl+V Ctrl+C Ctrl+X Ctrl+Z Ctrl+Y
 
@@ -12456,7 +13065,7 @@ struct ui_fuzzing_generator_params {
 };
 
 static uint32_t ui_fuzzing_random(void) {
-    return rt_num.random32(&ui_fuzzing_seed);
+    return posix_num.random32(&ui_fuzzing_seed);
 }
 
 static fp64_t ui_fuzzing_random_fp64(void) {
@@ -12465,34 +13074,34 @@ static fp64_t ui_fuzzing_random_fp64(void) {
 }
 
 static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
-    rt_fatal_if(p.count < 1024); // at least 1KB expected
-    rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    rt_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
+    posix_fatal_if(p.count < 1024); // at least 1KB expected
+    posix_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    posix_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    posix_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     char* s = p.text;
     // assume longest word is less than 128
     char* end = p.text + p.count - 128;
     uint32_t paragraphs = p.min_paragraphs +
         (p.min_paragraphs == p.max_paragraphs ? 0 :
-         rt_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
+         posix_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
     while (paragraphs > 0 && s < end) {
         uint32_t sentences_in_paragraph = p.min_sentences +
             (p.min_sentences == p.max_sentences ? 0 :
-             rt_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
+             posix_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
         while (sentences_in_paragraph > 0 && s < end) {
             const uint32_t words_in_sentence = p.min_words +
                 (p.min_words == p.max_words ? 0 :
-                 rt_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
+                 posix_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
-                const int32_t ix = rt_num.random32(&p.seed) %
-                                   rt_countof(lorem_ipsum_words);
+                const int32_t ix = posix_num.random32(&p.seed) %
+                                   posix_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
                 s += strlen(word);
                 if (i < words_in_sentence - 1 && s < end) {
                     const char* delimiter = "\x20";
-                    int32_t punctuation = rt_num.random32(&p.seed) % 128;
+                    int32_t punctuation = posix_num.random32(&p.seed) % 128;
                     switch (punctuation) {
                         case 0:
                         case 1:
@@ -12525,7 +13134,7 @@ static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
         paragraphs--;
     }
     *s = 0;
-//  rt_println("%s\n", p.text);
+//  posix_println("%s\n", p.text);
 }
 
 static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
@@ -12548,7 +13157,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
     static bool initialized = 0;
     if (!initialized) {
         cumulative_freq[0] = freq[0];
-        for (int i = 1; i < rt_countof(freq); i++) {
+        for (int i = 1; i < posix_countof(freq); i++) {
             cumulative_freq[i] = cumulative_freq[i - 1] + freq[i];
         }
         initialized = 1;
@@ -12568,7 +13177,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
 }
 
 static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
-    rt_swear(work == &ui_fuzzing_work);
+    posix_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
     ui_app.shift = work->shift;
@@ -12587,9 +13196,9 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
         ui_app.mouse.y = y;
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
-//      rt_println("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
+//      posix_println("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administrator:
-//      rt_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
+//      posix_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
         const bool r_button = ui_app.mouse_right != work->right;
         ui_app.mouse_left  = work->left;
@@ -12603,7 +13212,7 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
         }
         work->pt = null;
     } else {
-        rt_assert(false, "TODO: ?");
+        posix_assert(false, "TODO: ?");
     }
     if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
@@ -12614,7 +13223,7 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
     }
 }
 
-static void ui_fuzzing_do_work(rt_work_t* p) {
+static void ui_fuzzing_do_work(struct posix_work* p) {
     if (ui_fuzzing_running) {
         ui_fuzzing_inside = true;
         if (ui_fuzzing.custom != null) {
@@ -12643,7 +13252,7 @@ static void ui_fuzzing_alt_ctrl_shift(void) {
         case 5: w->alt = 1; w->ctrl = 0; w->shift = 1; break;
         case 6: w->alt = 0; w->ctrl = 1; w->shift = 1; break;
         case 7: w->alt = 1; w->ctrl = 1; w->shift = 1; break;
-        default: rt_assert(false);
+        default: posix_assert(false);
     }
 }
 
@@ -12657,7 +13266,7 @@ static void ui_fuzzing_character(void) {
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
-    //          rt_println("%s", utf8);
+    //          posix_println("%s", utf8);
             }
         } else if (r < 0.25) {
             ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_chinese;
@@ -12693,9 +13302,9 @@ static void ui_fuzzing_key(void) {
         { ui.key.back,      "back"    },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ui_fuzzing_random() % rt_countof(keys);
+    uint32_t ix = ui_fuzzing_random() % posix_countof(keys);
     if (ui_fuzzing_debug) {
-//      rt_println("key(%s)", keys[ix].name);
+//      posix_println("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -12717,7 +13326,7 @@ static void ui_fuzzing_mouse(void) {
         w->right = !w->right;
     }
     if (ui_fuzzing_debug) {
-//      rt_println("mouse(%d,%d) %s%s", pt.x, pt.y,
+//      posix_println("mouse(%d,%d) %s%s", pt.x, pt.y,
 //              w->left ? "L" : "_", w->right ? "R" : "_");
     }
     w->pt = &pt;
@@ -12747,9 +13356,9 @@ static void ui_fuzzing_stop(void) {
 }
 
 static void ui_fuzzing_next_random(struct ui_fuzzing* f) {
-    rt_swear(f == &ui_fuzzing_work);
+    posix_swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (struct ui_fuzzing){
-        .base = { .when = rt_clock.seconds() + 0.001, // 1ms
+        .base = { .when = posix_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
     uint32_t rnd = ui_fuzzing_random() % 100;
@@ -12774,7 +13383,7 @@ struct ui_fuzzing_if ui_fuzzing = {
 };
 // ________________________________ ui_image.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
     const int32_t zn = 1 << (nominator - 1);
@@ -12816,12 +13425,12 @@ static void ui_image_paint(struct ui_view* v) {
 //  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_draw.set_clip(v->x, v->y, v->w, v->h);
-        rt_swear(!iv->fit || !iv->fill, "make up your mind");
-        rt_swear(0 < iv->zn && iv->zn <= 16);
-        rt_swear(0 < iv->zd && iv->zd <= 16);
+        posix_swear(!iv->fit || !iv->fill, "make up your mind");
+        posix_swear(0 < iv->zn && iv->zn <= 16);
+        posix_swear(0 < iv->zd && iv->zd <= 16);
         // only 1:2 and 2:1 etc are supported:
-        if (iv->zn != 1) { rt_swear(iv->zd == 1); }
-        if (iv->zd != 1) { rt_swear(iv->zn == 1); }
+        if (iv->zn != 1) { posix_swear(iv->zd == 1); }
+        if (iv->zd != 1) { posix_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
         struct ui_rect rc = ui_image_position(iv);
@@ -12851,7 +13460,7 @@ static void ui_image_paint(struct ui_view* v) {
             // rather than crashing the whole UI.
             static bool warned;
             if (!warned) {
-                rt_println("ui_image: unsupported bpp=%d", iv->image.bpp);
+                posix_println("ui_image: unsupported bpp=%d", iv->image.bpp);
                 warned = true;
             }
         }
@@ -12879,7 +13488,7 @@ static void ui_image_show_tools(struct ui_image* iv, bool show) {
             ui_app.request_layout();
         }
         if (show) { // hide in 3.3 seconds:
-            iv->when = rt_clock.seconds() + 3.3;
+            iv->when = posix_clock.seconds() + 3.3;
         } else {
             iv->when = 0;
         }
@@ -12888,7 +13497,7 @@ static void ui_image_show_tools(struct ui_image* iv, bool show) {
 
 static void ui_image_fit_fill_scale(struct ui_image* iv) {
     fp64_t s = ui_image.scale(iv);
-    rt_assert(s != 0);
+    posix_assert(s != 0);
     if (s > 1) {
         ui_view.set_text(&iv->tool.ratio, "1:%.3f", s);
     } else if (s != 0 && s <= 1) {
@@ -12926,7 +13535,7 @@ static void ui_image_layout(struct ui_view* v) {
 
 static void ui_image_every_100ms(struct ui_view* v) {
     struct ui_image* iv = (struct ui_image*)v;
-    if (iv->when != 0 && rt_clock.seconds() > iv->when) {
+    if (iv->when != 0 && posix_clock.seconds() > iv->when) {
         ui_image_show_tools(iv, false);
     }
 }
@@ -13028,7 +13637,7 @@ static bool ui_image_tap(struct ui_view* v, int32_t ix, bool pressed) {
         }
         swallow = inside || tools;
     }
-//  rt_println("inside %s", inside ? "true" : "false");
+//  posix_println("inside %s", inside ? "true" : "false");
     return swallow;
 }
 
@@ -13050,7 +13659,7 @@ static bool ui_image_mouse_move(struct ui_view* v) {
     } else if (!inside && !tools) {
         ui_image_show_tools(iv, false);
     }
-//  rt_println("inside %s", inside ? "true" : "false");
+//  posix_println("inside %s", inside ? "true" : "false");
     return inside;
 }
 
@@ -13125,33 +13734,33 @@ static void ui_image_zoom_1t1(ui_button_t* b) {
 static ui_label_t ui_image_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "Ctrl+C copies image to the clipboard.\n\n"
-    rt_glyph_heavy_plus_sign " zoom in; "
-    rt_glyph_heavy_minus_sign " zoom out;\n"
-    rt_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
-    rt_glyph_up_down_arrow " Fit;\n"
-    rt_glyph_left_right_arrow " Fill.\n\n"
+    ui_glyph_heavy_plus_sign " zoom in; "
+    ui_glyph_heavy_minus_sign " zoom out;\n"
+    ui_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
+    ui_glyph_up_down_arrow " Fit;\n"
+    ui_glyph_left_right_arrow " Fill.\n\n"
     "Left/Right Arrows "
-    rt_glyph_leftward_arrow
-    rt_glyph_rightwards_arrow
+    ui_glyph_leftward_arrow
+    ui_glyph_rightwards_arrow
     "Up/Down Arrows "
-    rt_glyph_upwards_arrow
-    rt_glyph_downwards_arrow
+    ui_glyph_upwards_arrow
+    ui_glyph_downwards_arrow
     "\npans the image inside view.\n\n"
     "Mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
 
-static void ui_image_help(ui_button_t* rt_unused(b)) {
+static void ui_image_help(ui_button_t* posix_unused(b)) {
     ui_app.show_toast(&ui_image_about, 7.0);
 }
 
 static void ui_image_copy_to_clipboard(struct ui_image* iv) {
     struct ui_bitmap image = {0};
     if (iv->image.texture != null) {
-        rt_clipboard.put_image(&iv->image);
+        posix_clipboard.put_image(&iv->image);
     } else {
         ui_draw.bitmap_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
-        rt_clipboard.put_image(&image);
+        posix_clipboard.put_image(&image);
         ui_draw.bitmap_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
@@ -13206,7 +13815,7 @@ static void ui_image_add_button(struct ui_image* iv, ui_button_t* b,
     b->flat = true;
     b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
-    rt_str_printf(b->hint, "%s", hint);
+    posix_str_printf(b->hint, "%s", hint);
     ui_view.add_last(&iv->tool.bar, b);
 }
 
@@ -13230,19 +13839,19 @@ void ui_image_init(struct ui_image* iv) {
     ui_image_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_image_copy,
         "Copy to Clipboard Ctrl+C");
     ui_image_add_button(iv, &iv->tool.zoom_out,
-                    rt_glyph_heavy_minus_sign,
+                    ui_glyph_heavy_minus_sign,
                     ui_image_zoom_out, "Zoom Out");
     ui_image_add_button(iv, &iv->tool.zoom_1t1,
-                    rt_glyph_open_circle_arrows_one_overlay,
+                    ui_glyph_open_circle_arrows_one_overlay,
                     ui_image_zoom_1t1, "Reset to 1:1");
     ui_image_add_button(iv, &iv->tool.zoom_in,
-                     rt_glyph_heavy_plus_sign,
+                     ui_glyph_heavy_plus_sign,
                      ui_image_zoom_in,  "Zoom In");
     ui_image_add_button(iv, &iv->tool.fit,
-                     rt_glyph_up_down_arrow,
+                     ui_glyph_up_down_arrow,
                      ui_image_fit,  "Fit");
     ui_image_add_button(iv, &iv->tool.fill,
-                     rt_glyph_left_right_arrow,
+                     ui_glyph_left_right_arrow,
                      ui_image_fill,  "Fill");
     ui_image_add_button(iv, &iv->tool.help,
                      "?", ui_image_help, "Help");
@@ -13277,11 +13886,11 @@ void ui_image_init_with(struct ui_image* iv, const uint8_t* pixels,
 }
 
 static void ui_image_ratio(struct ui_image* iv, int32_t zn, int32_t zd) {
-    rt_swear(0 < zn && zn <= 16);
-    rt_swear(0 < zd && zd <= 16);
+    posix_swear(0 < zn && zn <= 16);
+    posix_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
-    if (zn != 1) { rt_swear(zd == 1); }
-    if (zd != 1) { rt_swear(zn == 1); }
+    if (zn != 1) { posix_swear(zd == 1); }
+    if (zd != 1) { posix_swear(zn == 1); }
     iv->zn = zn;
     iv->zd = zd;
     iv->fit  = false;
@@ -13298,11 +13907,11 @@ struct ui_image_if ui_image = {
 
 // ________________________________ ui_label.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static void ui_label_paint(struct ui_view* v) {
-    rt_assert(v->type == ui_view_label);
-    rt_assert(!ui_view.is_hidden(v));
+    posix_assert(v->type == ui_view_label);
+    posix_assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
     ui_color_t c = v->state.hover && v->highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
@@ -13327,10 +13936,10 @@ static void ui_label_paint(struct ui_view* v) {
 }
 
 static bool ui_label_context_menu(struct ui_view* v) {
-    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    posix_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        rt_clipboard.put_text(ui_view.string(v));
+        posix_clipboard.put_text(ui_view.string(v));
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
@@ -13340,18 +13949,18 @@ static bool ui_label_context_menu(struct ui_view* v) {
 }
 
 static void ui_label_character(struct ui_view* v, const char* utf8) {
-    rt_assert(v->type == ui_view_label);
+    posix_assert(v->type == ui_view_label);
     if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            rt_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
+            posix_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
 
 void ui_view_init_label(struct ui_view* v) {
-    rt_assert(v->type == ui_view_label);
+    posix_assert(v->type == ui_view_label);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
@@ -13377,13 +13986,13 @@ void ui_label_init(ui_label_t* v, fp32_t min_w_em, const char* format, ...) {
 }
 // _________________________________ ui_mbx.c _________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static void ui_mbx_button(ui_button_t* b) {
     struct ui_mbx* m = (struct ui_mbx*)b->parent;
-    rt_assert(m->type == ui_view_mbx);
+    posix_assert(m->type == ui_view_mbx);
     m->option = -1;
-    for (int32_t i = 0; i < rt_countof(m->button) && m->option < 0; i++) {
+    for (int32_t i = 0; i < posix_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
             if (m->callback != null) {
@@ -13453,13 +14062,13 @@ void ui_view_init_mbx(struct ui_view* v) {
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.prop.normal;
     int32_t n = 0;
-    while (m->options[n] != null && n < rt_countof(m->button) - 1) {
+    while (m->options[n] != null && n < posix_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    rt_swear(n <= rt_countof(m->button), "inhumane: %d buttons is too many", n);
-    if (n > rt_countof(m->button)) { n = rt_countof(m->button); }
+    posix_swear(n <= posix_countof(m->button), "inhumane: %d buttons is too many", n);
+    if (n > posix_countof(m->button)) { n = posix_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
     ui_view.add_last(&m->view, &m->label);
@@ -13491,8 +14100,7 @@ void ui_mbx_init(struct ui_mbx* m, const char* options[],
 // ________________________________ ui_midi.c _________________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
 #include <mmsystem.h>
 
 #pragma comment(lib, "winmm")
@@ -13506,20 +14114,20 @@ struct ui_midi_implementation {
     bool playing;
 };
 
-rt_static_assertion(sizeof(struct ui_midi) >= sizeof(struct ui_midi_implementation) + sizeof(void*));
-rt_static_assertion(MMSYSERR_NOERROR == 0);
+posix_static_assertion(sizeof(struct ui_midi) >= sizeof(struct ui_midi_implementation) + sizeof(void*));
+posix_static_assertion(MMSYSERR_NOERROR == 0);
 
 static void ui_midi_error(errno_t r, char* text, int32_t count) {
-    rt_fatal_win32err(mciGetErrorStringA(r, text, (UINT)count));
+    posix_fatal_win32err(mciGetErrorStringA(r, text, (UINT)count));
 }
 
 static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
         int line) {
     if (r != 0) {
         static char error[256];
-        ui_midi_error(r, error, rt_countof(error));
-        rt_println("%s:%d %s", func, line, call);
-        rt_println("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
+        ui_midi_error(r, error, posix_countof(error));
+        posix_println("%s:%d %s", func, line, call);
+        posix_println("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
     }
 }
 
@@ -13529,18 +14137,18 @@ static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
 
 #define ui_midi_fatal_if_error(call) do {                                   \
     int _r_ = call; ui_midi_warn_if_error_(r, #call, __func__, __LINE__);   \
-    rt_fatal_if_error(r);                                                   \
+    posix_fatal_if_error(r);                                                   \
 } while (0)
 
 static bool ui_midi_message_callback(struct ui_app_message_handler* h, int32_t m,
                                      int64_t wp, int64_t lp, int64_t* rt) {
     if (m == MM_MCINOTIFY) {
         #ifdef UI_MIDI_DEBUG
-            rt_println("device_id: %lld", lp);
-            if (wp & MCI_NOTIFY_SUCCESSFUL) { rt_println("SUCCESSFUL"); }
-            if (wp & MCI_NOTIFY_SUPERSEDED) { rt_println("SUPERSEDED"); }
-            if (wp & MCI_NOTIFY_ABORTED)    { rt_println("ABORTED");    }
-            if (wp & MCI_NOTIFY_FAILURE)    { rt_println("FAILURE");    }
+            posix_println("device_id: %lld", lp);
+            if (wp & MCI_NOTIFY_SUCCESSFUL) { posix_println("SUCCESSFUL"); }
+            if (wp & MCI_NOTIFY_SUPERSEDED) { posix_println("SUPERSEDED"); }
+            if (wp & MCI_NOTIFY_ABORTED)    { posix_println("ABORTED");    }
+            if (wp & MCI_NOTIFY_FAILURE)    { posix_println("FAILURE");    }
         #endif
         struct ui_midi* midi = (struct ui_midi*)h->that;
         struct ui_midi_implementation* mi  = (struct ui_midi_implementation*)midi;
@@ -13565,7 +14173,7 @@ static void ui_midi_remove_handler(struct ui_midi* m) {
         while (h->next != null && h->next != &mi->handler) {
             h = h->next;
         }
-        rt_swear(h->next == &mi->handler);
+        posix_swear(h->next == &mi->handler);
         if (h->next == &mi->handler) {
             h->next = h->next->next;
         }
@@ -13576,7 +14184,7 @@ static void ui_midi_remove_handler(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+    posix_swear(posix_thread.id() == ui_app.tid);
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     mi->handler.that = mi;
     mi->handler.next = ui_app.handlers;
@@ -13588,12 +14196,12 @@ static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
     mi->mop.lpstrDeviceType = (const char*)MCI_DEVTYPE_SEQUENCER;
     mi->mop.lpstrElementName = filename;
     mi->mop.lpstrAlias = mi->alias;
-    rt_str_printf(mi->alias, "%p", m);
+    posix_str_printf(mi->alias, "%p", m);
     const DWORD_PTR flags = MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID |
                             MCI_OPEN_ELEMENT | MCI_OPEN_ALIAS;
     errno_t r = mciSendCommandA(0, MCI_OPEN, flags, (uintptr_t)&mi->mop);
     ui_midi_warn_if_error(r);
-    rt_assert(mi->mop.wDeviceID != -1);
+    posix_assert(mi->mop.wDeviceID != -1);
     mi->handler.callback = ui_midi_message_callback,
     mi->device_id = mi->mop.wDeviceID;
     if (r != 0) {
@@ -13605,9 +14213,9 @@ static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
 }
 
 static errno_t ui_midi_play(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
+    posix_swear(posix_thread.id() == ui_app.tid);
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
-    rt_swear(ui_midi.is_open(m));
+    posix_swear(ui_midi.is_open(m));
     MCI_PLAY_PARMS  pp = { .dwCallback = (uintptr_t)mi->window };
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY, (uintptr_t)&pp);
     ui_midi_warn_if_error(r);
@@ -13618,8 +14226,8 @@ static errno_t ui_midi_play(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_rewind(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     MCI_SEEK_PARMS p = { .dwCallback = (uintptr_t)mi->window, .dwTo = 0 };
     const DWORD f = MCI_WAIT|MCI_SEEK_TO_START;
@@ -13629,8 +14237,8 @@ static errno_t ui_midi_rewind(struct ui_midi* m) {
 }
 
 static errno_t ui_midi_get_volume(struct ui_midi* m, fp64_t* volume) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = 0;
     errno_t r = midiOutGetVolume((HMIDIOUT)0, &v);
     ui_midi_warn_if_error(r);
@@ -13639,21 +14247,21 @@ static errno_t ui_midi_get_volume(struct ui_midi* m, fp64_t* volume) {
 }
 
 static errno_t ui_midi_set_volume(struct ui_midi* m, fp64_t volume) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = (DWORD)(volume * (fp64_t)0xFFFFFFFFU);
     const UINT n = midiOutGetNumDevs();
     // Handle to a MIDI Output Device
     HMIDIOUT h = (HMIDIOUT)(uintptr_t)(n - 1);
     errno_t r = n == 0 ? MCIERR_DEVICE_NOT_INSTALLED : midiOutSetVolume(h, v);
     ui_midi_warn_if_error(r);
-    rt_fatal_if_error(r);
+    posix_fatal_if_error(r);
     return r;
 }
 
 static errno_t ui_midi_stop(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_STOP, 0, 0);
     ui_midi_warn_if_error(r);
@@ -13662,14 +14270,14 @@ static errno_t ui_midi_stop(struct ui_midi* m) {
 }
 
 static void ui_midi_close(struct ui_midi* m) {
-    rt_swear(rt_thread.id() == ui_app.tid);
-    rt_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
+    posix_swear(posix_thread.id() == ui_app.tid);
+    posix_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
     struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
     r = mciSendCommandA(MCI_ALL_DEVICE_ID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
-    rt_fatal_if_error(r, "sound card is unplugged on the fly?");
+    posix_fatal_if_error(r, "sound card is unplugged on the fly?");
     memset(&mi->mop, 0x00, sizeof(mi->mop));
     mi->window = 0;
     ui_midi_remove_handler(m);
@@ -13703,7 +14311,7 @@ struct ui_midi_if ui_midi = {
 };
 // _______________________________ ui_slider.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static void ui_slider_invalidate(const struct ui_slider* s) {
     const struct ui_view* v = &s->view;
@@ -13733,14 +14341,14 @@ static struct ui_wh measure_text(const struct ui_fm* fm, const char* format, ...
 }
 
 static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
-    char formatted[rt_countof(s->p.text)];
+    char formatted[posix_countof(s->p.text)];
     const struct ui_fm* fm = s->fm;
     const char* text = ui_view.string(&s->view);
     const struct ui_ltrb i = ui_view.margins(&s->view, &s->insets);
     struct ui_wh wh = s->fm->em;
     if (s->debug.trace.mt) {
         const struct ui_ltrb p = ui_view.margins(&s->view, &s->padding);
-        rt_println(">%dx%d em: %dx%d min: %.1fx%.1f "
+        posix_println(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -13748,7 +14356,7 @@ static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
             (64 < strlen(text) ? 64 : strlen(text)), text);
         const struct ui_margins in = s->insets;
         const struct ui_margins pd = s->padding;
-        rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        posix_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -13757,7 +14365,7 @@ static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
     }
     if (s->format != null) {
         s->format(&s->view);
-        rt_str_printf(formatted, "%s", text);
+        posix_str_printf(formatted, "%s", text);
         wh = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
@@ -13773,13 +14381,13 @@ static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
         wh = measure_text(s->fm, "%s", text);
     }
     if (s->debug.trace.mt) {
-        rt_println(" mt: %dx%d", wh.w, wh.h);
+        posix_println(" mt: %dx%d", wh.w, wh.h);
     }
     return wh;
 }
 
 static void ui_slider_measure(struct ui_view* v) {
-    rt_assert(v->type == ui_view_slider);
+    posix_assert(v->type == ui_view_slider);
     struct ui_slider* s = (struct ui_slider*)v;
     const struct ui_fm* fm = v->fm;
     const struct ui_ltrb i = ui_view.margins(v, &v->insets);
@@ -13790,7 +14398,7 @@ static void ui_slider_measure(struct ui_view* v) {
     // dec and inc have same font metrics as a slider:
     s->dec.fm = fm;
     s->inc.fm = fm;
-    rt_assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
+    posix_assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
@@ -13805,12 +14413,12 @@ static void ui_slider_measure(struct ui_view* v) {
     }
     v->h = v->h > i.top + fm->em.h + i.bottom ? v->h : i.top + fm->em.h + i.bottom;
     if (s->debug.trace.mt) {
-        rt_println("<%dx%d", s->w, s->h);
+        posix_println("<%dx%d", s->w, s->h);
     }
 }
 
 static void ui_slider_layout(struct ui_view* v) {
-    rt_assert(v->type == ui_view_slider);
+    posix_assert(v->type == ui_view_slider);
     struct ui_slider* s = (struct ui_slider*)v;
     // disregard inc/dec .state.hidden bit for layout:
     const struct ui_ltrb i = ui_view.margins(v, &v->insets);
@@ -13821,14 +14429,14 @@ static void ui_slider_layout(struct ui_view* v) {
 }
 
 static void ui_slider_paint(struct ui_view* v) {
-    rt_assert(v->type == ui_view_slider);
+    posix_assert(v->type == ui_view_slider);
     struct ui_slider* s = (struct ui_slider*)v;
     const struct ui_fm* fm = v->fm;
     const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
-    rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+    posix_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
     const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
     const int32_t w = ui_slider_width(s);
@@ -13845,7 +14453,7 @@ static void ui_slider_paint(struct ui_view* v) {
     d1 = c;
     d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-    rt_assert(range > 0, "range: %.6f", range);
+    posix_assert(range > 0, "range: %.6f", range);
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_draw.gradient(x, v->y, wi, v->h, d1, d0, true);
@@ -13862,16 +14470,16 @@ static void ui_slider_paint(struct ui_view* v) {
     }
     // text:
     const char* text = ui_view.string(v);
-    char formatted[rt_countof(v->p.text)];
+    char formatted[posix_countof(v->p.text)];
     if (s->format != null) {
         s->format(v);
         s->p.strid = 0; // nls again
         text = ui_view.string(v);
     } else if (text != null &&
         (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
-        rt_str.format(formatted, rt_countof(formatted), text, s->value);
+        posix_str.format(formatted, posix_countof(formatted), text, s->value);
         s->p.strid = 0; // nls again
-        text = rt_nls.str(formatted);
+        text = posix_nls.str(formatted);
     }
     // because current value was formatted into `text` need to
     // remeasure and align text again:
@@ -13883,7 +14491,7 @@ static void ui_slider_paint(struct ui_view* v) {
     ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
-static bool ui_slider_tap(struct ui_view* v, int32_t rt_unused(ix),
+static bool ui_slider_tap(struct ui_view* v, int32_t posix_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
@@ -13892,7 +14500,7 @@ static bool ui_slider_tap(struct ui_view* v, int32_t rt_unused(ix),
             const struct ui_ltrb i = ui_view.margins(v, &v->insets);
             const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
-            rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+            posix_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width(s); // slider width
             const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
             const int32_t vx = v->x + i.left + dx;
@@ -13921,7 +14529,7 @@ static void ui_slider_mouse_move(struct ui_view* v) {
         if (drag) {
             const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
-            rt_assert(s->dec.state.hidden == s->inc.state.hidden,
+            posix_assert(s->dec.state.hidden == s->inc.state.hidden,
                       ".dec .inc must be .hidden in sync");
             const int32_t sw = ui_slider_width(s); // slider width
             const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
@@ -13973,7 +14581,7 @@ static void ui_slider_inc_dec(ui_button_t* b) {
 }
 
 static void ui_slider_every_100ms(struct ui_view* v) { // 100ms
-    rt_assert(v->type == ui_view_slider);
+    posix_assert(v->type == ui_view_slider);
     struct ui_slider* s = (struct ui_slider*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
@@ -13996,7 +14604,7 @@ static void ui_slider_every_100ms(struct ui_view* v) { // 100ms
 }
 
 void ui_view_init_slider(struct ui_view* v) {
-    rt_assert(v->type == ui_view_slider);
+    posix_assert(v->type == ui_view_slider);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
@@ -14010,11 +14618,11 @@ void ui_view_init_slider(struct ui_view* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(rt_glyph_fullwidth_hyphen_minus, 0, // rt_glyph_heavy_minus_sign
+    s->dec = (ui_button_t)ui_button(ui_glyph_fullwidth_hyphen_minus, 0, // ui_glyph_heavy_minus_sign
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
-    rt_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(rt_glyph_fullwidth_plus_sign, 0, // rt_glyph_heavy_plus_sign
+    posix_str_printf(s->dec.hint, "%s", accel);
+    s->inc = (ui_button_t)ui_button(ui_glyph_fullwidth_plus_sign, 0, // ui_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ui_view.add(&s->view, &s->dec, &s->inc, null);
@@ -14038,7 +14646,7 @@ void ui_view_init_slider(struct ui_view* v) {
     s->dec.min_w_em = 1.0f + ui_view_i_tb * 2;
     s->inc.min_h_em = 1.0f + ui_view_i_tb * 2;
     s->inc.min_w_em = 1.0f + ui_view_i_tb * 2;
-    rt_str_printf(s->inc.hint, "%s", accel);
+    posix_str_printf(s->inc.hint, "%s", accel);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     if (v->debug.id == null) { v->debug.id = "#slider"; }
@@ -14048,7 +14656,7 @@ void ui_slider_init(struct ui_slider* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
         void (*callback)(struct ui_view* r)) {
     static_assert(offsetof(struct ui_slider, view) == 0, "offsetof(.view)");
-    if (min_w_em < 6.0) { rt_println("6.0 em minimum"); }
+    if (min_w_em < 6.0) { posix_println("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
@@ -14061,8 +14669,7 @@ void ui_slider_init(struct ui_slider* s, const char* label, fp32_t min_w_em,
 // ________________________________ ui_theme.c ________________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
+#include "posix.h"
 
 static int32_t ui_theme_dark = -1; // -1 unknown
 
@@ -14074,7 +14681,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        rt_println("RegGetValueA(%s\\%s) failed %s", path, key, rt_strerr(r));
+        posix_println("RegGetValueA(%s\\%s) failed %s", path, key, posix_strerr(r));
     }
     return r;
 }
@@ -14095,7 +14702,7 @@ static bool ui_theme_use_light_theme(const char* key) {
     } else if (ui_app.light_mode) {
         return true;
     } else {
-        rt_assert(ui_app.dark_mode);
+        posix_assert(ui_app.dark_mode);
         return false;
     }
 }
@@ -14111,14 +14718,14 @@ static HMODULE ui_theme_uxtheme(void) {
             uxtheme = LoadLibraryA("uxtheme.dll");
         }
     }
-    rt_not_null(uxtheme);
+    posix_not_null(uxtheme);
     return uxtheme;
 }
 
 static void* ui_theme_uxtheme_func(uint16_t ordinal) {
     HMODULE uxtheme = ui_theme_uxtheme();
     void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCEA(ordinal));
-    rt_not_null(proc);
+    posix_not_null(proc);
     return proc;
 }
 
@@ -14126,12 +14733,12 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     typedef BOOL (__stdcall *SetPreferredAppMode_t)(int32_t mode);
     SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
             (SetPreferredAppMode_t)ui_theme_uxtheme_func(135);
-    errno_t r = rt_b2e(SetPreferredAppMode(mode));
+    errno_t r = posix_b2e(SetPreferredAppMode(mode));
     // On Win11: 10.0.22631
     // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
     // "The specified program requires a newer version of Windows."
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        rt_println("SetPreferredAppMode(AllowDark) failed %s", rt_strerr(r));
+        posix_println("SetPreferredAppMode(AllowDark) failed %s", posix_strerr(r));
     }
 }
 
@@ -14141,11 +14748,11 @@ static void ui_theme_flush_menu_themes(void) {
     typedef BOOL (__stdcall *FlushMenuThemes_t)(void);
     FlushMenuThemes_t FlushMenuThemes = (FlushMenuThemes_t)
             (FlushMenuThemes_t)ui_theme_uxtheme_func(136);
-    errno_t r = rt_b2e(FlushMenuThemes());
+    errno_t r = posix_b2e(FlushMenuThemes());
     // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
     // on newest Windows 11 but it is not documented thus no complains.
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        rt_println("FlushMenuThemes(AllowDark) failed %s", rt_strerr(r));
+        posix_println("FlushMenuThemes(AllowDark) failed %s", posix_strerr(r));
     }
 }
 
@@ -14155,9 +14762,9 @@ static void ui_theme_allow_dark_mode_for_app(bool allow) {
     AllowDarkModeForApp_t AllowDarkModeForApp =
             (AllowDarkModeForApp_t)ui_theme_uxtheme_func(132);
     if (AllowDarkModeForApp != null) {
-        errno_t r = rt_b2e(AllowDarkModeForApp(allow));
+        errno_t r = posix_b2e(AllowDarkModeForApp(allow));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            rt_println("AllowDarkModeForApp(true) failed %s", rt_strerr(r));
+            posix_println("AllowDarkModeForApp(true) failed %s", posix_strerr(r));
         }
     }
 }
@@ -14167,12 +14774,12 @@ static void ui_theme_allow_dark_mode_for_window(bool allow) {
     AllowDarkModeForWindow_t AllowDarkModeForWindow =
         (AllowDarkModeForWindow_t)ui_theme_uxtheme_func(133);
     if (AllowDarkModeForWindow != null) {
-        int r = rt_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
+        int r = posix_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
         // On Win11: 10.0.22631
         // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
         // "The specified program requires a newer version of Windows."
         if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-            rt_println("AllowDarkModeForWindow(true) failed %s", rt_strerr(r));
+            posix_println("AllowDarkModeForWindow(true) failed %s", posix_strerr(r));
         }
     }
 }
@@ -14191,7 +14798,7 @@ static bool ui_theme_is_app_dark(void) {
 }
 
 static void ui_theme_refresh(void) {
-    rt_swear(ui_app.window != null);
+    posix_swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -14201,8 +14808,8 @@ static void ui_theme_refresh(void) {
     errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
-        rt_println("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
-                "failed %s", rt_strerr(r));
+        posix_println("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
+                "failed %s", posix_strerr(r));
     }
     ui_theme.allow_dark_mode_for_app(dark_mode);
     ui_theme.allow_dark_mode_for_window(dark_mode);
@@ -14226,7 +14833,7 @@ struct ui_theme_if ui_theme = {
 
 // _______________________________ ui_toggle.c ________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static void ui_toggle_paint_on_off(struct ui_view* v) {
     const struct ui_ltrb i = ui_view.margins(v, &v->insets);
@@ -14265,28 +14872,28 @@ static void ui_toggle_paint_on_off(struct ui_view* v) {
 
 static const char* ui_toggle_on_off_label(struct ui_view* v,
         char* label, int32_t count)  {
-    rt_str.format(label, count, "%s", ui_view.string(v));
+    posix_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, v->state.pressed ? "On " : "Off", 3);
     }
-    return rt_nls.str(label);
+    return posix_nls.str(label);
 }
 
 static void ui_toggle_measure(struct ui_view* v) {
     if (v->min_w_em < 3.0f) {
-        rt_println("3.0f em minimum width");
+        posix_println("3.0f em minimum width");
         v->min_w_em = 4.0f;
     }
     ui_view.measure_control(v);
-    rt_assert(v->type == ui_view_toggle);
+    posix_assert(v->type == ui_view_toggle);
 }
 
 static void ui_toggle_paint(struct ui_view* v) {
-    rt_assert(v->type == ui_view_toggle);
-    char txt[rt_countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, rt_countof(txt));
-    const char* text = rt_nls.str(label);
+    posix_assert(v->type == ui_view_toggle);
+    char txt[posix_countof(v->p.text)];
+    const char* label = ui_toggle_on_off_label(v, txt, posix_countof(txt));
+    const char* text = posix_nls.str(label);
     ui_view.text_measure(v, text, &v->text);
     ui_view.text_align(v, &v->text);
     ui_toggle_paint_on_off(v);
@@ -14315,7 +14922,7 @@ static bool ui_toggle_key_pressed(struct ui_view* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static bool ui_toggle_tap(struct ui_view* v, int32_t rt_unused(ix),
+static bool ui_toggle_tap(struct ui_view* v, int32_t posix_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
@@ -14323,7 +14930,7 @@ static bool ui_toggle_tap(struct ui_view* v, int32_t rt_unused(ix),
 }
 
 void ui_view_init_toggle(struct ui_view* v) {
-    rt_assert(v->type == ui_view_toggle);
+    posix_assert(v->type == ui_view_toggle);
     v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;
@@ -14345,7 +14952,7 @@ void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
 }
 // ________________________________ ui_view.c _________________________________
 
-#include "rt/rt.h"
+#include "posix.h"
 
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
@@ -14360,9 +14967,9 @@ static void ui_view_update_shortcut(struct ui_view* v);
 
 static inline void ui_view_check_type(struct ui_view* v) {
     // little endian:
-    rt_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
-    rt_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
-    rt_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
+    posix_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
+    posix_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    posix_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
 }
@@ -14372,9 +14979,9 @@ static void ui_view_verify(struct ui_view* p) {
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
         ui_view_update_shortcut(c);
-        rt_swear(c->parent == p);
-        rt_swear(c == c->next->prev);
-        rt_swear(c == c->prev->next);
+        posix_swear(c->parent == p);
+        posix_swear(c == c->next->prev);
+        posix_swear(c == c->prev->next);
     });
 }
 
@@ -14383,7 +14990,7 @@ static struct ui_view* ui_view_add(struct ui_view* p, ...) {
     va_start(va, p);
     struct ui_view* c = va_arg(va, struct ui_view*);
     while (c != null) {
-        rt_swear(c->parent == null && c->prev == null && c->next == null);
+        posix_swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
         c = va_arg(va, struct ui_view*);
     }
@@ -14394,7 +15001,7 @@ static struct ui_view* ui_view_add(struct ui_view* p, ...) {
 }
 
 static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -14411,7 +15018,7 @@ static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
 }
 
 static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -14429,8 +15036,8 @@ static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
 }
 
 static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
-    rt_not_null(a->parent);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_not_null(a->parent);
     c->parent = a->parent;
     c->next = a->next;
     c->prev = a;
@@ -14443,8 +15050,8 @@ static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
 }
 
 static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
-    rt_swear(c->parent == null && c->prev == null && c->next == null);
-    rt_not_null(b->parent);
+    posix_swear(c->parent == null && c->prev == null && c->next == null);
+    posix_not_null(b->parent);
     c->parent = b->parent;
     c->prev = b->prev;
     c->next = b;
@@ -14457,12 +15064,12 @@ static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
 }
 
 static void ui_view_remove(struct ui_view* c) {
-    rt_not_null(c->parent);
-    rt_not_null(c->parent->child);
+    posix_not_null(c->parent);
+    posix_not_null(c->parent->child);
     // if a view that has focus is removed from parent:
     if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
-        rt_swear(c->next == c);
+        posix_swear(c->next == c);
         c->parent->child = null;
     } else {
         c->prev->next = c->next;
@@ -14496,7 +15103,7 @@ static void ui_view_disband(struct ui_view* p) {
 
 static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r) {
     if (ui_view.is_hidden(v)) {
-        rt_println("hidden: %s", ui_view_debug_id(v));
+        posix_println("hidden: %s", ui_view_debug_id(v));
     } else {
         struct ui_rect rc = {0};
         if (r != null) {
@@ -14516,7 +15123,7 @@ static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r)
             rc.h += p.top + p.bottom;
         }
         if (v->debug.trace.prc) {
-            rt_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+            posix_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
         }
         ui_app.invalidate(&rc);
     }
@@ -14524,11 +15131,11 @@ static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r)
 
 static const char* ui_view_string(struct ui_view* v) {
     if (v->p.strid == 0) {
-        int32_t id = rt_nls.strid(v->p.text);
+        int32_t id = posix_nls.strid(v->p.text);
         v->p.strid = id > 0 ? id : -1;
     }
     return v->p.strid < 0 ? v->p.text : // not localized
-        rt_nls.string(v->p.strid, v->p.text);
+        posix_nls.string(v->p.strid, v->p.text);
 }
 
 static struct ui_wh ui_view_text_metrics_va(int32_t x, int32_t y,
@@ -14600,7 +15207,7 @@ static void ui_view_text_align(struct ui_view* v, struct ui_view_text_metrics* t
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
         tm->xy.y += dy / 2;
         if (v->debug.trace.mt) {
-            rt_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+            posix_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->wh.h, dy);
         }
 #endif
@@ -14616,7 +15223,7 @@ static void ui_view_measure_control(struct ui_view* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const struct ui_ltrb p = ui_view.margins(v, &v->padding);
-        rt_println(">%dx%d em: %dx%d min: %.3fx%.3f "
+        posix_println(">%dx%d em: %dx%d min: %.3fx%.3f "
                 "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -14625,7 +15232,7 @@ static void ui_view_measure_control(struct ui_view* v) {
             (64 < strlen(s) ? 64 : strlen(s)), s);
         const struct ui_margins in = v->insets;
         const struct ui_margins pd = v->padding;
-        rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        posix_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -14634,13 +15241,13 @@ static void ui_view_measure_control(struct ui_view* v) {
     }
     ui_view_text_measure(v, s, &v->text);
     if (v->debug.trace.mt) {
-        rt_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
+        posix_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
     v->w = v->w > i.left + v->text.wh.w + i.right ? v->w : i.left + v->text.wh.w + i.right;
     v->h = v->h > i.top  + v->text.wh.h + i.bottom ? v->h : i.top  + v->text.wh.h + i.bottom;
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        rt_println("<%dx%d text_align x,y: %d,%d %s",
+        posix_println("<%dx%d text_align x,y: %d,%d %s",
                 v->w, v->h, v->text.xy.x, v->text.xy.y,
                 ui_view_debug_id(v));
     }
@@ -14665,14 +15272,14 @@ static void ui_view_measure(struct ui_view* v) {
     }
 }
 
-static void ui_layout_view(struct ui_view* rt_unused(v)) {
+static void ui_layout_view(struct ui_view* posix_unused(v)) {
 //  struct ui_ltrb i = ui_view.margins(v, &v->insets);
 //  struct ui_ltrb p = ui_view.margins(v, &v->padding);
-//  rt_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//  posix_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(struct ui_view* v) {
@@ -14682,7 +15289,7 @@ static void ui_view_layout_children(struct ui_view* v) {
 }
 
 static void ui_view_layout(struct ui_view* v) {
-//  rt_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -14692,7 +15299,7 @@ static void ui_view_layout(struct ui_view* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  posix_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
@@ -14703,7 +15310,7 @@ static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
 
 static bool ui_view_is_parent_of(const struct ui_view* parent,
         const struct ui_view* child) {
-    rt_swear(parent != null && child != null);
+    posix_swear(parent != null && child != null);
     const struct ui_view* p = child->parent;
     while (p != null) {
         if (parent == p) { return true; }
@@ -14728,8 +15335,8 @@ static struct ui_ltrb ui_view_margins(const struct ui_view* v, const struct ui_m
 }
 
 static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets) {
-    rt_swear(r != null || insets != null);
-    rt_swear(v->max_w >= 0 && v->max_h >= 0);
+    posix_swear(r != null || insets != null);
+    posix_swear(v->max_w >= 0 && v->max_h >= 0);
     const struct ui_ltrb i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
@@ -14743,12 +15350,12 @@ static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_
 }
 
 static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding) {
-    rt_swear(r != null || padding != null);
-    rt_swear(v->max_w >= 0 && v->max_h >= 0);
+    posix_swear(r != null || padding != null);
+    posix_swear(v->max_w >= 0 && v->max_h >= 0);
     const struct ui_ltrb p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      rt_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
+//      posix_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (struct ui_rect) {
@@ -14757,7 +15364,7 @@ static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      rt_println("%s %d,%d %dx%d", v->p.text,
+//      posix_println("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -14775,8 +15382,8 @@ static void ui_view_update_shortcut(struct ui_view* v) {
 }
 
 static void ui_view_set_text_va(struct ui_view* v, const char* format, va_list va) {
-    char t[rt_countof(v->p.text)];
-    rt_str.format_va(t, rt_countof(t), format, va);
+    char t[posix_countof(v->p.text)];
+    posix_str.format_va(t, posix_countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
@@ -14929,11 +15536,11 @@ static void ui_view_resolve_color_ids(struct ui_view* v) {
 }
 
 static void ui_view_paint(struct ui_view* v) {
-    rt_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
+    posix_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
-        rt_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+        posix_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
                 (64 < strlen(s) ? 64 : strlen(s)), s);
     }
@@ -14957,10 +15564,10 @@ static void ui_view_set_focus(struct ui_view* v) {
         struct ui_view* loosing = ui_app.focus;
         struct ui_view* gaining = v;
         if (gaining != null) {
-            rt_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
+            posix_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
                                         !ui_view.is_disabled(gaining));
         }
-        if (loosing != null) { rt_swear(loosing->focusable); }
+        if (loosing != null) { posix_swear(loosing->focusable); }
         ui_app.focus = v;
         if (loosing != null && loosing->focus_lost != null) {
             loosing->focus_lost(loosing);
@@ -14992,14 +15599,14 @@ static void ui_view_update_hover(struct ui_view* v, bool hidden) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
     if (hover != v->state.hover) {
-//      rt_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+//      posix_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
         ui_view.hover_changed(v); // even for hidden
         if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
 static void ui_view_mouse_hover(struct ui_view* v) {
-//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  posix_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse hover over is dispatched even to disabled views
@@ -15010,7 +15617,7 @@ static void ui_view_mouse_hover(struct ui_view* v) {
 }
 
 static void ui_view_mouse_move(struct ui_view* v) {
-//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  posix_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse move is dispatched even to disabled views
@@ -15044,7 +15651,7 @@ static void ui_view_hover_changed(struct ui_view* v) {
             v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
-            rt_swear(ui_view_hover_delay >= 0);
+            posix_swear(ui_view_hover_delay >= 0);
             if (v->p.hover_when >= 0) {
                 v->p.hover_when = ui_app.now + ui_view_hover_delay;
             }
@@ -15141,7 +15748,7 @@ static bool ui_view_message(struct ui_view* view, int32_t m, int64_t wp, int64_t
     }
     // message() callback is called even for hidden and disabled views
     // could be useful for enabling conditions of post() messages from
-    // background rt_thread.
+    // background posix_thread.
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }
@@ -15242,7 +15849,7 @@ static void ui_view_debug_paint_fm(struct ui_view* v) {
 #pragma push_macro("ui_view_no_siblings")
 
 #define ui_view_no_siblings(v) do {                    \
-    rt_swear((v)->parent == null && (v)->child == null && \
+    posix_swear((v)->parent == null && (v)->child == null && \
           (v)->prev == null && (v)->next == null);     \
 } while (0)
 
@@ -15273,15 +15880,15 @@ static void ui_view_test(void) {
     ui_view.remove(&c3);                            ui_view_verify(&p0);
     // add_first, add_last, add_before, add_after
     ui_view.add_first(&p0, &c1);                    ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
+    posix_swear(p0.child == &c1);
     ui_view.add_last(&p0, &c4);                     ui_view_verify(&p0);
-    rt_swear(p0.child == &c1 && p0.child->prev == &c4);
+    posix_swear(p0.child == &c1 && p0.child->prev == &c4);
     ui_view.add_after(&c2, &c1);                    ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
-    rt_swear(c1.next == &c2);
+    posix_swear(p0.child == &c1);
+    posix_swear(c1.next == &c2);
     ui_view.add_before(&c3, &c4);                   ui_view_verify(&p0);
-    rt_swear(p0.child == &c1);
-    rt_swear(c4.prev == &c3);
+    posix_swear(p0.child == &c1);
+    posix_swear(c4.prev == &c3);
     // removing all
     ui_view.remove(&c1);                            ui_view_verify(&p0);
     ui_view.remove(&c2);                            ui_view_verify(&p0);
@@ -15310,7 +15917,7 @@ static void ui_view_test(void) {
     ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
     ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
     ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
 }
 
 #pragma pop_macro("ui_view_no_siblings")
@@ -15377,7 +15984,7 @@ struct ui_view_if ui_view = {
 
 #ifdef UI_VIEW_TEST
 
-rt_static_init(ui_view) {
+posix_static_init(ui_view) {
     ui_view.test();
 }
 

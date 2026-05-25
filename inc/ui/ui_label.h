@@ -1,8 +1,8 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 #include "ui/ui_view.h"
 
-rt_begin_c
+posix_begin_c
 
 typedef struct ui_view ui_label_t;
 
@@ -38,4 +38,4 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 // which is subtle C difference of constant and
 // variable initialization and I did not find universal way
 
-rt_end_c
+posix_end_c

@@ -118,6 +118,9 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\posix.c" />
+    <ClCompile Include="..\src\core.c" />
+    <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\test\test1.c" />
   </ItemGroup>
   <ItemGroup>
@@ -129,9 +132,6 @@
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
-    </ProjectReference>
-    <ProjectReference Include="rt.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

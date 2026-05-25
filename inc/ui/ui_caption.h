@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 struct ui_caption {
     struct ui_view view;
@@ -19,4 +19,4 @@ struct ui_caption {
 
 extern struct ui_caption ui_caption;
 
-rt_end_c
+posix_end_c

@@ -1,8 +1,8 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 #include "ui/ui_button.h"
 
-rt_begin_c
+posix_begin_c
 
 struct ui_slider;
 
@@ -78,4 +78,4 @@ void ui_slider_init(struct ui_slider* r, const char* label, fp32_t min_w_em,
     .value_min = mn, .value_max = mx, .value = mn,                  \
 }
 
-rt_end_c
+posix_end_c

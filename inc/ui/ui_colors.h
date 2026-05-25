@@ -1,7 +1,7 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 
-rt_begin_c
+posix_begin_c
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
@@ -281,4 +281,4 @@ extern struct ui_colors_if ui_colors;
 // it would be super cool to implement a plethora of palettes
 // with named colors and app "themes" that can be switched
 
-rt_end_c
+posix_end_c

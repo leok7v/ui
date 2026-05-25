@@ -1,11 +1,11 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static void ui_mbx_button(ui_button_t* b) {
     struct ui_mbx* m = (struct ui_mbx*)b->parent;
-    rt_assert(m->type == ui_view_mbx);
+    posix_assert(m->type == ui_view_mbx);
     m->option = -1;
-    for (int32_t i = 0; i < rt_countof(m->button) && m->option < 0; i++) {
+    for (int32_t i = 0; i < posix_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
             if (m->callback != null) {
@@ -75,13 +75,13 @@ void ui_view_init_mbx(struct ui_view* v) {
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.prop.normal;
     int32_t n = 0;
-    while (m->options[n] != null && n < rt_countof(m->button) - 1) {
+    while (m->options[n] != null && n < posix_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    rt_swear(n <= rt_countof(m->button), "inhumane: %d buttons is too many", n);
-    if (n > rt_countof(m->button)) { n = rt_countof(m->button); }
+    posix_swear(n <= posix_countof(m->button), "inhumane: %d buttons is too many", n);
+    if (n > posix_countof(m->button)) { n = posix_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
     ui_view.add_last(&m->view, &m->label);

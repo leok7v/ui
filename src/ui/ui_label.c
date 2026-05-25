@@ -1,9 +1,9 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 static void ui_label_paint(struct ui_view* v) {
-    rt_assert(v->type == ui_view_label);
-    rt_assert(!ui_view.is_hidden(v));
+    posix_assert(v->type == ui_view_label);
+    posix_assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
     ui_color_t c = v->state.hover && v->highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
@@ -28,10 +28,10 @@ static void ui_label_paint(struct ui_view* v) {
 }
 
 static bool ui_label_context_menu(struct ui_view* v) {
-    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    posix_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        rt_clipboard.put_text(ui_view.string(v));
+        posix_clipboard.put_text(ui_view.string(v));
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
@@ -41,18 +41,18 @@ static bool ui_label_context_menu(struct ui_view* v) {
 }
 
 static void ui_label_character(struct ui_view* v, const char* utf8) {
-    rt_assert(v->type == ui_view_label);
+    posix_assert(v->type == ui_view_label);
     if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            rt_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
+            posix_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
 
 void ui_view_init_label(struct ui_view* v) {
-    rt_assert(v->type == ui_view_label);
+    posix_assert(v->type == ui_view_label);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;

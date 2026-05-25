@@ -1,7 +1,7 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 
-rt_begin_c
+posix_begin_c
 
 enum ui_view_type_t {
     ui_view_stack     = 'vwst',
@@ -23,7 +23,7 @@ struct ui_view;
 struct ui_view_private { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
-    fp64_t armed_until; // rt_clock.seconds() - when to release
+    fp64_t armed_until; // posix_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
 };
@@ -275,4 +275,4 @@ extern struct ui_view_if ui_view;
 } while (0)
 
 
-rt_end_c
+posix_end_c

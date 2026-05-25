@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
 // TODO: Ctrl+A Ctrl+V Ctrl+C Ctrl+X Ctrl+Z Ctrl+Y
@@ -104,7 +104,7 @@ struct ui_fuzzing_generator_params {
 };
 
 static uint32_t ui_fuzzing_random(void) {
-    return rt_num.random32(&ui_fuzzing_seed);
+    return posix_num.random32(&ui_fuzzing_seed);
 }
 
 static fp64_t ui_fuzzing_random_fp64(void) {
@@ -113,34 +113,34 @@ static fp64_t ui_fuzzing_random_fp64(void) {
 }
 
 static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
-    rt_fatal_if(p.count < 1024); // at least 1KB expected
-    rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    rt_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
+    posix_fatal_if(p.count < 1024); // at least 1KB expected
+    posix_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    posix_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    posix_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     char* s = p.text;
     // assume longest word is less than 128
     char* end = p.text + p.count - 128;
     uint32_t paragraphs = p.min_paragraphs +
         (p.min_paragraphs == p.max_paragraphs ? 0 :
-         rt_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
+         posix_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
     while (paragraphs > 0 && s < end) {
         uint32_t sentences_in_paragraph = p.min_sentences +
             (p.min_sentences == p.max_sentences ? 0 :
-             rt_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
+             posix_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
         while (sentences_in_paragraph > 0 && s < end) {
             const uint32_t words_in_sentence = p.min_words +
                 (p.min_words == p.max_words ? 0 :
-                 rt_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
+                 posix_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
-                const int32_t ix = rt_num.random32(&p.seed) %
-                                   rt_countof(lorem_ipsum_words);
+                const int32_t ix = posix_num.random32(&p.seed) %
+                                   posix_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
                 s += strlen(word);
                 if (i < words_in_sentence - 1 && s < end) {
                     const char* delimiter = "\x20";
-                    int32_t punctuation = rt_num.random32(&p.seed) % 128;
+                    int32_t punctuation = posix_num.random32(&p.seed) % 128;
                     switch (punctuation) {
                         case 0:
                         case 1:
@@ -173,7 +173,7 @@ static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
         paragraphs--;
     }
     *s = 0;
-//  rt_println("%s\n", p.text);
+//  posix_println("%s\n", p.text);
 }
 
 static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
@@ -196,7 +196,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
     static bool initialized = 0;
     if (!initialized) {
         cumulative_freq[0] = freq[0];
-        for (int i = 1; i < rt_countof(freq); i++) {
+        for (int i = 1; i < posix_countof(freq); i++) {
             cumulative_freq[i] = cumulative_freq[i - 1] + freq[i];
         }
         initialized = 1;
@@ -216,7 +216,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
 }
 
 static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
-    rt_swear(work == &ui_fuzzing_work);
+    posix_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
     ui_app.shift = work->shift;
@@ -235,9 +235,9 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
         ui_app.mouse.y = y;
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
-//      rt_println("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
+//      posix_println("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administrator:
-//      rt_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
+//      posix_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
         const bool r_button = ui_app.mouse_right != work->right;
         ui_app.mouse_left  = work->left;
@@ -251,7 +251,7 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
         }
         work->pt = null;
     } else {
-        rt_assert(false, "TODO: ?");
+        posix_assert(false, "TODO: ?");
     }
     if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
@@ -262,7 +262,7 @@ static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
     }
 }
 
-static void ui_fuzzing_do_work(rt_work_t* p) {
+static void ui_fuzzing_do_work(struct posix_work* p) {
     if (ui_fuzzing_running) {
         ui_fuzzing_inside = true;
         if (ui_fuzzing.custom != null) {
@@ -291,7 +291,7 @@ static void ui_fuzzing_alt_ctrl_shift(void) {
         case 5: w->alt = 1; w->ctrl = 0; w->shift = 1; break;
         case 6: w->alt = 0; w->ctrl = 1; w->shift = 1; break;
         case 7: w->alt = 1; w->ctrl = 1; w->shift = 1; break;
-        default: rt_assert(false);
+        default: posix_assert(false);
     }
 }
 
@@ -305,7 +305,7 @@ static void ui_fuzzing_character(void) {
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
-    //          rt_println("%s", utf8);
+    //          posix_println("%s", utf8);
             }
         } else if (r < 0.25) {
             ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_chinese;
@@ -341,9 +341,9 @@ static void ui_fuzzing_key(void) {
         { ui.key.back,      "back"    },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ui_fuzzing_random() % rt_countof(keys);
+    uint32_t ix = ui_fuzzing_random() % posix_countof(keys);
     if (ui_fuzzing_debug) {
-//      rt_println("key(%s)", keys[ix].name);
+//      posix_println("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -365,7 +365,7 @@ static void ui_fuzzing_mouse(void) {
         w->right = !w->right;
     }
     if (ui_fuzzing_debug) {
-//      rt_println("mouse(%d,%d) %s%s", pt.x, pt.y,
+//      posix_println("mouse(%d,%d) %s%s", pt.x, pt.y,
 //              w->left ? "L" : "_", w->right ? "R" : "_");
     }
     w->pt = &pt;
@@ -395,9 +395,9 @@ static void ui_fuzzing_stop(void) {
 }
 
 static void ui_fuzzing_next_random(struct ui_fuzzing* f) {
-    rt_swear(f == &ui_fuzzing_work);
+    posix_swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (struct ui_fuzzing){
-        .base = { .when = rt_clock.seconds() + 0.001, // 1ms
+        .base = { .when = posix_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
     uint32_t rnd = ui_fuzzing_random() % 100;

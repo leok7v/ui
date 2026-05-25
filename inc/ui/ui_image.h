@@ -1,7 +1,7 @@
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 // "image view"
 
@@ -63,5 +63,5 @@ struct ui_image_if {
 
 extern struct ui_image_if ui_image;
 
-rt_end_c
+posix_end_c
 

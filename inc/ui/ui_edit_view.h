@@ -1,9 +1,9 @@
 #pragma once
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "rt/rt.h"
+#include "posix.h"
 #include "ui/ui.h"
 
-rt_begin_c
+posix_begin_c
 
 // important struct ui_edit_view will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
@@ -198,4 +198,4 @@ extern struct ui_edit_view_if ui_edit_view;
     other API that expects zero terminated strings.
 */
 
-rt_end_c
+posix_end_c

@@ -1,7 +1,7 @@
 #pragma once
-#include "rt/rt_std.h"
+#include "posix.h"
 
-rt_begin_c
+posix_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
@@ -104,7 +104,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     struct ui_rect work_area; // current monitor work area
     int32_t   caption_height; // caption height
     struct ui_wh   border;    // frame border size
-    // not to call rt_clock.seconds() too often:
+    // not to call posix_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
     struct ui_view* root; // show_window() changes ui.hidden
     struct ui_view* content;
@@ -148,7 +148,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     struct ui_app_message_handler* handlers;
     // post(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
+    void (*post)(struct posix_work* work); // work.when == 0 meaning ASAP
     void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
@@ -200,7 +200,7 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, rt_countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, posix_countof(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
@@ -213,10 +213,10 @@ struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data 
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
-    fp64_t paint_last; // rt_clock.seconds() of last paint
+    fp64_t paint_last; // posix_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
 };
 
 extern struct ui_app ui_app;
 
-rt_end_c
+posix_end_c
