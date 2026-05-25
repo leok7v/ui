@@ -23,6 +23,8 @@
 static ID2D1Factory *  g_d2d_factory    = null;
 static IDWriteFactory * g_dwrite_factory = null;
 static ID2D1DCRenderTarget * g_target = null;
+static uint64_t g_generation = 1; // bumped on device loss; cached bitmaps
+                                  // created against an older target rebuild
 
 struct dxd_context_s {
     ID2D1DCRenderTarget * target;
@@ -73,8 +75,26 @@ bool dxd_init(void) {
     return ok;
 }
 
+static void dxd_release_target(void) {
+    if (g_target != null) { g_target->Release(); g_target = null; g_generation++; }
+}
+
+static ID2D1DCRenderTarget * dxd_create_target(void) {
+    if (g_target == null && g_d2d_factory != null) {
+        D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                              D2D1_ALPHA_MODE_PREMULTIPLIED),
+            0, 0, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_FEATURE_LEVEL_DEFAULT);
+        if (FAILED(g_d2d_factory->CreateDCRenderTarget(&props, &g_target))) {
+            g_target = null;
+        }
+    }
+    return g_target;
+}
+
 void dxd_fini(void) {
-    if (g_target != null) { g_target->Release(); g_target = null; }
+    dxd_release_target();
     if (g_dwrite_factory != null) { g_dwrite_factory->Release(); g_dwrite_factory = null; }
     if (g_d2d_factory != null) { g_d2d_factory->Release(); g_d2d_factory = null; }
 }
@@ -86,21 +106,20 @@ dxd_context_t dxd_begin(void * hdc, const ui_rect_t * rc) {
         ctx->brush = null;
         ctx->brush_color = 0;
         ctx->brush_valid = false;
-        if (g_target == null) {
-            D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
-                D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
-                                  D2D1_ALPHA_MODE_PREMULTIPLIED),
-                0, 0, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_FEATURE_LEVEL_DEFAULT);
-            if (FAILED(g_d2d_factory->CreateDCRenderTarget(&props, &g_target))) {
-                g_target = null;
-            }
-        }
         RECT rect = { rc->x, rc->y, rc->x + rc->w, rc->y + rc->h };
-        if (g_target != null && SUCCEEDED(g_target->BindDC((HDC)hdc, &rect))) {
-            ctx->target = g_target;
-            g_target->BeginDraw();
-            g_target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
+        ID2D1DCRenderTarget * t = dxd_create_target();
+        // A lost device (e.g. a full screen / display transition) makes
+        // BindDC fail; drop the stale target and rebuild it once so that
+        // painting recovers instead of leaving the window blank.
+        if (t != null && FAILED(t->BindDC((HDC)hdc, &rect))) {
+            dxd_release_target();
+            t = dxd_create_target();
+            if (t != null && FAILED(t->BindDC((HDC)hdc, &rect))) { t = null; }
+        }
+        if (t != null) {
+            ctx->target = t;
+            t->BeginDraw();
+            t->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
         } else {
             free(ctx);
             ctx = null;
@@ -113,7 +132,12 @@ void dxd_end(dxd_context_t ctx) {
     if (ctx != null) {
         if (ctx->brush != null) { ctx->brush->Release(); }
         if (ctx->target != null) {
-            ctx->target->EndDraw();
+            HRESULT hr = ctx->target->EndDraw();
+            // Device loss invalidates the cached target; drop it so the
+            // next dxd_begin() builds a fresh one.
+            if (hr == D2DERR_RECREATE_TARGET && ctx->target == g_target) {
+                dxd_release_target();
+            }
         }
         free(ctx);
     }
@@ -329,6 +353,89 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
         bmp->Release();
     }
     free(bgra);
+}
+
+struct dxd_bitmap_s {
+    ID2D1Bitmap * bmp;
+    uint64_t generation; // g_generation the bmp was created against
+    int32_t w;
+    int32_t h;
+    D2D1_ALPHA_MODE alpha_mode;
+};
+
+void dxd_image_cached(dxd_context_t ctx, void ** cache,
+               int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+               int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+               int32_t w, int32_t h, int32_t stride, int32_t bpp,
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied) {
+    if (ctx == null || ctx->target == null || cache == null ||
+        w <= 0 || h <= 0 || pixels == null) {
+        return;
+    }
+    const bool keep_alpha = premultiplied && bpp == 4;
+    const D2D1_ALPHA_MODE am = keep_alpha ? D2D1_ALPHA_MODE_PREMULTIPLIED
+                                          : D2D1_ALPHA_MODE_IGNORE;
+    dxd_bitmap_s * c = (dxd_bitmap_s *)*cache;
+    if (c == null) {
+        c = (dxd_bitmap_s *)calloc(1, sizeof(dxd_bitmap_s));
+        if (c == null) { return; }
+        *cache = c;
+    }
+    // Rebuild the device bitmap when first used, resized, drawn with a
+    // different alpha mode, or after the render target was recreated.
+    if (c->bmp == null || c->w != w || c->h != h || c->alpha_mode != am ||
+        c->generation != g_generation) {
+        if (c->bmp != null) { c->bmp->Release(); c->bmp = null; }
+        D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
+            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, am));
+        if (FAILED(ctx->target->CreateBitmap(D2D1::SizeU((UINT32)w, (UINT32)h),
+                null, 0, &props, &c->bmp))) {
+            c->bmp = null;
+            return;
+        }
+        c->w = w; c->h = h; c->alpha_mode = am; c->generation = g_generation;
+    }
+    // Upload the current pixels. A bpp == 4 buffer is already BGRA (the GDI
+    // DIB layout), so copy it straight in; expand 1/3 bpp into BGRA first.
+    if (bpp == 4) {
+        c->bmp->CopyFromMemory(null, pixels, (UINT32)stride);
+    } else {
+        uint8_t * bgra = (uint8_t *)malloc((size_t)w * (size_t)h * 4);
+        if (bgra == null) { return; }
+        for (int32_t yy = 0; yy < h; yy++) {
+            const uint8_t * src = pixels + (size_t)yy * (size_t)stride;
+            uint8_t * dst = bgra + (size_t)yy * (size_t)w * 4;
+            for (int32_t xx = 0; xx < w; xx++) {
+                if (bpp == 1) {
+                    uint8_t g = src[xx];
+                    dst[0] = g; dst[1] = g; dst[2] = g; dst[3] = 0xFF;
+                } else { // bpp == 3
+                    dst[0] = src[xx * 3 + 0];
+                    dst[1] = src[xx * 3 + 1];
+                    dst[2] = src[xx * 3 + 2];
+                    dst[3] = 0xFF;
+                }
+                dst += 4;
+            }
+        }
+        c->bmp->CopyFromMemory(null, bgra, (UINT32)(w * 4));
+        free(bgra);
+    }
+    D2D1_RECT_F d = D2D1::RectF((FLOAT)dx, (FLOAT)dy,
+                                (FLOAT)(dx + dw), (FLOAT)(dy + dh));
+    D2D1_RECT_F s = D2D1::RectF((FLOAT)sx, (FLOAT)sy,
+                                (FLOAT)(sx + sw), (FLOAT)(sy + sh));
+    ctx->target->DrawBitmap(c->bmp, d, (FLOAT)opacity,
+        D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, s);
+}
+
+void dxd_bitmap_dispose(void ** cache) {
+    if (cache != null && *cache != null) {
+        dxd_bitmap_s * c = (dxd_bitmap_s *)*cache;
+        if (c->bmp != null) { c->bmp->Release(); }
+        free(c);
+        *cache = null;
+    }
 }
 
 // Build a DirectWrite text format from a GDI HFONT's LOGFONT (caller releases).

@@ -460,8 +460,8 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_bitmap_t* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              image->w, image->h, image->stride, image->bpp,
+    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, alpha, true);
 }
 
@@ -469,8 +469,8 @@ static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              image->w, image->h, image->stride, image->bpp,
+    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, 1.0, false);
 }
 
@@ -900,6 +900,7 @@ static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int*
 }
 
 static void ui_gdi_bitmap_dispose(ui_bitmap_t* image) {
+    dxd_bitmap_dispose(&image->dxd);
     rt_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(ui_bitmap_t));
 }

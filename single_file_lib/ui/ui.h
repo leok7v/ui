@@ -170,6 +170,7 @@ typedef struct ui_bitmap_s { // TODO: ui_ namespace
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_texture_t texture; // device allocated texture handle
+    void* dxd; // cached Direct2D device bitmap, owned by dxd_* (do not touch)
 } ui_bitmap_t;
 
 // ui_margins_t are used for padding and insets and expressed
@@ -835,6 +836,20 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
                int32_t sx, int32_t sy, int32_t sw, int32_t sh,
                int32_t w, int32_t h, int32_t stride, int32_t bpp,
                const uint8_t * pixels, fp64_t opacity, bool premultiplied);
+
+// Same as dxd_image() but keeps a device bitmap in *cache across frames
+// (created on first use, refreshed from `pixels` on each call, rebuilt after
+// device loss) so repeated blits of the same image avoid re-creating and
+// re-uploading a Direct2D bitmap every frame. Pass the address of a void*
+// that lives as long as the source pixels (e.g. &ui_bitmap_t.dxd), zeroed
+// before first use. Release it with dxd_bitmap_dispose() when the source is
+// freed.
+void dxd_image_cached(dxd_context_t ctx, void ** cache,
+               int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+               int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+               int32_t w, int32_t h, int32_t stride, int32_t bpp,
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied);
+void dxd_bitmap_dispose(void ** cache);
 
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
@@ -4444,6 +4459,7 @@ static void ui_app_full_screen(bool on) {
     if (on != ui_app.is_full_screen) {
         ui_app_show_task_bar(!on);
         if (on) {
+            style = ui_app_get_window_long(GWL_STYLE);
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
@@ -4455,10 +4471,18 @@ static void ui_app_full_screen(bool on) {
             rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
             rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
-            ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
+            // Restore the saved windowed style: it carries WS_VISIBLE, which
+            // ui_app_window_style() omits -- recomputing it here would leave
+            // the window styled invisible after leaving full screen.
+            ui_app_set_window_long(GWL_STYLE, style);
             enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                            SWP_NOZORDER | SWP_NOOWNERZORDER };
             ui_app_swp_flags(flags);
+            // Leaving full screen rebuilds the non-client frame in the legacy
+            // (light) theme; hide+show makes DWM recreate the modern frame the
+            // way it does for a freshly shown window.
+            ShowWindow(ui_app_window(), SW_HIDE);
+            ShowWindow(ui_app_window(), SW_SHOW);
         }
         ui_app.is_full_screen = on;
     }
@@ -12319,8 +12343,8 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_bitmap_t* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              image->w, image->h, image->stride, image->bpp,
+    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, alpha, true);
 }
 
@@ -12328,8 +12352,8 @@ static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              image->w, image->h, image->stride, image->bpp,
+    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, 1.0, false);
 }
 
@@ -12759,6 +12783,7 @@ static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int*
 }
 
 static void ui_gdi_bitmap_dispose(ui_bitmap_t* image) {
+    dxd_bitmap_dispose(&image->dxd);
     rt_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(ui_bitmap_t));
 }
@@ -14180,6 +14205,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #pragma warning(push)
 #pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration
+#pragma warning(disable: 4668) // SDK headers (e.g. shellapi.h) test version
+                               // macros like NTDDI_WIN10_GE that older SDKs
+                               // do not define; harmless under /Wall
 
 #pragma push_macro("UNICODE")
 #define UNICODE // always because otherwise IME does not work

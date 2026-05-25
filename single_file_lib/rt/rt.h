@@ -1883,6 +1883,9 @@ rt_end_c
 #pragma warning(push)
 #pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration
+#pragma warning(disable: 4668) // SDK headers (e.g. shellapi.h) test version
+                               // macros like NTDDI_WIN10_GE that older SDKs
+                               // do not define; harmless under /Wall
 
 #pragma push_macro("UNICODE")
 #define UNICODE // always because otherwise IME does not work

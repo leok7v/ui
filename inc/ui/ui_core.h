@@ -27,6 +27,7 @@ typedef struct ui_bitmap_s { // TODO: ui_ namespace
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_texture_t texture; // device allocated texture handle
+    void* dxd; // cached Direct2D device bitmap, owned by dxd_* (do not touch)
 } ui_bitmap_t;
 
 // ui_margins_t are used for padding and insets and expressed

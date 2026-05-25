@@ -54,6 +54,20 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
                int32_t w, int32_t h, int32_t stride, int32_t bpp,
                const uint8_t * pixels, fp64_t opacity, bool premultiplied);
 
+// Same as dxd_image() but keeps a device bitmap in *cache across frames
+// (created on first use, refreshed from `pixels` on each call, rebuilt after
+// device loss) so repeated blits of the same image avoid re-creating and
+// re-uploading a Direct2D bitmap every frame. Pass the address of a void*
+// that lives as long as the source pixels (e.g. &ui_bitmap_t.dxd), zeroed
+// before first use. Release it with dxd_bitmap_dispose() when the source is
+// freed.
+void dxd_image_cached(dxd_context_t ctx, void ** cache,
+               int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+               int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+               int32_t w, int32_t h, int32_t stride, int32_t bpp,
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied);
+void dxd_bitmap_dispose(void ** cache);
+
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
 // `multiline` wraps; otherwise single line. `mnemonic` processes '&' (strip

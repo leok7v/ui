@@ -2038,6 +2038,7 @@ static void ui_app_full_screen(bool on) {
     if (on != ui_app.is_full_screen) {
         ui_app_show_task_bar(!on);
         if (on) {
+            style = ui_app_get_window_long(GWL_STYLE);
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
@@ -2049,10 +2050,18 @@ static void ui_app_full_screen(bool on) {
             rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
             rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
-            ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
+            // Restore the saved windowed style: it carries WS_VISIBLE, which
+            // ui_app_window_style() omits -- recomputing it here would leave
+            // the window styled invisible after leaving full screen.
+            ui_app_set_window_long(GWL_STYLE, style);
             enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                            SWP_NOZORDER | SWP_NOOWNERZORDER };
             ui_app_swp_flags(flags);
+            // Leaving full screen rebuilds the non-client frame in the legacy
+            // (light) theme; hide+show makes DWM recreate the modern frame the
+            // way it does for a freshly shown window.
+            ShowWindow(ui_app_window(), SW_HIDE);
+            ShowWindow(ui_app_window(), SW_SHOW);
         }
         ui_app.is_full_screen = on;
     }
