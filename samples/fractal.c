@@ -131,7 +131,7 @@ static void init(void) {
 
 struct ui_app ui_app = {
     .class_name = "fractal",
-    .title = "Sample3: Mandelbrot",
+    .title = "Fractal",
     .dark_mode = true,
     .init = init,
     // 6x4 inches. Thinking of 6x4 timbers columns, beams, supporting posts :)

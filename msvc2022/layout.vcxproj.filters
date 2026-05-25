@@ -1,21 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="..\samples\i18n.h" />
+    <Filter Include="res">
+      <UniqueIdentifier>{22220000-0000-0000-0000-000000000001}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\src\samples\sample.ico" />
+    <ClCompile Include="..\samples\layout.c" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\src\samples\sample.rc" />
+    <ClInclude Include="..\samples\i18n.h">
+      <Filter>res</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\samples\sample8.c" />
+    <ResourceCompile Include="..\samples\sample.rc">
+      <Filter>res</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="manifest.xml" />
+    <Image Include="..\samples\sample.ico">
+      <Filter>res</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\inc\ut\version.rc.in" />
+    <None Include="..\include\ut\version.rc.in">
+      <Filter>res</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml">
+      <Filter>res</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

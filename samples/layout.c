@@ -2,7 +2,7 @@
 #include "posix/posix.h"
 #include "ui/ui.h"
 
-static const char* title = "Sample8: Panels";
+static const char* title = "Layout";
 
 enum { version = 0x102 };
 
@@ -452,11 +452,15 @@ static void button_pressed(struct ui_view* v) {
 }
 
 static void controls_test(struct ui_view* parent) {
+    // glyph render check: a precomposed circled B (U+24B7) composes cleanly,
+    // unlike a combining enclosing circle (U+20DD) which GDI/DirectWrite render
+    // as a stray arc; the cross and cedilla+breve E exercise wide/diacritic;
+    // the pirate flag is a ZWJ sequence (flag U+1F3F4 ZWJ skull U+2620 VS16).
     #define wild_string                                 \
-        "A"  ui_glyph_zwsp                              \
-        ui_glyph_combining_enclosing_circle             \
-        "B" ui_glyph_box_drawings_light_diagonal_cross  \
-        ui_glyph_E_with_cedilla_and_breve
+        "A" "\xE2\x92\xB7"                              \
+        ui_glyph_box_drawings_light_diagonal_cross      \
+        ui_glyph_E_with_cedilla_and_breve " "           \
+        "\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F"
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
@@ -474,6 +478,10 @@ static void controls_test(struct ui_view* parent) {
     static ui_button_t egypt   = ui_button("\xC3\x84\x67\x79\x70\x74\x65\x6E",
                                            0, null);
     static ui_label_t  wild    = ui_label(1, wild_string);
+    static struct ui_view glyphs = ui_view(span);
+    static ui_label_t glyphs_label = ui_label(0, "glyphs:");
+    static ui_label_t glyphs_note  = ui_label(0,
+        "  expected: A, circled B, cross, E-diacritic, flag(ZWJ)");
     // vertical inside list
     #define min_w_in_em (8.5f)
     static ui_label_t  label   = ui_label(min_w_in_em, "Label");
@@ -497,7 +505,6 @@ static void controls_test(struct ui_view* parent) {
                 align(&slider1.view, ui.align.top),
                 align(&toggle1,      ui.align.top),
                 align(&egypt,        ui.align.top),
-                align(&wild,         ui.align.top),
             null),
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
@@ -505,11 +512,17 @@ static void controls_test(struct ui_view* parent) {
             align(&slider3.view, ui.align.left),
             align(&margins,      ui.align.left),
             align(&fm,           ui.align.left),
+            ui_view.add(&glyphs,
+                align(&glyphs_label, ui.align.top),
+                align(&wild,         ui.align.top),
+                align(&glyphs_note,  ui.align.top),
+            null),
             align(&spacer,       ui.align.left),
         null),
     null);
     list.debug.paint.margins = true;
     span.align = ui.align.left;
+    glyphs.align = ui.align.left;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "#list");

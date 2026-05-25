@@ -3,7 +3,7 @@
 #include "ui/ui.h"
 #include "stb/stb_image.h"
 
-const char* title = "Sample4";
+const char* title = "Mandrill";
 
 static struct ui_bitmap image[2];
 

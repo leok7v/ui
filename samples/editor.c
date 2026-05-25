@@ -4,7 +4,7 @@
 // #include "posix/posix.h"
 // #include "ui/ui.h"
 
-const char* title = "Sample5";
+const char* title = "Editor";
 
 static struct ui_view left   = ui_view(list);
 static struct ui_view right  = ui_view(list);

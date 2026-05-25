@@ -45,7 +45,7 @@ static bool key_pressed(struct ui_view* posix_unused(v), int64_t key) {
 }
 
 static void init(void) {
-    ui_app.title  = "Sample2: translucent";
+    ui_app.title  = "Translucent";
     ui_app.opened = opened;
     ui_app.root->character = character;
     ui_app.root->key_pressed = key_pressed;

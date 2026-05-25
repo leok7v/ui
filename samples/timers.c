@@ -3,7 +3,7 @@
 #include "ui/ui.h"
 #include <math.h>
 
-const char* title = "Sample7 : timers";
+const char* title = "Timers";
 
 enum { max_count = 1800 };
 

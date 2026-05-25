@@ -1,25 +1,40 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="..\samples\i18n.h" />
-    <ClInclude Include="..\src\samples\groot\rocket.h" />
-    <ClInclude Include="..\src\samples\groot\groot.h" />
+    <Filter Include="res">
+      <UniqueIdentifier>{22220000-0000-0000-0000-000000000001}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\samples\guardians\guardians.c" />
+    <ClCompile Include="..\samples\stb_image.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\samples\guardians\groot.h" />
+    <ClInclude Include="..\samples\guardians\rocket.h" />
+    <ClInclude Include="..\samples\i18n.h">
+      <Filter>res</Filter>
+    </ClInclude>
     <ClInclude Include="..\vendor\stb\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\src\samples\groot\groot.ico" />
+    <ResourceCompile Include="..\samples\guardians\guardians.rc">
+      <Filter>res</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\src\samples\groot\groot.rc" />
+    <Image Include="..\samples\guardians\guardians.ico">
+      <Filter>res</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="manifest.xml" />
+    <None Include="..\include\ut\version.rc.in">
+      <Filter>res</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\inc\ut\version.rc.in" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\src\samples\groot\groot.c" />
-    <ClCompile Include="..\src\samples\stb_image.c" />
+    <Xml Include="manifest.xml">
+      <Filter>res</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

@@ -11,7 +11,7 @@
 // Simple mute button implemented by hand to avoid containers layout
 // logic.
 
-const char* title = "Sample6: I am groot";
+const char* title = "I am Groot";
 
 typedef struct animated_gif_s {
     int32_t bpp; // bytes per pixel

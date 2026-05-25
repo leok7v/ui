@@ -3,7 +3,7 @@
 #include "ui/ui.h"
 #include "i18n.h"
 
-#define TITLE "Sample9"
+#define TITLE "Mandelbrot"
 
 static void init(void);
 
