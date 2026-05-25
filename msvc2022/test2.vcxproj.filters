@@ -7,13 +7,7 @@
     <Filter Include="single_file_lib">
       <UniqueIdentifier>{965f87a5-7aa4-48a6-8f61-70479fd74ef6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="single_file_lib\rt">
-      <UniqueIdentifier>{5fb84469-51a5-4305-9c2e-20874e45dff6}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\single_file_lib\rt\rt.h">
-      <Filter>single_file_lib\rt</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

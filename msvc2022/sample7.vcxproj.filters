@@ -10,9 +10,6 @@
     <ClInclude Include="..\single_file_lib\ui\ui.h">
       <Filter>single_file_lib\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\single_file_lib\rt\rt.h">
-      <Filter>single_file_lib\rt</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="res">
@@ -23,9 +20,6 @@
     </Filter>
     <Filter Include="single_file_lib\ui">
       <UniqueIdentifier>{78dd48ce-ee1d-4d53-a958-b06af38243cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="single_file_lib\rt">
-      <UniqueIdentifier>{5b6cb884-4d07-44cd-b604-88b712143ff8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -41,6 +35,5 @@
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample7.c" />
     <ClCompile Include="..\src\samples\ui.c" />
-    <ClCompile Include="..\src\samples\rt.c" />
   </ItemGroup>
 </Project>

@@ -48,6 +48,9 @@
     <ClInclude Include="..\inc\ui\ui_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_draw.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
     <ClInclude Include="..\inc\ui\ui_caption.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
@@ -102,6 +105,9 @@
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_view.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_draw.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_caption.c">

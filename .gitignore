@@ -5,3 +5,6 @@ bin/**
 build/**
 lib/**
 msvc2022/.vs/*
+
+# local archive (retired code kept on disk, not tracked)
+/attic/

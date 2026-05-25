@@ -127,7 +127,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\single_file_lib\rt\rt.h" />
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
     <ClInclude Include="..\src\samples\version.h" />
