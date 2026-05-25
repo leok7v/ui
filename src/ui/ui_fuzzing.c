@@ -222,7 +222,8 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     ui_app.shift = work->shift;
     if (work->utf8 != null && work->utf8[0] != 0) {
         ui_view.character(ui_app.content, work->utf8);
-        work->utf8 = work->utf8[1] == 0 ? null : work->utf8++;
+        const char * next = work->utf8 + 1;
+        work->utf8 = *next == 0 ? null : next;
     } else if (work->key != 0) {
         ui_view.key_pressed(ui_app.content, work->key);
         ui_view.key_released(ui_app.content, work->key);

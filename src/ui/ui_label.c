@@ -53,6 +53,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     rt_assert(v->type == ui_view_label);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
     v->context_menu  = ui_label_context_menu;

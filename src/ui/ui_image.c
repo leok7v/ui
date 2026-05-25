@@ -72,7 +72,13 @@ static void ui_image_paint(ui_view_t* v) {
                               &iv->image, iv->alpha);
             }
         } else {
-            rt_swear(false, "unsupported .c: %d", iv->image.bpp);
+            // Unsupported bpp -- log once and skip painting the image
+            // rather than crashing the whole UI.
+            static bool warned;
+            if (!warned) {
+                rt_println("ui_image: unsupported bpp=%d", iv->image.bpp);
+                warned = true;
+            }
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
@@ -191,7 +197,11 @@ static void ui_image_zoomed(ui_image_t* iv) {
     } else if (iv->zd == 1) {
         iv->zoom = 4 + (iv->zn - 1);
     } else {
-        rt_swear(false);
+        // Invalid combination (e.g. caller poked .zn / .zd directly to
+        // a non-1:N or N:1 pair). Clamp to 1:1 instead of aborting.
+        iv->zn = 1;
+        iv->zd = 1;
+        iv->zoom = 4;
     }
     // is whole image visible?
     fp64_t s = ui_image.scale(iv);

@@ -148,12 +148,9 @@ static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
-    // remeasure all child buttons with hard override:
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
-            it->fm = &ui_app.fm.mono.normal;
-            it->flat = true;
             ui_caption_button_measure(it);
         }
         if (!it->state.hidden) {
@@ -205,11 +202,18 @@ static void ui_caption_init(ui_view_t* v) {
     static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fm.prop.normal;
-        c->color_id = ui_caption.view.color_id;
-        if (c->type != ui_view_button) {
+        // Caption buttons always use the monospaced font and the flat
+        // style; non-buttons take the prop font + side padding. These
+        // are set once here (not on every measure pass) so the
+        // overrides don't churn ui_view's measure invariants.
+        if (c->type == ui_view_button) {
+            c->fm   = &ui_app.fm.mono.normal;
+            c->flat = true;
+        } else {
+            c->fm = &ui_app.fm.prop.normal;
             c->padding = pd;
         }
+        c->color_id = ui_caption.view.color_id;
         c->insets  = in;
         c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;

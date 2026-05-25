@@ -137,9 +137,17 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
     ui_edit_paragraph_t* p = &e->para[pn];
     const ui_edit_str_t* str = &dt->ps[pn];
     int32_t k = 1; // at least 1 glyph
-    // offsets inside a run in glyphs and bytes from start of the paragraph:
-    int32_t gp = p->run[rn].gp;
-    int32_t bp = p->run[rn].bp;
+    // offsets inside a run in glyphs and bytes from start of the paragraph;
+    // guard against p->run not yet allocated (transient state during after()
+    // structural updates) — rn must be 0 in that case
+    int32_t gp = 0;
+    int32_t bp = 0;
+    if (p->run != null) {
+        gp = p->run[rn].gp;
+        bp = p->run[rn].bp;
+    } else {
+        rt_assert(rn == 0);
+    }
     if (gp < str->g - 1) {
         const char* text = str->u + bp;
         const int32_t glyphs_in_this_run = str->g - gp;
@@ -1037,9 +1045,14 @@ static void ui_edit_view_key_right(ui_edit_view_t* e) {
 }
 
 static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
-    // Vertical caret movement visually tend to move caret horizontally
-    // in proportional font text. Remembering starting `x' value for vertical
-    // movements alleviates this unpleasant UX experience to some degree.
+    // Vertical caret movement visually tends to drift horizontally in
+    // proportional font text. Remembering the starting `x' across a
+    // run of up/down arrows alleviates this. Horizontal key handlers
+    // clear last_x (set to -1); on the first vertical move after a
+    // clear, we capture the current x. Subsequent vertical moves
+    // *restore* x to the captured value when the new line is wide
+    // enough -- without clobbering last_x, so the column anchor
+    // persists for the whole run.
     if (pt->x > 0) {
         if (e->last_x > 0) {
             int32_t prev = e->last_x - e->fm->em.w;
@@ -1047,8 +1060,9 @@ static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
             if (prev <= pt->x && pt->x <= next) {
                 pt->x = e->last_x;
             }
+        } else {
+            e->last_x = pt->x;
         }
-        e->last_x = pt->x;
     }
 }
 
@@ -1086,7 +1100,7 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
 static void ui_edit_view_key_down(ui_edit_view_t* e) {
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-    ui_edit_reuse_last_x(e, &pt); // TODO: does not work! (used to work broken now)
+    ui_edit_reuse_last_x(e, &pt);
     // scroll runs guaranteed to be already laid out for current state of view:
     ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
     const int32_t run_count = ui_edit_runs_between(e, scroll, pg);
@@ -1748,9 +1762,12 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
             rt_swear(ofs0 >= 0 && ofs1 >= 0);
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
-            // selection color is MSVC dark mode selection color
-            // TODO: need light mode selection color tpp
-            ui_color_t sc = ui_color_rgb(0x26, 0x4F, 0x78); // selection color
+            // Theme-aware selection color (was hardcoded MSVC dark blue).
+            // Dark mode: MSVC-ish #264F78. Light mode: lightened highlight.
+            ui_color_t sc = ui_theme.is_app_dark() ?
+                ui_color_rgb(0x26, 0x4F, 0x78) :
+                ui_colors.lighten(
+                    ui_colors.get_color(ui_color_id_highlight), 0.5f);
             if (!e->focused || !ui_app.focused()) {
                 sc = ui_colors.darken(sc, 0.1f);
             }
@@ -1826,43 +1843,60 @@ static void ui_edit_view_move(ui_edit_view_t* e, ui_edit_pg_t pg) {
     e->selection.a[0] = e->selection.a[1];
 }
 
-static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p, int32_t np) {
-    // This function is called in after() callback when
-    // d->text.np already changed to `new_np`.
-    // It has to manipulate e->para[] array w/o calling
-    // ui_edit_invalidate_runs() ui_edit_dispose_all_runs()
-    // because they assume that e->para[] array is in sync
-    // d->text.np.
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p,
+                                    int32_t deleted, int32_t inserted) {
+    // Called from after(): d->text.np is already the post-edit count.
+    // Anchor paragraph `p` (== r.from.pn) always has its text content
+    // changed and must be invalidated. Slots [p+1..p+deleted] are the
+    // paragraphs that disappeared in the edit (their run caches must
+    // be freed). Slots [p+1..p+inserted] are the paragraphs that
+    // appeared (must be fresh-zero, no stale pointer).
+    //
+    // Manipulate e->para[] directly rather than calling
+    // ui_edit_invalidate_runs() / ui_edit_dispose_all_runs(): those
+    // assume the array is in sync with dt->np, which we are restoring.
+    ui_edit_text_t* dt = &e->doc->text;
     bool ok = true;
-    int32_t old_np = np;     // old (before) number of paragraphs
-    int32_t new_np = dt->np; // new (after)  number of paragraphs
+    int32_t old_np = dt->np - inserted + deleted;
+    int32_t new_np = dt->np;
     rt_assert(old_np > 0 && new_np > 0 && e->para != null);
     rt_assert(0 <= p && p < old_np);
-    if (old_np == new_np) {
-        ui_edit_invalidate_run(e, p);
-    } else if (new_np < old_np) { // shrinking - delete runs
-        const int32_t d = old_np - new_np; // `d` delta > 0
-        if (p + d < old_np - 1) {
-            const int32_t n = rt_max(0, old_np - p - d - 1);
-            memcpy(e->para + p + 1, e->para + p + 1 + d, n * sizeof(e->para[0]));
-        }
-        if (p < new_np) { ui_edit_invalidate_run(e, p); }
-        ok = rt_heap.realloc((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
-        rt_swear(ok, "shrinking");
-    } else { // growing - insert runs
-        ui_edit_invalidate_run(e, p);
-        int32_t d = new_np - old_np;  // `d` delta > 0
-        ok = rt_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
-        if (ok) {
-            const int32_t n = rt_max(0, new_np - p - d - 1);
-            memmove(e->para + p + 1 + d, e->para + p + 1,
-                    (size_t)n * sizeof(e->para[0]));
-            const int32_t m = rt_min(new_np, p + 1 + d);
-            for (int32_t i = p + 1; i < m; i++) {
-                e->para[i].run = null;
-                e->para[i].runs = 0;
+    // Invalidate the modified anchor paragraph p.
+    ui_edit_invalidate_run(e, p);
+    // Free the run caches of every deleted paragraph before we either
+    // overwrite the slot via memmove (shrink) or slice it off via
+    // realloc (also shrink). Prior shapes leaked these slots.
+    for (int32_t i = 1; i <= deleted; i++) {
+        ui_edit_invalidate_run(e, p + i);
+    }
+    if (old_np != new_np) {
+        int32_t move_src = p + deleted + 1;
+        int32_t move_dst = p + inserted + 1;
+        int32_t move_count = old_np - move_src;
+        rt_assert(move_count >= 0);
+        if (new_np < old_np) { // shrinking: move first, then realloc down
+            if (move_count > 0) {
+                memmove(e->para + move_dst, e->para + move_src,
+                        (size_t)move_count * sizeof(e->para[0]));
             }
+            ok = rt_heap.realloc((void**)&e->para,
+                                 (size_t)new_np * sizeof(e->para[0])) == 0;
+            rt_swear(ok, "shrinking");
+        } else { // growing: realloc up first, then move tail into the gap
+            ok = rt_heap.realloc((void**)&e->para,
+                                 (size_t)new_np * sizeof(e->para[0])) == 0;
+            rt_swear(ok, "growing");
+            if (ok && move_count > 0) {
+                memmove(e->para + move_dst, e->para + move_src,
+                        (size_t)move_count * sizeof(e->para[0]));
+            }
+        }
+    }
+    // Initialize the newly inserted paragraphs to "no run cache yet".
+    if (ok) {
+        for (int32_t i = 1; i <= inserted; i++) {
+            e->para[p + i].run = null;
+            e->para[p + i].runs = 0;
         }
     }
     return ok;
@@ -1873,11 +1907,13 @@ static void ui_edit_before(ui_edit_notify_t* notify,
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_view_t* e = (ui_edit_view_t*)n->that;
     rt_swear(e->doc == ni->d);
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    rt_assert(dt->np > 0);
+    // `n->data` is number of paragraphs before replace(); stash
+    // unconditionally so after() can read it even when the view is
+    // hidden (per-view caches must stay synchronized with the doc).
+    n->data = (uintptr_t)dt->np;
     if (e->w > 0 && e->h > 0) {
-        const ui_edit_text_t* dt = &e->doc->text; // document text
-        rt_assert(dt->np > 0);
-        // `n->data` is number of paragraphs before replace():
-        n->data = (uintptr_t)dt->np;
         if (e->selection.from.pn != e->selection.to.pn) {
             ui_edit_invalidate_view(e);
         } else {
@@ -1892,18 +1928,22 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     ui_edit_view_t* e = (ui_edit_view_t*)n->that;
     const ui_edit_text_t* dt = &ni->d->text; // document text
     rt_assert(ni->d == e->doc && dt->np > 0);
+    // Per-view cache maintenance must run regardless of visibility, or
+    // a hidden view's e->para[] / scroll.pn / selection drifts out of
+    // sync with the document and the first paint after the view is
+    // shown reads past the end / out of range. Only the repaint
+    // scheduling stays inside the (w>0, h>0) gate.
+    const int32_t np = (int32_t)n->data;
+    rt_swear(dt->np == np - ni->deleted + ni->inserted);
+    ui_edit_reallocate_runs(e, ni->r->from.pn, ni->deleted, ni->inserted);
+    e->selection = *ni->x;
+    ui_edit_pg_t* pg = e->selection.a;
+    for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
+        pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
+        pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
+    }
+    e->scroll.pn = rt_max(0, rt_min(dt->np - 1, e->scroll.pn));
     if (e->w > 0 && e->h > 0) {
-        // number of paragraphs before replace():
-        const int32_t np = (int32_t)n->data;
-        rt_swear(dt->np == np - ni->deleted + ni->inserted);
-        ui_edit_reallocate_runs(e, ni->r->from.pn, np);
-        e->selection = *ni->x;
-        // this is needed by undo/redo: trim selection
-        ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
-            pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
-            pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
-        }
         if (ni->r->from.pn != ni->r->to.pn &&
             ni->x->from.pn != ni->x->to.pn &&
             ni->r->from.pn == ni->x->from.pn) {

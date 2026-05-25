@@ -700,16 +700,31 @@ static void ui_gdi_delete_font(ui_font_t f) {
 // guaranteed to return dc != null even if not painting
 
 static HDC ui_gdi_get_dc(void) {
-    rt_not_null(ui_app.window);
+    // ui_app.window may be null in early init (font metrics before the
+    // main window exists). GetDC(null) is documented to return the
+    // screen DC, but on some Windows hosts (observed on mb-air-2012)
+    // it returns null. Fall back to CreateICA which produces a
+    // non-drawable Information Context for the display — adequate
+    // for the measurement-only callers that hit this path.
     HDC hdc = ui_gdi_hdc() != null ?
               ui_gdi_hdc() : GetDC((HWND)ui_app.window);
+    if (hdc == null && ui_app.window == null) {
+        hdc = CreateICA("DISPLAY", null, null, null);
+    }
     rt_not_null(hdc);
     return hdc;
 }
 
 static void ui_gdi_release_dc(HDC hdc) {
     if (ui_gdi_hdc() == null) {
-        ReleaseDC((HWND)ui_app.window, hdc);
+        // ReleaseDC pairs with GetDC for window DCs but is the wrong
+        // call for an Information Context produced by CreateICA. When
+        // ReleaseDC fails (returns 0) we are looking at the ICA-
+        // fallback path from get_dc above and DeleteDC is the correct
+        // disposal.
+        if (!ReleaseDC((HWND)ui_app.window, hdc)) {
+            DeleteDC(hdc);
+        }
     }
 }
 
@@ -1012,7 +1027,10 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
 static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
-    rt_assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
+    // Best-effort placement via GetCharacterPlacementW(). Composing scripts
+    // (Tamil U+0B9A, Devanagari, etc.) and high-plane emoji surrogate pairs
+    // are not fully handled; callers needing grapheme-cluster accuracy
+    // should use DirectWrite/Uniscribe instead.
     x[0] = 0;
     ui_wh_t wh = { .w = 0, .h = 0 };
     if (bytes > 0) {
@@ -1021,16 +1039,6 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         uint16_t* output = rt_stackalloc((chars + 1) * sizeof(uint16_t));
         const errno_t r = rt_str.utf8to16(utf16, chars, utf8, bytes);
         rt_swear(r == 0);
-// TODO: remove
-#if 1
-        char str[16 * 1024] = {0};
-        char hex[16 * 1024] = {0};
-        for (int i = 0; i < chars; i++) {
-            rt_str_printf(hex, "%04X ", utf16[i]);
-            strcat(str, hex);
-        }
-rt_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf8, bytes, glyphs, ta->fm->font, ui_gdi_context.hdc);
-#endif
         GCP_RESULTSW gcp = {
             .lStructSize = sizeof(GCP_RESULTSW),
             .lpOutString = output,

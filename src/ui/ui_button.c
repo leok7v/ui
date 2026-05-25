@@ -39,7 +39,11 @@ static void ui_button_paint(ui_view_t* v) {
         // `bc` border color
         ui_color_t bc = ui_colors.get_color(ui_color_id_gray_text);
         if (v->state.armed) { bc = ui_colors.lighten(bc, 0.125f); }
-        if (ui_view.is_disabled(v)) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) {
+            ui_color_t gt = ui_colors.get_color(ui_color_id_gray_text);
+            bc = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
+                                        : ui_colors.lighten(gt, 0.5f);
+        }
         if (v->state.hover && !v->state.armed) {
             bc = ui_colors.get_color(ui_color_id_hot_tracking);
         }
@@ -143,6 +147,7 @@ static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
 
 void ui_view_init_button(ui_view_t* v) {
     rt_assert(v->type == ui_view_button);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;

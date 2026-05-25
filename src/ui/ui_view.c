@@ -369,7 +369,8 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
 static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
     const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
     const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
-    const ui_wh_t* em = &v->fm->em;
+    const ui_fm_t* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
+    const ui_wh_t* em = &fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
     const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);

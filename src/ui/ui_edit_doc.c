@@ -60,7 +60,7 @@
 // ui_edit_check_zeros only works for packed structs:
 
 #define ui_edit_check_zeros(a_, b_) do {                                    \
-    for (int32_t i_ = 0; i_ < (b_); i_++) {                                 \
+    for (int32_t i_ = 0; i_ < (int32_t)(b_); i_++) {                        \
         rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
     }                                                                       \
 } while (0)
@@ -952,7 +952,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
         int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
-    memset(d, 0x00, sizeof(d));
+    memset(d, 0x00, sizeof(*d));
     if (bytes < 0) {
         size_t n = strlen(utf8);
         rt_swear(n < INT32_MAX);
@@ -1000,7 +1000,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     while (d->listeners != null) {
         ui_edit_listener_t* next = d->listeners->next;
         d->listeners->next = null;
-        rt_heap.free(d->listeners->next);
+        rt_heap.free(d->listeners);
         d->listeners = next;
     }
     ui_edit_check_zeros(d, sizeof(*d));

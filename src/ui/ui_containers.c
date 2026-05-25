@@ -447,7 +447,11 @@ static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     } else if (c->align == (ui.align.right|ui.align.bottom)) {
         *row = 2; *col = 2;
     } else {
-        rt_swear(false, "invalid child align: 0x%02X", c->align);
+        // Unknown align bitset -- clamp to center (row=1, col=1) and
+        // continue layout. Reachable when callers assemble custom
+        // ui.align combinations.
+        *row = 1;
+        *col = 1;
     }
 }
 
@@ -563,6 +567,7 @@ static void ui_container_paint(ui_view_t* v) {
 }
 
 static void ui_view_container_init(ui_view_t* v) {
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->background = ui_colors.transparent;
     v->insets  = (ui_margins_t){
        .left  = 0.25, .top    = 0.125,
@@ -594,6 +599,7 @@ void ui_view_init_list(ui_view_t* v) {
 
 void ui_view_init_spacer(ui_view_t* v) {
     rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->w = 0;
     v->h = 0;
     v->max_w = ui.infinity;

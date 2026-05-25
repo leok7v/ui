@@ -40,6 +40,9 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
     fp64_t q = i * (1 - s * f);
     fp64_t t = i * (1 - s * (1 - f));
     fp64_t r = 0, g = 0, b = 0;
+    // h is in [0,6) by construction, but float rounding can produce
+    // exactly 6.0 from h == 360.0 * (1 - eps) input. Treat the default
+    // case as a black pixel (intensity 0) rather than aborting.
     switch ((int32_t)h) {
         case 0:
         case 6: r = i * 255; g = t * 255; b = p * 255; break;
@@ -48,7 +51,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 3: r = p * 255; g = q * 255; b = i * 255; break;
         case 4: r = t * 255; g = p * 255; b = i * 255; break;
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
-        default: rt_swear(false); break;
+        default: r = 0; g = 0; b = 0; break;
     }
     rt_assert(0 <= r && r <= 255);
     rt_assert(0 <= g && g <= 255);

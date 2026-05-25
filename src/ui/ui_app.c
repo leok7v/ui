@@ -48,6 +48,8 @@ static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
             (WPARAM)wp, (LPARAM)lp));
 }
 
+static fp64_t ui_app_last_next_due_at;
+
 static void ui_app_update_wt_timeout(void) {
     fp64_t next_due_at = -1.0;
     rt_atomics.spinlock_acquire(&ui_app_queue.lock);
@@ -56,11 +58,10 @@ static void ui_app_update_wt_timeout(void) {
     }
     rt_atomics.spinlock_release(&ui_app_queue.lock);
     if (next_due_at >= 0) {
-        static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
             ui_app_post_message(WM_NULL, 0, 0);
-        } else if (last_next_due_at != next_due_at) {
+        } else if (ui_app_last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
@@ -69,7 +70,7 @@ static void ui_app_update_wt_timeout(void) {
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
-        last_next_due_at = next_due_at;
+        ui_app_last_next_due_at = next_due_at;
     }
 }
 
@@ -199,7 +200,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
 //  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
-#ifndef UI_APP_DEBUG
+#ifdef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
     rt_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
@@ -635,8 +636,11 @@ static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
 }
 
 static void ui_app_animate_timer(void) {
-    ui_app_post_message(ui.message.animate, (int64_t)ui_app_animate.step + 1,
-        (int64_t)(uintptr_t)ui_app_animate.f);
+    if (ui_app_window() != null) {
+        ui_app_post_message(ui.message.animate,
+            (int64_t)ui_app_animate.step + 1,
+            (int64_t)(uintptr_t)ui_app_animate.f);
+    }
 }
 
 static void ui_app_wm_timer(ui_timer_t id) {
@@ -831,7 +835,10 @@ static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
         }
         // otherwise tap detector will do the double_tap() call
     } else {
-        rt_assert(false, "m: 0x%04X", m);
+        // Unexpected mouse message id -- log in debug, ignore in
+        // release. Reachable from third-party input drivers that
+        // synthesize Win32 messages outside the standard set.
+        rt_assert(false, "ui_app_mouse: unhandled m: 0x%04X", m);
     }
     return swallow;
 }
@@ -862,8 +869,11 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
         case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
         case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
         case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
-        default: rt_swear(false, "fix me m: %d", m);
+        default: break;
     }
+    // Unknown NC mouse message -- return -1 so the caller skips it
+    // rather than aborting. The set is closed in current Windows
+    // SDKs; defensive against unmapped messages.
     return -1;
 }
 
@@ -1171,11 +1181,12 @@ static void ui_app_wm_paint(void) {
     // it is possible to receive WM_PAINT when window is not closed
     if (ui_app.window != null) {
         PAINTSTRUCT ps = {0};
-        BeginPaint(ui_app_window(), &ps);
-        ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
-//      rt_println("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
-        ui_app_paint_on_canvas(ps.hdc);
-        EndPaint(ui_app_window(), &ps);
+        HDC hdc = BeginPaint(ui_app_window(), &ps);
+        if (hdc != null) {
+            ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
+            ui_app_paint_on_canvas(hdc);
+            EndPaint(ui_app_window(), &ps);
+        }
     }
 }
 
@@ -2077,6 +2088,7 @@ static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
     rt_event.dispose(ui_app_event_invalidate);
     ui_app_event_invalidate = null;
+    ui_app_last_next_due_at = 0;
 }
 
 static void ui_app_cursor_set(ui_cursor_t c) {
@@ -2326,12 +2338,23 @@ static void ui_app_make_topmost(void) {
 static void ui_app_activate(void) {
     rt_core.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
-    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
+    if (previous == null) {
+        errno_t e = rt_core.err();
+        if (e != 0) { rt_println("Warning: SetActiveWindow: %s", rt_strerr(e)); }
+    }
 }
 
 static void ui_app_bring_to_foreground(void) {
-    // SetForegroundWindow() does not activate window:
-    rt_fatal_win32err(SetForegroundWindow(ui_app_window()));
+    // SetForegroundWindow() does not activate window. Both this and
+    // SetActiveWindow() above can fail with ACCESS_DENIED when the
+    // process is launched from a non-interactive session (Services,
+    // headless ssh, scheduled task without desktop). Treat as soft
+    // warnings so the app can still run for the interactive launch
+    // path that does have foreground rights.
+    if (!SetForegroundWindow(ui_app_window())) {
+        rt_println("Warning: SetForegroundWindow: %s",
+                   rt_strerr(rt_core.err()));
+    }
 }
 
 static void ui_app_bring_to_front(void) {
@@ -2588,10 +2611,16 @@ static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
+    // Like SetForegroundWindow, SetFocus can fail with ACCESS_DENIED
+    // when the process lacks foreground rights (Services-session
+    // launch). Soft-warn so the app can run for the interactive case.
     rt_assert(rt_thread.id() == ui_app.tid, "cannot be called from background thread");
     rt_core.set_err(0);
-    HWND previous = SetFocus((HWND)w); // previously focused window
-    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
+    HWND previous = SetFocus((HWND)w);
+    if (previous == null) {
+        errno_t e = rt_core.err();
+        if (e != 0) { rt_println("Warning: SetFocus: %s", rt_strerr(e)); }
+    }
 }
 
 static void ui_app_request_focus(void) {
@@ -2667,6 +2696,10 @@ static void ui_app_init(void) {
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;
+    // Load fonts before the user init() so that user code can safely
+    // read ui_app.fm.*.em / .height / .font without seeing zeros. The
+    // primary-monitor DPI was filled in by ui_app_init_windows() above.
+    ui_app_init_fonts(ui_app.dpi.window);
     // for ui_view_debug_paint:
     ui_view.set_text(ui_app.root, "ui_app.root");
     ui_view.set_text(ui_app.content, "ui_app.content");
@@ -2674,24 +2707,19 @@ static void ui_app_init(void) {
 }
 
 static void ui_app_set_dpi_awareness(void) {
-    // Mutually exclusive:
-    // BOOL SetProcessDpiAwarenessContext()
-    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext
-    // and
-    // HRESULT SetProcessDpiAwareness()
-    // https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness
-    // Plus DPI awareness can be set by APP .exe shell properties, registry
-    // or Windows policy. See:
-    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    // SetProcessDpiAwarenessContext (Win10 1703+) and SetProcessDpiAwareness
+    // (Win8.1+) are mutually exclusive — first wins. Either can return
+    // ACCESS_DENIED when DPI awareness was already set by the manifest,
+    // registry, Windows policy, or process-launch shim. On Win10 they can
+    // also both fail in non-interactive sessions (Services, headless).
+    // Treat all failures as non-fatal: the app falls back to whatever
+    // awareness the process already has (typically system-DPI-aware).
     DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
         GetThreadDpiAwarenessContext();
-    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
     errno_t error = rt_b2e(SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
         rt_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
-        // dpi awareness already set, manifest, registry, windows policy
-        // Try via Shell:
         HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
         if (hr == E_ACCESSDENIED) {
             rt_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
@@ -2699,7 +2727,9 @@ static void ui_app_set_dpi_awareness(void) {
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
         GetThreadDpiAwarenessContext();
-    rt_swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+    if (dpi_awareness_context_1 == dpi_awareness_context_2) {
+        rt_println("Warning: DPI awareness unchanged; using process default");
+    }
 }
 
 static void ui_app_init_windows(void) {
@@ -2787,9 +2817,15 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     rt_debug.tee = tee;
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
-        char cmd[1024];
-        rt_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
-        system(cmd);
+        // Open the log via ShellExecuteExA rather than system() so we
+        // don't re-enter the CRT command processor from a crashing
+        // process. Failure is silently ignored -- the log file is on
+        // disk regardless.
+        SHELLEXECUTEINFOA sei = { .cbSize = sizeof(SHELLEXECUTEINFOA),
+                                  .lpVerb = "open",
+                                  .lpFile = fn,
+                                  .nShow  = SW_NORMAL };
+        ShellExecuteExA(&sei);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }

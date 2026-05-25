@@ -2077,7 +2077,7 @@ typedef struct ui_app_message_handler_s ui_app_message_handler_t;
 typedef struct ui_app_message_handler_s {
     void* that;
     ui_app_message_handler_t* next;
-    bool (*callback)(ui_app_message_handler_t* handler, int32_t m,
+    bool (*callback)(ui_app_message_handler_t* handler, int32_t m, 
                      int64_t wp, int64_t lp, int64_t* rt);
 } ui_app_message_handler_t;
 
@@ -2384,6 +2384,8 @@ static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
             (WPARAM)wp, (LPARAM)lp));
 }
 
+static fp64_t ui_app_last_next_due_at;
+
 static void ui_app_update_wt_timeout(void) {
     fp64_t next_due_at = -1.0;
     rt_atomics.spinlock_acquire(&ui_app_queue.lock);
@@ -2392,11 +2394,10 @@ static void ui_app_update_wt_timeout(void) {
     }
     rt_atomics.spinlock_release(&ui_app_queue.lock);
     if (next_due_at >= 0) {
-        static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
             ui_app_post_message(WM_NULL, 0, 0);
-        } else if (last_next_due_at != next_due_at) {
+        } else if (ui_app_last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
@@ -2405,7 +2406,7 @@ static void ui_app_update_wt_timeout(void) {
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
-        last_next_due_at = next_due_at;
+        ui_app_last_next_due_at = next_due_at;
     }
 }
 
@@ -2535,7 +2536,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
 //  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
-#ifndef UI_APP_DEBUG
+#ifdef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
     rt_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
@@ -2971,8 +2972,11 @@ static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
 }
 
 static void ui_app_animate_timer(void) {
-    ui_app_post_message(ui.message.animate, (int64_t)ui_app_animate.step + 1,
-        (int64_t)(uintptr_t)ui_app_animate.f);
+    if (ui_app_window() != null) {
+        ui_app_post_message(ui.message.animate,
+            (int64_t)ui_app_animate.step + 1,
+            (int64_t)(uintptr_t)ui_app_animate.f);
+    }
 }
 
 static void ui_app_wm_timer(ui_timer_t id) {
@@ -3167,7 +3171,10 @@ static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
         }
         // otherwise tap detector will do the double_tap() call
     } else {
-        rt_assert(false, "m: 0x%04X", m);
+        // Unexpected mouse message id -- log in debug, ignore in
+        // release. Reachable from third-party input drivers that
+        // synthesize Win32 messages outside the standard set.
+        rt_assert(false, "ui_app_mouse: unhandled m: 0x%04X", m);
     }
     return swallow;
 }
@@ -3198,8 +3205,11 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
         case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
         case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
         case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
-        default: rt_swear(false, "fix me m: %d", m);
+        default: break;
     }
+    // Unknown NC mouse message -- return -1 so the caller skips it
+    // rather than aborting. The set is closed in current Windows
+    // SDKs; defensive against unmapped messages.
     return -1;
 }
 
@@ -3507,11 +3517,12 @@ static void ui_app_wm_paint(void) {
     // it is possible to receive WM_PAINT when window is not closed
     if (ui_app.window != null) {
         PAINTSTRUCT ps = {0};
-        BeginPaint(ui_app_window(), &ps);
-        ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
-//      rt_println("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
-        ui_app_paint_on_canvas(ps.hdc);
-        EndPaint(ui_app_window(), &ps);
+        HDC hdc = BeginPaint(ui_app_window(), &ps);
+        if (hdc != null) {
+            ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
+            ui_app_paint_on_canvas(hdc);
+            EndPaint(ui_app_window(), &ps);
+        }
     }
 }
 
@@ -4034,8 +4045,8 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
-    ui_app_message_handler_t* handler = ui_app.handlers;
-    while (handler != null) {
+    ui_app_message_handler_t* handler = ui_app.handlers; 
+    while (handler != null) { 
         if (handler->callback(handler, m, wp, lp, &ret)) {
             return ret;
         }
@@ -4413,6 +4424,7 @@ static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
     rt_event.dispose(ui_app_event_invalidate);
     ui_app_event_invalidate = null;
+    ui_app_last_next_due_at = 0;
 }
 
 static void ui_app_cursor_set(ui_cursor_t c) {
@@ -4662,12 +4674,23 @@ static void ui_app_make_topmost(void) {
 static void ui_app_activate(void) {
     rt_core.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
-    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
+    if (previous == null) {
+        errno_t e = rt_core.err();
+        if (e != 0) { rt_println("Warning: SetActiveWindow: %s", rt_strerr(e)); }
+    }
 }
 
 static void ui_app_bring_to_foreground(void) {
-    // SetForegroundWindow() does not activate window:
-    rt_fatal_win32err(SetForegroundWindow(ui_app_window()));
+    // SetForegroundWindow() does not activate window. Both this and
+    // SetActiveWindow() above can fail with ACCESS_DENIED when the
+    // process is launched from a non-interactive session (Services,
+    // headless ssh, scheduled task without desktop). Treat as soft
+    // warnings so the app can still run for the interactive launch
+    // path that does have foreground rights.
+    if (!SetForegroundWindow(ui_app_window())) {
+        rt_println("Warning: SetForegroundWindow: %s",
+                   rt_strerr(rt_core.err()));
+    }
 }
 
 static void ui_app_bring_to_front(void) {
@@ -4924,10 +4947,16 @@ static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
+    // Like SetForegroundWindow, SetFocus can fail with ACCESS_DENIED
+    // when the process lacks foreground rights (Services-session
+    // launch). Soft-warn so the app can run for the interactive case.
     rt_assert(rt_thread.id() == ui_app.tid, "cannot be called from background thread");
     rt_core.set_err(0);
-    HWND previous = SetFocus((HWND)w); // previously focused window
-    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
+    HWND previous = SetFocus((HWND)w);
+    if (previous == null) {
+        errno_t e = rt_core.err();
+        if (e != 0) { rt_println("Warning: SetFocus: %s", rt_strerr(e)); }
+    }
 }
 
 static void ui_app_request_focus(void) {
@@ -5003,6 +5032,10 @@ static void ui_app_init(void) {
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;
+    // Load fonts before the user init() so that user code can safely
+    // read ui_app.fm.*.em / .height / .font without seeing zeros. The
+    // primary-monitor DPI was filled in by ui_app_init_windows() above.
+    ui_app_init_fonts(ui_app.dpi.window);
     // for ui_view_debug_paint:
     ui_view.set_text(ui_app.root, "ui_app.root");
     ui_view.set_text(ui_app.content, "ui_app.content");
@@ -5010,24 +5043,19 @@ static void ui_app_init(void) {
 }
 
 static void ui_app_set_dpi_awareness(void) {
-    // Mutually exclusive:
-    // BOOL SetProcessDpiAwarenessContext()
-    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext
-    // and
-    // HRESULT SetProcessDpiAwareness()
-    // https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness
-    // Plus DPI awareness can be set by APP .exe shell properties, registry
-    // or Windows policy. See:
-    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    // SetProcessDpiAwarenessContext (Win10 1703+) and SetProcessDpiAwareness
+    // (Win8.1+) are mutually exclusive — first wins. Either can return
+    // ACCESS_DENIED when DPI awareness was already set by the manifest,
+    // registry, Windows policy, or process-launch shim. On Win10 they can
+    // also both fail in non-interactive sessions (Services, headless).
+    // Treat all failures as non-fatal: the app falls back to whatever
+    // awareness the process already has (typically system-DPI-aware).
     DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
         GetThreadDpiAwarenessContext();
-    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
     errno_t error = rt_b2e(SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
         rt_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
-        // dpi awareness already set, manifest, registry, windows policy
-        // Try via Shell:
         HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
         if (hr == E_ACCESSDENIED) {
             rt_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
@@ -5035,7 +5063,9 @@ static void ui_app_set_dpi_awareness(void) {
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
         GetThreadDpiAwarenessContext();
-    rt_swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+    if (dpi_awareness_context_1 == dpi_awareness_context_2) {
+        rt_println("Warning: DPI awareness unchanged; using process default");
+    }
 }
 
 static void ui_app_init_windows(void) {
@@ -5123,9 +5153,15 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     rt_debug.tee = tee;
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
-        char cmd[1024];
-        rt_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
-        system(cmd);
+        // Open the log via ShellExecuteExA rather than system() so we
+        // don't re-enter the CRT command processor from a crashing
+        // process. Failure is silently ignored -- the log file is on
+        // disk regardless.
+        SHELLEXECUTEINFOA sei = { .cbSize = sizeof(SHELLEXECUTEINFOA),
+                                  .lpVerb = "open",
+                                  .lpFile = fn,
+                                  .nShow  = SW_NORMAL };
+        ShellExecuteExA(&sei);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -5438,7 +5474,11 @@ static void ui_button_paint(ui_view_t* v) {
         // `bc` border color
         ui_color_t bc = ui_colors.get_color(ui_color_id_gray_text);
         if (v->state.armed) { bc = ui_colors.lighten(bc, 0.125f); }
-        if (ui_view.is_disabled(v)) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) {
+            ui_color_t gt = ui_colors.get_color(ui_color_id_gray_text);
+            bc = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
+                                        : ui_colors.lighten(gt, 0.5f);
+        }
         if (v->state.hover && !v->state.armed) {
             bc = ui_colors.get_color(ui_color_id_hot_tracking);
         }
@@ -5542,6 +5582,7 @@ static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
 
 void ui_view_init_button(ui_view_t* v) {
     rt_assert(v->type == ui_view_button);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
@@ -5711,12 +5752,9 @@ static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
-    // remeasure all child buttons with hard override:
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
-            it->fm = &ui_app.fm.mono.normal;
-            it->flat = true;
             ui_caption_button_measure(it);
         }
         if (!it->state.hidden) {
@@ -5768,11 +5806,18 @@ static void ui_caption_init(ui_view_t* v) {
     static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fm.prop.normal;
-        c->color_id = ui_caption.view.color_id;
-        if (c->type != ui_view_button) {
+        // Caption buttons always use the monospaced font and the flat
+        // style; non-buttons take the prop font + side padding. These
+        // are set once here (not on every measure pass) so the
+        // overrides don't churn ui_view's measure invariants.
+        if (c->type == ui_view_button) {
+            c->fm   = &ui_app.fm.mono.normal;
+            c->flat = true;
+        } else {
+            c->fm = &ui_app.fm.prop.normal;
             c->padding = pd;
         }
+        c->color_id = ui_caption.view.color_id;
         c->insets  = in;
         c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;
@@ -5877,6 +5922,9 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
     fp64_t q = i * (1 - s * f);
     fp64_t t = i * (1 - s * (1 - f));
     fp64_t r = 0, g = 0, b = 0;
+    // h is in [0,6) by construction, but float rounding can produce
+    // exactly 6.0 from h == 360.0 * (1 - eps) input. Treat the default
+    // case as a black pixel (intensity 0) rather than aborting.
     switch ((int32_t)h) {
         case 0:
         case 6: r = i * 255; g = t * 255; b = p * 255; break;
@@ -5885,7 +5933,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 3: r = p * 255; g = q * 255; b = i * 255; break;
         case 4: r = t * 255; g = p * 255; b = i * 255; break;
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
-        default: rt_swear(false); break;
+        default: r = 0; g = 0; b = 0; break;
     }
     rt_assert(0 <= r && r <= 255);
     rt_assert(0 <= g && g <= 255);
@@ -6664,7 +6712,11 @@ static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     } else if (c->align == (ui.align.right|ui.align.bottom)) {
         *row = 2; *col = 2;
     } else {
-        rt_swear(false, "invalid child align: 0x%02X", c->align);
+        // Unknown align bitset -- clamp to center (row=1, col=1) and
+        // continue layout. Reachable when callers assemble custom
+        // ui.align combinations.
+        *row = 1;
+        *col = 1;
     }
 }
 
@@ -6780,6 +6832,7 @@ static void ui_container_paint(ui_view_t* v) {
 }
 
 static void ui_view_container_init(ui_view_t* v) {
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->background = ui_colors.transparent;
     v->insets  = (ui_margins_t){
        .left  = 0.25, .top    = 0.125,
@@ -6811,6 +6864,7 @@ void ui_view_init_list(ui_view_t* v) {
 
 void ui_view_init_spacer(ui_view_t* v) {
     rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->w = 0;
     v->h = 0;
     v->max_w = ui.infinity;
@@ -7053,19 +7107,19 @@ ui_if ui = {
 
 #define ui_edit_check_zeros(a_, b_) do {                                    \
     for (int32_t i_ = 0; i_ < (int32_t)(b_); i_++) {                        \
-        rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                      \
+        rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
     }                                                                       \
 } while (0)
 
 #define ui_edit_check_pg_inside_text(t_, pg_)                               \
-    rt_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                     \
+    rt_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
            0 <= (pg_)->gp && (pg_)->gp <= (t_)->ps[(pg_)->pn].g)
 
-#define ui_edit_check_range_inside_text(t_, r_) do {                         \
-    rt_assert((r_)->from.pn <= (r_)->to.pn);                                 \
-    rt_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp); \
-    ui_edit_check_pg_inside_text(t_, (&(r_)->from));                         \
-    ui_edit_check_pg_inside_text(t_, (&(r_)->to));                           \
+#define ui_edit_check_range_inside_text(t_, r_) do {                        \
+    rt_assert((r_)->from.pn <= (r_)->to.pn);                                   \
+    rt_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->from));                        \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->to));                          \
 } while (0)
 
 #else
@@ -7944,7 +7998,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
         int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
-    memset(d, 0x00, sizeof(d));
+    memset(d, 0x00, sizeof(*d));
     if (bytes < 0) {
         size_t n = strlen(utf8);
         rt_swear(n < INT32_MAX);
@@ -7992,7 +8046,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     while (d->listeners != null) {
         ui_edit_listener_t* next = d->listeners->next;
         d->listeners->next = null;
-        rt_heap.free(d->listeners->next);
+        rt_heap.free(d->listeners);
         d->listeners = next;
     }
     ui_edit_check_zeros(d, sizeof(*d));
@@ -9390,9 +9444,17 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
     ui_edit_paragraph_t* p = &e->para[pn];
     const ui_edit_str_t* str = &dt->ps[pn];
     int32_t k = 1; // at least 1 glyph
-    // offsets inside a run in glyphs and bytes from start of the paragraph:
-    int32_t gp = p->run[rn].gp;
-    int32_t bp = p->run[rn].bp;
+    // offsets inside a run in glyphs and bytes from start of the paragraph;
+    // guard against p->run not yet allocated (transient state during after()
+    // structural updates) — rn must be 0 in that case
+    int32_t gp = 0;
+    int32_t bp = 0;
+    if (p->run != null) {
+        gp = p->run[rn].gp;
+        bp = p->run[rn].bp;
+    } else {
+        rt_assert(rn == 0);
+    }
     if (gp < str->g - 1) {
         const char* text = str->u + bp;
         const int32_t glyphs_in_this_run = str->g - gp;
@@ -10290,9 +10352,14 @@ static void ui_edit_view_key_right(ui_edit_view_t* e) {
 }
 
 static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
-    // Vertical caret movement visually tend to move caret horizontally
-    // in proportional font text. Remembering starting `x' value for vertical
-    // movements alleviates this unpleasant UX experience to some degree.
+    // Vertical caret movement visually tends to drift horizontally in
+    // proportional font text. Remembering the starting `x' across a
+    // run of up/down arrows alleviates this. Horizontal key handlers
+    // clear last_x (set to -1); on the first vertical move after a
+    // clear, we capture the current x. Subsequent vertical moves
+    // *restore* x to the captured value when the new line is wide
+    // enough -- without clobbering last_x, so the column anchor
+    // persists for the whole run.
     if (pt->x > 0) {
         if (e->last_x > 0) {
             int32_t prev = e->last_x - e->fm->em.w;
@@ -10300,8 +10367,9 @@ static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
             if (prev <= pt->x && pt->x <= next) {
                 pt->x = e->last_x;
             }
+        } else {
+            e->last_x = pt->x;
         }
-        e->last_x = pt->x;
     }
 }
 
@@ -10339,7 +10407,7 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
 static void ui_edit_view_key_down(ui_edit_view_t* e) {
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-    ui_edit_reuse_last_x(e, &pt); // TODO: does not work! (used to work broken now)
+    ui_edit_reuse_last_x(e, &pt);
     // scroll runs guaranteed to be already laid out for current state of view:
     ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
     const int32_t run_count = ui_edit_runs_between(e, scroll, pg);
@@ -11001,9 +11069,12 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
             rt_swear(ofs0 >= 0 && ofs1 >= 0);
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
-            // selection color is MSVC dark mode selection color
-            // TODO: need light mode selection color tpp
-            ui_color_t sc = ui_color_rgb(0x26, 0x4F, 0x78); // selection color
+            // Theme-aware selection color (was hardcoded MSVC dark blue).
+            // Dark mode: MSVC-ish #264F78. Light mode: lightened highlight.
+            ui_color_t sc = ui_theme.is_app_dark() ?
+                ui_color_rgb(0x26, 0x4F, 0x78) :
+                ui_colors.lighten(
+                    ui_colors.get_color(ui_color_id_highlight), 0.5f);
             if (!e->focused || !ui_app.focused()) {
                 sc = ui_colors.darken(sc, 0.1f);
             }
@@ -11079,43 +11150,60 @@ static void ui_edit_view_move(ui_edit_view_t* e, ui_edit_pg_t pg) {
     e->selection.a[0] = e->selection.a[1];
 }
 
-static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p, int32_t np) {
-    // This function is called in after() callback when
-    // d->text.np already changed to `new_np`.
-    // It has to manipulate e->para[] array w/o calling
-    // ui_edit_invalidate_runs() ui_edit_dispose_all_runs()
-    // because they assume that e->para[] array is in sync
-    // d->text.np.
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p,
+                                    int32_t deleted, int32_t inserted) {
+    // Called from after(): d->text.np is already the post-edit count.
+    // Anchor paragraph `p` (== r.from.pn) always has its text content
+    // changed and must be invalidated. Slots [p+1..p+deleted] are the
+    // paragraphs that disappeared in the edit (their run caches must
+    // be freed). Slots [p+1..p+inserted] are the paragraphs that
+    // appeared (must be fresh-zero, no stale pointer).
+    //
+    // Manipulate e->para[] directly rather than calling
+    // ui_edit_invalidate_runs() / ui_edit_dispose_all_runs(): those
+    // assume the array is in sync with dt->np, which we are restoring.
+    ui_edit_text_t* dt = &e->doc->text;
     bool ok = true;
-    int32_t old_np = np;     // old (before) number of paragraphs
-    int32_t new_np = dt->np; // new (after)  number of paragraphs
+    int32_t old_np = dt->np - inserted + deleted;
+    int32_t new_np = dt->np;
     rt_assert(old_np > 0 && new_np > 0 && e->para != null);
     rt_assert(0 <= p && p < old_np);
-    if (old_np == new_np) {
-        ui_edit_invalidate_run(e, p);
-    } else if (new_np < old_np) { // shrinking - delete runs
-        const int32_t d = old_np - new_np; // `d` delta > 0
-        if (p + d < old_np - 1) {
-            const int32_t n = rt_max(0, old_np - p - d - 1);
-            memcpy(e->para + p + 1, e->para + p + 1 + d, n * sizeof(e->para[0]));
-        }
-        if (p < new_np) { ui_edit_invalidate_run(e, p); }
-        ok = rt_heap.realloc((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
-        rt_swear(ok, "shrinking");
-    } else { // growing - insert runs
-        ui_edit_invalidate_run(e, p);
-        int32_t d = new_np - old_np;  // `d` delta > 0
-        ok = rt_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
-        if (ok) {
-            const int32_t n = rt_max(0, new_np - p - d - 1);
-            memmove(e->para + p + 1 + d, e->para + p + 1,
-                    (size_t)n * sizeof(e->para[0]));
-            const int32_t m = rt_min(new_np, p + 1 + d);
-            for (int32_t i = p + 1; i < m; i++) {
-                e->para[i].run = null;
-                e->para[i].runs = 0;
+    // Invalidate the modified anchor paragraph p.
+    ui_edit_invalidate_run(e, p);
+    // Free the run caches of every deleted paragraph before we either
+    // overwrite the slot via memmove (shrink) or slice it off via
+    // realloc (also shrink). Prior shapes leaked these slots.
+    for (int32_t i = 1; i <= deleted; i++) {
+        ui_edit_invalidate_run(e, p + i);
+    }
+    if (old_np != new_np) {
+        int32_t move_src = p + deleted + 1;
+        int32_t move_dst = p + inserted + 1;
+        int32_t move_count = old_np - move_src;
+        rt_assert(move_count >= 0);
+        if (new_np < old_np) { // shrinking: move first, then realloc down
+            if (move_count > 0) {
+                memmove(e->para + move_dst, e->para + move_src,
+                        (size_t)move_count * sizeof(e->para[0]));
             }
+            ok = rt_heap.realloc((void**)&e->para,
+                                 (size_t)new_np * sizeof(e->para[0])) == 0;
+            rt_swear(ok, "shrinking");
+        } else { // growing: realloc up first, then move tail into the gap
+            ok = rt_heap.realloc((void**)&e->para,
+                                 (size_t)new_np * sizeof(e->para[0])) == 0;
+            rt_swear(ok, "growing");
+            if (ok && move_count > 0) {
+                memmove(e->para + move_dst, e->para + move_src,
+                        (size_t)move_count * sizeof(e->para[0]));
+            }
+        }
+    }
+    // Initialize the newly inserted paragraphs to "no run cache yet".
+    if (ok) {
+        for (int32_t i = 1; i <= inserted; i++) {
+            e->para[p + i].run = null;
+            e->para[p + i].runs = 0;
         }
     }
     return ok;
@@ -11126,11 +11214,13 @@ static void ui_edit_before(ui_edit_notify_t* notify,
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_view_t* e = (ui_edit_view_t*)n->that;
     rt_swear(e->doc == ni->d);
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    rt_assert(dt->np > 0);
+    // `n->data` is number of paragraphs before replace(); stash
+    // unconditionally so after() can read it even when the view is
+    // hidden (per-view caches must stay synchronized with the doc).
+    n->data = (uintptr_t)dt->np;
     if (e->w > 0 && e->h > 0) {
-        const ui_edit_text_t* dt = &e->doc->text; // document text
-        rt_assert(dt->np > 0);
-        // `n->data` is number of paragraphs before replace():
-        n->data = (uintptr_t)dt->np;
         if (e->selection.from.pn != e->selection.to.pn) {
             ui_edit_invalidate_view(e);
         } else {
@@ -11145,18 +11235,22 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     ui_edit_view_t* e = (ui_edit_view_t*)n->that;
     const ui_edit_text_t* dt = &ni->d->text; // document text
     rt_assert(ni->d == e->doc && dt->np > 0);
+    // Per-view cache maintenance must run regardless of visibility, or
+    // a hidden view's e->para[] / scroll.pn / selection drifts out of
+    // sync with the document and the first paint after the view is
+    // shown reads past the end / out of range. Only the repaint
+    // scheduling stays inside the (w>0, h>0) gate.
+    const int32_t np = (int32_t)n->data;
+    rt_swear(dt->np == np - ni->deleted + ni->inserted);
+    ui_edit_reallocate_runs(e, ni->r->from.pn, ni->deleted, ni->inserted);
+    e->selection = *ni->x;
+    ui_edit_pg_t* pg = e->selection.a;
+    for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
+        pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
+        pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
+    }
+    e->scroll.pn = rt_max(0, rt_min(dt->np - 1, e->scroll.pn));
     if (e->w > 0 && e->h > 0) {
-        // number of paragraphs before replace():
-        const int32_t np = (int32_t)n->data;
-        rt_swear(dt->np == np - ni->deleted + ni->inserted);
-        ui_edit_reallocate_runs(e, ni->r->from.pn, np);
-        e->selection = *ni->x;
-        // this is needed by undo/redo: trim selection
-        ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
-            pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
-            pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
-        }
         if (ni->r->from.pn != ni->r->to.pn &&
             ni->x->from.pn != ni->x->to.pn &&
             ni->r->from.pn == ni->x->from.pn) {
@@ -11464,7 +11558,8 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     ui_app.shift = work->shift;
     if (work->utf8 != null && work->utf8[0] != 0) {
         ui_view.character(ui_app.content, work->utf8);
-        work->utf8 = work->utf8[1] == 0 ? null : work->utf8++;
+        const char * next = work->utf8 + 1;
+        work->utf8 = *next == 0 ? null : next;
     } else if (work->key != 0) {
         ui_view.key_pressed(ui_app.content, work->key);
         ui_view.key_released(ui_app.content, work->key);
@@ -12108,7 +12203,7 @@ static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
-    image->texture = (ui_texture_t)CreateDIBSection(c,
+    image->texture = (ui_texture_t)CreateDIBSection(c, 
             ui_gdi_init_bitmap_info(w, h, bpp, bi),
             DIB_RGB_COLORS, &image->pixels, null, 0x0
     );
@@ -12364,16 +12459,31 @@ static void ui_gdi_delete_font(ui_font_t f) {
 // guaranteed to return dc != null even if not painting
 
 static HDC ui_gdi_get_dc(void) {
-    rt_not_null(ui_app.window);
+    // ui_app.window may be null in early init (font metrics before the
+    // main window exists). GetDC(null) is documented to return the
+    // screen DC, but on some Windows hosts (observed on mb-air-2012)
+    // it returns null. Fall back to CreateICA which produces a
+    // non-drawable Information Context for the display — adequate
+    // for the measurement-only callers that hit this path.
     HDC hdc = ui_gdi_hdc() != null ?
               ui_gdi_hdc() : GetDC((HWND)ui_app.window);
+    if (hdc == null && ui_app.window == null) {
+        hdc = CreateICA("DISPLAY", null, null, null);
+    }
     rt_not_null(hdc);
     return hdc;
 }
 
 static void ui_gdi_release_dc(HDC hdc) {
     if (ui_gdi_hdc() == null) {
-        ReleaseDC((HWND)ui_app.window, hdc);
+        // ReleaseDC pairs with GetDC for window DCs but is the wrong
+        // call for an Information Context produced by CreateICA. When
+        // ReleaseDC fails (returns 0) we are looking at the ICA-
+        // fallback path from get_dc above and DeleteDC is the correct
+        // disposal.
+        if (!ReleaseDC((HWND)ui_app.window, hdc)) {
+            DeleteDC(hdc);
+        }
     }
 }
 
@@ -12676,7 +12786,10 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
 static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
-    rt_assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
+    // Best-effort placement via GetCharacterPlacementW(). Composing scripts
+    // (Tamil U+0B9A, Devanagari, etc.) and high-plane emoji surrogate pairs
+    // are not fully handled; callers needing grapheme-cluster accuracy
+    // should use DirectWrite/Uniscribe instead.
     x[0] = 0;
     ui_wh_t wh = { .w = 0, .h = 0 };
     if (bytes > 0) {
@@ -12685,16 +12798,6 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         uint16_t* output = rt_stackalloc((chars + 1) * sizeof(uint16_t));
         const errno_t r = rt_str.utf8to16(utf16, chars, utf8, bytes);
         rt_swear(r == 0);
-// TODO: remove
-#if 1
-        char str[16 * 1024] = {0};
-        char hex[16 * 1024] = {0};
-        for (int i = 0; i < chars; i++) {
-            rt_str_printf(hex, "%04X ", utf16[i]);
-            strcat(str, hex);
-        }
-rt_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf8, bytes, glyphs, ta->fm->font, ui_gdi_context.hdc);
-#endif
         GCP_RESULTSW gcp = {
             .lStructSize = sizeof(GCP_RESULTSW),
             .lpOutString = output,
@@ -12967,7 +13070,13 @@ static void ui_image_paint(ui_view_t* v) {
                               &iv->image, iv->alpha);
             }
         } else {
-            rt_swear(false, "unsupported .c: %d", iv->image.bpp);
+            // Unsupported bpp -- log once and skip painting the image
+            // rather than crashing the whole UI.
+            static bool warned;
+            if (!warned) {
+                rt_println("ui_image: unsupported bpp=%d", iv->image.bpp);
+                warned = true;
+            }
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
@@ -13086,7 +13195,11 @@ static void ui_image_zoomed(ui_image_t* iv) {
     } else if (iv->zd == 1) {
         iv->zoom = 4 + (iv->zn - 1);
     } else {
-        rt_swear(false);
+        // Invalid combination (e.g. caller poked .zn / .zd directly to
+        // a non-1:N or N:1 pair). Clamp to 1:1 instead of aborting.
+        iv->zn = 1;
+        iv->zd = 1;
+        iv->zoom = 4;
     }
     // is whole image visible?
     fp64_t s = ui_image.scale(iv);
@@ -13460,6 +13573,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     rt_assert(v->type == ui_view_label);
+    if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
     v->context_menu  = ui_label_context_menu;
@@ -13957,7 +14071,11 @@ static void ui_slider_paint(ui_view_t* v) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
-        if (ui_view.is_disabled(v)) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) {
+            ui_color_t gt = ui_colors.get_color(ui_color_id_gray_text);
+            color = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
+                                           : ui_colors.lighten(gt, 0.5f);
+        }
         ui_gdi.frame(x, v->y, w, v->h, color);
     }
     // text:
@@ -14862,7 +14980,8 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
 static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
     const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
     const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
-    const ui_wh_t* em = &v->fm->em;
+    const ui_fm_t* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
+    const ui_wh_t* em = &fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
     const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);

@@ -146,7 +146,11 @@ static void ui_slider_paint(ui_view_t* v) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
-        if (ui_view.is_disabled(v)) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) {
+            ui_color_t gt = ui_colors.get_color(ui_color_id_gray_text);
+            color = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
+                                           : ui_colors.lighten(gt, 0.5f);
+        }
         ui_gdi.frame(x, v->y, w, v->h, color);
     }
     // text:
