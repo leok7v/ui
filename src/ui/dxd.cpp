@@ -25,11 +25,16 @@ struct dxd_context_s {
 };
 
 static D2D1_COLOR_F dxd_color_f(ui_color_t c) {
+    // ui_color_rgb() encodes opaque colors with the alpha byte == 0 (GDI
+    // ignored alpha). Direct2D honors alpha, so map 0 -> fully opaque;
+    // ui_color_rgba(...,a) with a > 0 keeps its explicit alpha.
+    uint8_t a = ui_color_a(c);
+    if (a == 0) { a = 0xFF; }
     D2D1_COLOR_F color = {
         (FLOAT)ui_color_r(c) / 255.0f,
         (FLOAT)ui_color_g(c) / 255.0f,
         (FLOAT)ui_color_b(c) / 255.0f,
-        (FLOAT)ui_color_a(c) / 255.0f
+        (FLOAT)a / 255.0f
     };
     return color;
 }

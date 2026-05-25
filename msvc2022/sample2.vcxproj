@@ -145,6 +145,9 @@
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample2.c" />
     <ClCompile Include="..\src\samples\rt.c" />
+    <ClCompile Include="..\src\ui\dxd.cpp">
+      <AdditionalOptions>/EHsc /volatile:ms</AdditionalOptions>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">

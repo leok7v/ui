@@ -143,6 +143,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\ui.c" />
+    <ClCompile Include="..\src\ui\dxd.cpp">
+      <AdditionalOptions>/EHsc /volatile:ms</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="..\src\samples\sample7.c" />
     <ClCompile Include="..\src\samples\rt.c" />
   </ItemGroup>
