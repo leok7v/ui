@@ -343,6 +343,11 @@ static uint64_t rt_thread_next_physical_processor_affinity_mask(void) {
     return mask;
 }
 
+// Note: rt_thread.realtime() promotes the WHOLE PROCESS to
+// REALTIME_PRIORITY_CLASS and forces system-wide 500us timer
+// resolution. Every other program on the machine observes the
+// elevated timer rate. Use sparingly and only for processes that
+// genuinely need sub-millisecond timing.
 static void rt_thread_realtime(void) {
     rt_fatal_win32err(SetPriorityClass(GetCurrentProcess(),
         REALTIME_PRIORITY_CLASS));

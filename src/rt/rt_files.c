@@ -74,14 +74,20 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
+static rt_thread_local int32_t rt_files_stat_depth;
+
 static errno_t rt_files_stat(rt_file_t* file, rt_files_stat_t* s,
                              bool follow_symlink) {
+    enum { max_symlink_depth = 32 };
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
     rt_fatal_win32err(GetFileInformationByHandle(file, &fi));
     const bool symlink =
         (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-    if (follow_symlink && symlink) {
+    if (follow_symlink && symlink &&
+        rt_files_stat_depth >= max_symlink_depth) {
+        r = (errno_t)ERROR_TOO_MANY_LINKS;
+    } else if (follow_symlink && symlink) {
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
@@ -96,8 +102,10 @@ static errno_t rt_files_stat(rt_file_t* file, rt_files_stat_t* s,
                 } else {
                     rt_file_t* f = rt_files.invalid;
                     r = rt_files.open(&f, name, rt_files.o_rd);
-                    if (r == 0) { // keep following:
+                    if (r == 0) {
+                        rt_files_stat_depth++;
                         r = rt_files.stat(f, s, follow_symlink);
+                        rt_files_stat_depth--;
                         rt_files.close(f);
                     }
                 }
@@ -195,7 +203,13 @@ static errno_t rt_files_unlink(const char* pathname) {
 }
 
 static errno_t rt_files_create_tmp(char* fn, int32_t count) {
-    // create temporary file (not folder!) see folders_test() about racing
+    // Create a temporary file via GetTempFileNameA -- creates the file
+    // empty, returns its path. Note: this is race-free for in-process
+    // callers (Win32 GetTempFileNameA uses sequential numbering with
+    // CREATE_NEW), but cross-process TOCTOU is possible between the
+    // call return and the caller opening the path. Callers handling
+    // sensitive content should open with O_EXCL semantics on the
+    // returned path or stay holding the implicit handle.
     rt_swear(fn != null && count > 0);
     const char* tmp = rt_files.tmp();
     errno_t r = 0;
@@ -569,14 +583,21 @@ static const char* rt_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramData
     };
     static rt_file_name_t known_folders[rt_countof(kf_ids)];
+    // Out-of-range id is a programmer bug -- keep the rt_fatal_if guard.
     rt_fatal_if(!(0 <= kf && kf < rt_countof(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
-        rt_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        const int32_t n = rt_countof(known_folders[kf].s);
-        rt_str.utf16to8(known_folders[kf].s, n, path, -1);
-        CoTaskMemFree(path);
-	}
+        // SHGetKnownFolderPath may legitimately fail (locked profile,
+        // sandboxed appcontainer, etc.). Don't abort; return an empty
+        // string and let the caller fall back. Last error is preserved
+        // so the caller can inspect rt_core.err() if it cares.
+        if (SHGetKnownFolderPath(kf_ids[kf], 0, null, &path) == S_OK &&
+            path != null) {
+            const int32_t n = rt_countof(known_folders[kf].s);
+            rt_str.utf16to8(known_folders[kf].s, n, path, -1);
+            CoTaskMemFree(path);
+        }
+    }
     return known_folders[kf].s;
 }
 

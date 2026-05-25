@@ -174,16 +174,6 @@ static uint64_t rt_num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
-static uint32_t ctz_2(uint32_t x) {
-    if (x == 0) return 32;
-    unsigned n = 0;
-    while ((x & 1) == 0) {
-        x >>= 1;
-        n++;
-    }
-    return n;
-}
-
 static void rt_num_test(void) {
     #ifdef RT_TESTS
     {

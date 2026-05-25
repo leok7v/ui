@@ -165,7 +165,12 @@ typedef struct rt_str32K_t {
 
 #define rt_str_printf(s, ...) rt_str.format((s), rt_countof(s), "" __VA_ARGS__)
 
-#define rt_strerr(r) (rt_str.error((r)).s) // use only as rt_str_printf() parameter
+// rt_strerr expands to a pointer into a return-by-value struct that
+// only lives for the surrounding full-expression. Use ONLY as an
+// argument to printf-style calls (rt_str_printf, rt_println, trace,
+// rt_fatal_if_error, etc.). Do NOT store, return, or pass into a
+// callback that outlives the call expression.
+#define rt_strerr(r) (rt_str.error((r)).s)
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -2178,13 +2183,18 @@ static void rt_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
     const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
+    // max_argv is the real pointer-slot ceiling -- subtract one for the
+    // null-terminator slot. Comparing rt_args.c against `n` (the total
+    // byte count) was meaningless: any reasonable arg count is less
+    // than the byte budget, so the guard always passed.
+    const int32_t max_argv = k / (int32_t)sizeof(void*) - 1;
     rt_fatal_if_error(rt_heap.allocate(null, &rt_args_memory, n, true));
     rt_args.c = 0;
     rt_args.v = (const char**)rt_args_memory;
     char* d = (char*)(((char*)rt_args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
-    if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+    if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
@@ -2204,15 +2214,15 @@ static void rt_args_parse(const char* s) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
         if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; } // spec does not say what to do
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
             rt_args_pair_t p = rt_args_parse_quoted(
                     (rt_args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
                     rt_args_pair_t p = rt_args_parse_backslashes(
@@ -2231,10 +2241,10 @@ static void rt_args_parse(const char* s) {
         }
         if (d < e) { *d++ = 0; }
     }
-    if (rt_args.c < n) {
+    if (rt_args.c < max_argv) {
         rt_args.v[rt_args.c] = null;
     }
-    rt_swear(rt_args.c < n, "not enough memory - adjust guestimates");
+    rt_swear(rt_args.c < max_argv, "not enough memory - adjust guestimates");
     rt_swear(d <= e, "not enough memory - adjust guestimates");
 }
 
@@ -2510,12 +2520,27 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // UT_ATOMICS_HAS_STDATOMIC_H
 
+// Pure-load atomic reads. Previous impl used add(0) which is a full
+// LOCK ADD RMW with a memory barrier -- correct but heavy for what
+// should be a cache-friendly read. Use real acquire-load when C11
+// stdatomic.h is available; on plain MSVC fall back to volatile read
+// (x86/x64 aligned loads are atomic by hardware contract).
 static int32_t rt_atomics_load_int32(volatile int32_t* a) {
-    return rt_atomics.add_int32(a, 0);
+#if defined(UT_ATOMICS_HAS_STDATOMIC_H) && !defined(__INTELLISENSE__)
+    return atomic_load_explicit((volatile atomic_int_fast32_t*)a,
+                                memory_order_acquire);
+#else
+    return *a;
+#endif
 }
 
 static int64_t rt_atomics_load_int64(volatile int64_t* a) {
-    return rt_atomics.add_int64(a, 0);
+#if defined(UT_ATOMICS_HAS_STDATOMIC_H) && !defined(__INTELLISENSE__)
+    return atomic_load_explicit((volatile atomic_int_fast64_t*)a,
+                                memory_order_acquire);
+#else
+    return *a;
+#endif
 }
 
 static void* rt_atomics_exchange_ptr(volatile void* *a, void* v) {
@@ -2734,15 +2759,22 @@ static bool rt_backtrace_function(DWORD64 pc, SYMBOL_INFO* si) {
                 DWORD64 address = 0; // closest address
                 DWORD64 min_distance = (DWORD64)-1;
                 const char* function = NULL; // closest function name
-                for (DWORD i = 0; i < dir->NumberOfNames; i++) {
-                    // function address
-                    DWORD64 fa = (DWORD64)(m + functions[ordinals[i]]);
-                    if (fa <= pc) {
-                        DWORD64 distance = pc - fa;
-                        if (distance < min_distance) {
-                            min_distance = distance;
-                            address = fa;
-                            function = (const char*)(m + names[i]);
+                // Clamp NumberOfNames against the export directory size
+                // to defend against malformed PE images.
+                DWORD n_names = dir->NumberOfNames;
+                DWORD max_names = bytes / (DWORD)sizeof(DWORD);
+                if (n_names > max_names) { n_names = max_names; }
+                for (DWORD i = 0; i < n_names; i++) {
+                    WORD ord = ordinals[i];
+                    if (ord < dir->NumberOfFunctions) {
+                        DWORD64 fa = (DWORD64)(m + functions[ord]);
+                        if (fa <= pc) {
+                            DWORD64 distance = pc - fa;
+                            if (distance < min_distance) {
+                                min_distance = distance;
+                                address = fa;
+                                function = (const char*)(m + names[i]);
+                            }
                         }
                     }
                 }
@@ -3965,14 +3997,20 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
+static rt_thread_local int32_t rt_files_stat_depth;
+
 static errno_t rt_files_stat(rt_file_t* file, rt_files_stat_t* s,
                              bool follow_symlink) {
+    enum { max_symlink_depth = 32 };
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
     rt_fatal_win32err(GetFileInformationByHandle(file, &fi));
     const bool symlink =
         (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-    if (follow_symlink && symlink) {
+    if (follow_symlink && symlink &&
+        rt_files_stat_depth >= max_symlink_depth) {
+        r = (errno_t)ERROR_TOO_MANY_LINKS;
+    } else if (follow_symlink && symlink) {
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
@@ -3987,8 +4025,10 @@ static errno_t rt_files_stat(rt_file_t* file, rt_files_stat_t* s,
                 } else {
                     rt_file_t* f = rt_files.invalid;
                     r = rt_files.open(&f, name, rt_files.o_rd);
-                    if (r == 0) { // keep following:
+                    if (r == 0) {
+                        rt_files_stat_depth++;
                         r = rt_files.stat(f, s, follow_symlink);
+                        rt_files_stat_depth--;
                         rt_files.close(f);
                     }
                 }
@@ -4086,7 +4126,13 @@ static errno_t rt_files_unlink(const char* pathname) {
 }
 
 static errno_t rt_files_create_tmp(char* fn, int32_t count) {
-    // create temporary file (not folder!) see folders_test() about racing
+    // Create a temporary file via GetTempFileNameA -- creates the file
+    // empty, returns its path. Note: this is race-free for in-process
+    // callers (Win32 GetTempFileNameA uses sequential numbering with
+    // CREATE_NEW), but cross-process TOCTOU is possible between the
+    // call return and the caller opening the path. Callers handling
+    // sensitive content should open with O_EXCL semantics on the
+    // returned path or stay holding the implicit handle.
     rt_swear(fn != null && count > 0);
     const char* tmp = rt_files.tmp();
     errno_t r = 0;
@@ -4460,14 +4506,21 @@ static const char* rt_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramData
     };
     static rt_file_name_t known_folders[rt_countof(kf_ids)];
+    // Out-of-range id is a programmer bug -- keep the rt_fatal_if guard.
     rt_fatal_if(!(0 <= kf && kf < rt_countof(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
-        rt_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        const int32_t n = rt_countof(known_folders[kf].s);
-        rt_str.utf16to8(known_folders[kf].s, n, path, -1);
-        CoTaskMemFree(path);
-	}
+        // SHGetKnownFolderPath may legitimately fail (locked profile,
+        // sandboxed appcontainer, etc.). Don't abort; return an empty
+        // string and let the caller fall back. Last error is preserved
+        // so the caller can inspect rt_core.err() if it cares.
+        if (SHGetKnownFolderPath(kf_ids[kf], 0, null, &path) == S_OK &&
+            path != null) {
+            const int32_t n = rt_countof(known_folders[kf].s);
+            rt_str.utf16to8(known_folders[kf].s, n, path, -1);
+            CoTaskMemFree(path);
+        }
+    }
     return known_folders[kf].s;
 }
 
@@ -5862,16 +5915,6 @@ static uint64_t rt_num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
-static uint32_t ctz_2(uint32_t x) {
-    if (x == 0) return 32;
-    unsigned n = 0;
-    while ((x & 1) == 0) {
-        x >>= 1;
-        n++;
-    }
-    return n;
-}
-
 static void rt_num_test(void) {
     #ifdef RT_TESTS
     {
@@ -6579,8 +6622,8 @@ static int32_t rt_str_utf8bytes(const char* s, int32_t b) {
         return 1;
     } else if (b > 1) {
         uint32_t c = (u[0] << 8) | u[1];
-        // TODO: 0xC080 is a hack - consider removing
-        if (c == 0xC080) { return 2; } // 0xC080 as not zero terminating '\0'
+        // RFC 3629: overlong forms (incl. the modified-UTF-8 0xC080
+        // encoding of NUL) are not valid UTF-8 and are rejected here.
         if (0xC280 <= c && c <= 0xDFBF && (c & 0xE0C0) == 0xC080) { return 2; }
         if (b > 2) {
             c = (c << 8) | u[2];
@@ -6737,27 +6780,26 @@ static bool rt_str_utf16_is_high_surrogate(uint16_t utf16char) {
 }
 
 static uint32_t rt_str_utf32(const char* utf8, int32_t bytes) {
-    uint32_t utf32 = 0;
-    if ((utf8[0] & 0x80) == 0) {
-        utf32 = utf8[0];
-        rt_swear(bytes == 1);
-    } else if ((utf8[0] & 0xE0) == 0xC0) {
-        utf32  = (utf8[0] & 0x1F) << 6;
-        utf32 |= (utf8[1] & 0x3F);
-        rt_swear(bytes == 2);
-    } else if ((utf8[0] & 0xF0) == 0xE0) {
-        utf32  = (utf8[0] & 0x0F) << 12;
-        utf32 |= (utf8[1] & 0x3F) <<  6;
-        utf32 |= (utf8[2] & 0x3F);
-        rt_swear(bytes == 3);
-    } else if ((utf8[0] & 0xF8) == 0xF0) {
-        utf32  = (utf8[0] & 0x07) << 18;
-        utf32 |= (utf8[1] & 0x3F) << 12;
-        utf32 |= (utf8[2] & 0x3F) <<  6;
-        utf32 |= (utf8[3] & 0x3F);
-        rt_swear(bytes == 4);
-    } else {
-        rt_swear(false);
+    // U+FFFD REPLACEMENT CHARACTER on invalid / truncated input
+    uint32_t utf32 = 0xFFFD;
+    if (bytes >= 1 && (utf8[0] & 0x80) == 0) {
+        utf32 = (uint8_t)utf8[0];
+    } else if (bytes >= 2 && (utf8[0] & 0xE0) == 0xC0 &&
+               (utf8[1] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x1F) << 6;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F);
+    } else if (bytes >= 3 && (utf8[0] & 0xF0) == 0xE0 &&
+               (utf8[1] & 0xC0) == 0x80 && (utf8[2] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x0F) << 12;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F) <<  6;
+        utf32 |= (uint32_t)(utf8[2] & 0x3F);
+    } else if (bytes >= 4 && (utf8[0] & 0xF8) == 0xF0 &&
+               (utf8[1] & 0xC0) == 0x80 && (utf8[2] & 0xC0) == 0x80 &&
+               (utf8[3] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x07) << 18;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F) << 12;
+        utf32 |= (uint32_t)(utf8[2] & 0x3F) <<  6;
+        utf32 |= (uint32_t)(utf8[3] & 0x3F);
     }
     return utf32;
 }
@@ -7559,6 +7601,11 @@ static uint64_t rt_thread_next_physical_processor_affinity_mask(void) {
     return mask;
 }
 
+// Note: rt_thread.realtime() promotes the WHOLE PROCESS to
+// REALTIME_PRIORITY_CLASS and forces system-wide 500us timer
+// resolution. Every other program on the machine observes the
+// elevated timer rate. Use sparingly and only for processes that
+// genuinely need sub-millisecond timing.
 static void rt_thread_realtime(void) {
     rt_fatal_win32err(SetPriorityClass(GetCurrentProcess(),
         REALTIME_PRIORITY_CLASS));
@@ -8058,31 +8105,34 @@ static void rt_work_queue_post(rt_work_t* w) {
 }
 
 static void rt_work_queue_cancel(rt_work_t* w) {
-    rt_swear(!w->canceled && w->queue != null && w->queue->head != null);
-    rt_work_queue_t* q = w->queue;
-    rt_atomics.spinlock_acquire(&q->lock);
-    rt_work_t* p = null;
-    rt_work_t* e = q->head;
-    bool changed = false; // head changed
-    while (e != null && !w->canceled) {
-        if (e == w) {
-            changed = p == null;
-            if (changed) {
-                q->head = e->next;
-        } else {
-                p->next = e->next;
+    // Idempotent: cancel of an already-canceled, already-dispatched,
+    // or never-queued item is a no-op. Only requires a non-null queue
+    // reference so we know which lock to take.
+    if (w != null && w->queue != null && !w->canceled) {
+        rt_work_queue_t* q = w->queue;
+        rt_atomics.spinlock_acquire(&q->lock);
+        rt_work_t* p = null;
+        rt_work_t* e = q->head;
+        bool changed = false; // head changed
+        while (e != null && !w->canceled) {
+            if (e == w) {
+                changed = p == null;
+                if (changed) {
+                    q->head = e->next;
+                } else {
+                    p->next = e->next;
+                }
+                e->next = null;
+                e->canceled = true;
+            } else {
+                p = e;
+                e = e->next;
             }
-            e->next = null;
-            e->canceled = true;
-        } else {
-            p = e;
-            e = e->next;
         }
+        rt_atomics.spinlock_release(&q->lock);
+        if (w->canceled && w->done != null) { rt_event.set(w->done); }
+        if (changed && q->changed != null) { rt_event.set(q->changed); }
     }
-    rt_atomics.spinlock_release(&q->lock);
-    rt_swear(w->canceled);
-    if (w->done != null) { rt_event.set(w->done); }
-    if (changed && q->changed != null) { rt_event.set(q->changed); }
 }
 
 static void rt_work_queue_flush(rt_work_queue_t* q) {

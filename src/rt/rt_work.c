@@ -35,31 +35,34 @@ static void rt_work_queue_post(rt_work_t* w) {
 }
 
 static void rt_work_queue_cancel(rt_work_t* w) {
-    rt_swear(!w->canceled && w->queue != null && w->queue->head != null);
-    rt_work_queue_t* q = w->queue;
-    rt_atomics.spinlock_acquire(&q->lock);
-    rt_work_t* p = null;
-    rt_work_t* e = q->head;
-    bool changed = false; // head changed
-    while (e != null && !w->canceled) {
-        if (e == w) {
-            changed = p == null;
-            if (changed) {
-                q->head = e->next;
-        } else {
-                p->next = e->next;
+    // Idempotent: cancel of an already-canceled, already-dispatched,
+    // or never-queued item is a no-op. Only requires a non-null queue
+    // reference so we know which lock to take.
+    if (w != null && w->queue != null && !w->canceled) {
+        rt_work_queue_t* q = w->queue;
+        rt_atomics.spinlock_acquire(&q->lock);
+        rt_work_t* p = null;
+        rt_work_t* e = q->head;
+        bool changed = false; // head changed
+        while (e != null && !w->canceled) {
+            if (e == w) {
+                changed = p == null;
+                if (changed) {
+                    q->head = e->next;
+                } else {
+                    p->next = e->next;
+                }
+                e->next = null;
+                e->canceled = true;
+            } else {
+                p = e;
+                e = e->next;
             }
-            e->next = null;
-            e->canceled = true;
-        } else {
-            p = e;
-            e = e->next;
         }
+        rt_atomics.spinlock_release(&q->lock);
+        if (w->canceled && w->done != null) { rt_event.set(w->done); }
+        if (changed && q->changed != null) { rt_event.set(q->changed); }
     }
-    rt_atomics.spinlock_release(&q->lock);
-    rt_swear(w->canceled);
-    if (w->done != null) { rt_event.set(w->done); }
-    if (changed && q->changed != null) { rt_event.set(q->changed); }
 }
 
 static void rt_work_queue_flush(rt_work_queue_t* q) {

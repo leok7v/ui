@@ -26,7 +26,12 @@ typedef struct rt_str32K_t {
 
 #define rt_str_printf(s, ...) rt_str.format((s), rt_countof(s), "" __VA_ARGS__)
 
-#define rt_strerr(r) (rt_str.error((r)).s) // use only as rt_str_printf() parameter
+// rt_strerr expands to a pointer into a return-by-value struct that
+// only lives for the surrounding full-expression. Use ONLY as an
+// argument to printf-style calls (rt_str_printf, rt_println, trace,
+// rt_fatal_if_error, etc.). Do NOT store, return, or pass into a
+// callback that outlives the call expression.
+#define rt_strerr(r) (rt_str.error((r)).s)
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.

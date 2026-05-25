@@ -27,8 +27,8 @@ static int32_t rt_str_utf8bytes(const char* s, int32_t b) {
         return 1;
     } else if (b > 1) {
         uint32_t c = (u[0] << 8) | u[1];
-        // TODO: 0xC080 is a hack - consider removing
-        if (c == 0xC080) { return 2; } // 0xC080 as not zero terminating '\0'
+        // RFC 3629: overlong forms (incl. the modified-UTF-8 0xC080
+        // encoding of NUL) are not valid UTF-8 and are rejected here.
         if (0xC280 <= c && c <= 0xDFBF && (c & 0xE0C0) == 0xC080) { return 2; }
         if (b > 2) {
             c = (c << 8) | u[2];
@@ -185,27 +185,26 @@ static bool rt_str_utf16_is_high_surrogate(uint16_t utf16char) {
 }
 
 static uint32_t rt_str_utf32(const char* utf8, int32_t bytes) {
-    uint32_t utf32 = 0;
-    if ((utf8[0] & 0x80) == 0) {
-        utf32 = utf8[0];
-        rt_swear(bytes == 1);
-    } else if ((utf8[0] & 0xE0) == 0xC0) {
-        utf32  = (utf8[0] & 0x1F) << 6;
-        utf32 |= (utf8[1] & 0x3F);
-        rt_swear(bytes == 2);
-    } else if ((utf8[0] & 0xF0) == 0xE0) {
-        utf32  = (utf8[0] & 0x0F) << 12;
-        utf32 |= (utf8[1] & 0x3F) <<  6;
-        utf32 |= (utf8[2] & 0x3F);
-        rt_swear(bytes == 3);
-    } else if ((utf8[0] & 0xF8) == 0xF0) {
-        utf32  = (utf8[0] & 0x07) << 18;
-        utf32 |= (utf8[1] & 0x3F) << 12;
-        utf32 |= (utf8[2] & 0x3F) <<  6;
-        utf32 |= (utf8[3] & 0x3F);
-        rt_swear(bytes == 4);
-    } else {
-        rt_swear(false);
+    // U+FFFD REPLACEMENT CHARACTER on invalid / truncated input
+    uint32_t utf32 = 0xFFFD;
+    if (bytes >= 1 && (utf8[0] & 0x80) == 0) {
+        utf32 = (uint8_t)utf8[0];
+    } else if (bytes >= 2 && (utf8[0] & 0xE0) == 0xC0 &&
+               (utf8[1] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x1F) << 6;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F);
+    } else if (bytes >= 3 && (utf8[0] & 0xF0) == 0xE0 &&
+               (utf8[1] & 0xC0) == 0x80 && (utf8[2] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x0F) << 12;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F) <<  6;
+        utf32 |= (uint32_t)(utf8[2] & 0x3F);
+    } else if (bytes >= 4 && (utf8[0] & 0xF8) == 0xF0 &&
+               (utf8[1] & 0xC0) == 0x80 && (utf8[2] & 0xC0) == 0x80 &&
+               (utf8[3] & 0xC0) == 0x80) {
+        utf32  = (uint32_t)(utf8[0] & 0x07) << 18;
+        utf32 |= (uint32_t)(utf8[1] & 0x3F) << 12;
+        utf32 |= (uint32_t)(utf8[2] & 0x3F) <<  6;
+        utf32 |= (uint32_t)(utf8[3] & 0x3F);
     }
     return utf32;
 }

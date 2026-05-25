@@ -68,15 +68,22 @@ static bool rt_backtrace_function(DWORD64 pc, SYMBOL_INFO* si) {
                 DWORD64 address = 0; // closest address
                 DWORD64 min_distance = (DWORD64)-1;
                 const char* function = NULL; // closest function name
-                for (DWORD i = 0; i < dir->NumberOfNames; i++) {
-                    // function address
-                    DWORD64 fa = (DWORD64)(m + functions[ordinals[i]]);
-                    if (fa <= pc) {
-                        DWORD64 distance = pc - fa;
-                        if (distance < min_distance) {
-                            min_distance = distance;
-                            address = fa;
-                            function = (const char*)(m + names[i]);
+                // Clamp NumberOfNames against the export directory size
+                // to defend against malformed PE images.
+                DWORD n_names = dir->NumberOfNames;
+                DWORD max_names = bytes / (DWORD)sizeof(DWORD);
+                if (n_names > max_names) { n_names = max_names; }
+                for (DWORD i = 0; i < n_names; i++) {
+                    WORD ord = ordinals[i];
+                    if (ord < dir->NumberOfFunctions) {
+                        DWORD64 fa = (DWORD64)(m + functions[ord]);
+                        if (fa <= pc) {
+                            DWORD64 distance = pc - fa;
+                            if (distance < min_distance) {
+                                min_distance = distance;
+                                address = fa;
+                                function = (const char*)(m + names[i]);
+                            }
                         }
                     }
                 }

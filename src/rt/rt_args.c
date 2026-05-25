@@ -147,13 +147,18 @@ static void rt_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
     const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
+    // max_argv is the real pointer-slot ceiling -- subtract one for the
+    // null-terminator slot. Comparing rt_args.c against `n` (the total
+    // byte count) was meaningless: any reasonable arg count is less
+    // than the byte budget, so the guard always passed.
+    const int32_t max_argv = k / (int32_t)sizeof(void*) - 1;
     rt_fatal_if_error(rt_heap.allocate(null, &rt_args_memory, n, true));
     rt_args.c = 0;
     rt_args.v = (const char**)rt_args_memory;
     char* d = (char*)(((char*)rt_args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
-    if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+    if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
@@ -173,15 +178,15 @@ static void rt_args_parse(const char* s) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
         if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; } // spec does not say what to do
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
             rt_args_pair_t p = rt_args_parse_quoted(
                     (rt_args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+            if (rt_args.c < max_argv) { rt_args.v[rt_args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
                     rt_args_pair_t p = rt_args_parse_backslashes(
@@ -200,10 +205,10 @@ static void rt_args_parse(const char* s) {
         }
         if (d < e) { *d++ = 0; }
     }
-    if (rt_args.c < n) {
+    if (rt_args.c < max_argv) {
         rt_args.v[rt_args.c] = null;
     }
-    rt_swear(rt_args.c < n, "not enough memory - adjust guestimates");
+    rt_swear(rt_args.c < max_argv, "not enough memory - adjust guestimates");
     rt_swear(d <= e, "not enough memory - adjust guestimates");
 }
 

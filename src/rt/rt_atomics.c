@@ -137,12 +137,27 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // UT_ATOMICS_HAS_STDATOMIC_H
 
+// Pure-load atomic reads. Previous impl used add(0) which is a full
+// LOCK ADD RMW with a memory barrier -- correct but heavy for what
+// should be a cache-friendly read. Use real acquire-load when C11
+// stdatomic.h is available; on plain MSVC fall back to volatile read
+// (x86/x64 aligned loads are atomic by hardware contract).
 static int32_t rt_atomics_load_int32(volatile int32_t* a) {
-    return rt_atomics.add_int32(a, 0);
+#if defined(UT_ATOMICS_HAS_STDATOMIC_H) && !defined(__INTELLISENSE__)
+    return atomic_load_explicit((volatile atomic_int_fast32_t*)a,
+                                memory_order_acquire);
+#else
+    return *a;
+#endif
 }
 
 static int64_t rt_atomics_load_int64(volatile int64_t* a) {
-    return rt_atomics.add_int64(a, 0);
+#if defined(UT_ATOMICS_HAS_STDATOMIC_H) && !defined(__INTELLISENSE__)
+    return atomic_load_explicit((volatile atomic_int_fast64_t*)a,
+                                memory_order_acquire);
+#else
+    return *a;
+#endif
 }
 
 static void* rt_atomics_exchange_ptr(volatile void* *a, void* v) {
