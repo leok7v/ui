@@ -1,11 +1,12 @@
 # mandelbrot
 
-![mandelbrot](screenshots/mandelbrot.png)
+![mandelbrot](screenshots/mandelbrot.gif)
 
 A full Mandelbrot explorer, and the most complete sample. The fractal is
 drawn in the center; a panel on the right carries the controls and a live
 readout; thin panels run along the top and bottom. Each panel is labelled
-with its own position and size.
+with its own position and size. The animation shows the locale button
+switching the right-panel text between English and Simplified Chinese.
 
 ## What it demonstrates
 

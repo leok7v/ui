@@ -4657,6 +4657,176 @@ struct posix_backtrace_if posix_backtrace = {
 
 // _________________________________ posix_nls.c _________________________________
 
+#if defined(_WIN32)
+
+// Win32 national language support: localized UI strings are compiled per
+// language into RT_STRING resource tables (see samples/sample.rc, which needs
+// the resource compiler's null-terminate-strings option). init() indexes the
+// neutral-English table so str() can map an English literal -> string id ->
+// the current locale's resource string. Ported from the rt runtime.
+
+enum {
+    posix_nls_str_count_max = 1024,
+    posix_nls_str_mem_max   = 64 * posix_nls_str_count_max
+};
+
+static char  posix_nls_strings_memory[posix_nls_str_mem_max];
+static char* posix_nls_strings_free = posix_nls_strings_memory;
+static int32_t posix_nls_strings_count;
+static const char* posix_nls_ls[posix_nls_str_count_max]; // localized strings
+static const char* posix_nls_ns[posix_nls_str_count_max]; // neutral en strings
+
+posix_static_assertion(posix_countof(posix_nls_ns) % 16 == 0);
+
+static uint16_t* posix_nls_load_string(int32_t strid, LANGID lang_id) {
+    posix_assert(0 <= strid && strid < posix_countof(posix_nls_ns));
+    uint16_t* r = null;
+    int32_t block = strid / 16 + 1;
+    int32_t index = strid % 16;
+    HRSRC res = FindResourceExW((HMODULE)null, RT_STRING,
+        MAKEINTRESOURCEW(block), lang_id);
+    uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
+    uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
+    if (ws != null) {
+        for (int32_t i = 0; i < 16 && r == null; i++) {
+            if (ws[0] != 0) {
+                int32_t count = (int32_t)ws[0]; // string length in characters
+                ws++;
+                posix_assert(ws[count - 1] == 0, "resource compiler must "
+                             "null-terminate strings");
+                if (i == index) { r = ws; }
+                ws += count;
+            } else {
+                ws++;
+            }
+        }
+    }
+    return r;
+}
+
+static const char* posix_nls_save_string(uint16_t* utf16) {
+    const int32_t bytes = posix_str.utf8_bytes(utf16, -1);
+    posix_swear(bytes > 1);
+    char* s = posix_nls_strings_free;
+    uintptr_t left = (uintptr_t)posix_countof(posix_nls_strings_memory) -
+        (uintptr_t)(posix_nls_strings_free - posix_nls_strings_memory);
+    posix_fatal_if(left < (uintptr_t)bytes, "posix_nls_strings_memory[] overflow");
+    posix_str.utf16to8(s, (int32_t)left, utf16, -1);
+    posix_assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
+    posix_nls_strings_free += bytes;
+    return s;
+}
+
+static const char* posix_nls_localized_string(int32_t strid) {
+    posix_swear(0 < strid && strid < posix_countof(posix_nls_ns));
+    const char* s = null;
+    if (0 < strid && strid < posix_countof(posix_nls_ns)) {
+        if (posix_nls_ls[strid] != null) {
+            s = posix_nls_ls[strid];
+        } else {
+            LCID lc_id = GetThreadLocale();
+            LANGID lang_id = LANGIDFROMLCID(lc_id);
+            uint16_t* utf16 = posix_nls_load_string(strid, lang_id);
+            if (utf16 == null) { // try the neutral dialect:
+                LANGID primary = PRIMARYLANGID(lang_id);
+                lang_id = MAKELANGID(primary, SUBLANG_NEUTRAL);
+                utf16 = posix_nls_load_string(strid, lang_id);
+            }
+            if (utf16 != null && utf16[0] != 0x0000) {
+                s = posix_nls_save_string(utf16);
+                posix_nls_ls[strid] = s;
+            }
+        }
+    }
+    return s;
+}
+
+static int32_t posix_nls_strid(const char* s) {
+    int32_t strid = -1;
+    for (int32_t i = 1; i < posix_nls_strings_count && strid == -1; i++) {
+        if (posix_nls_ns[i] != null && strcmp(s, posix_nls_ns[i]) == 0) {
+            strid = i;
+            posix_nls_localized_string(strid); // load + cache, ignore result
+        }
+    }
+    return strid;
+}
+
+static const char* posix_nls_string(int32_t strid, const char* defau1t) {
+    const char* r = posix_nls_localized_string(strid);
+    return r == null ? defau1t : r;
+}
+
+static const char* posix_nls_str(const char* s) {
+    int32_t id = posix_nls_strid(s);
+    return id < 0 ? s : posix_nls_string(id, s);
+}
+
+static const char* posix_nls_locale(void) {
+    uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
+    LCID lc_id = GetThreadLocale();
+    int32_t n = LCIDToLocaleName(lc_id, utf16, posix_countof(utf16),
+        LOCALE_ALLOW_NEUTRAL_NAMES);
+    static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
+    ln[0] = 0;
+    if (n == 0) {
+        posix_println("LCIDToLocaleName(0x%04X) failed %d", lc_id, posix_core.err());
+    } else {
+        posix_str.utf16to8(ln, posix_countof(ln), utf16, -1);
+    }
+    return ln;
+}
+
+static int posix_nls_set_locale(const char* locale) {
+    int r = 0;
+    uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
+    posix_str.utf8to16(utf16, posix_countof(utf16), locale, -1);
+    uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
+    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)posix_countof(rln));
+    if (n == 0) {
+        r = posix_core.err();
+        posix_println("ResolveLocaleName(\"%s\") failed %d", locale, r);
+    } else {
+        LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
+        if (lc_id == 0) {
+            r = posix_core.err();
+            posix_println("LocaleNameToLCID(\"%s\") failed %d", locale, r);
+        } else {
+            posix_fatal_win32err(SetThreadLocale(lc_id));
+            memset((void*)posix_nls_ls, 0, sizeof(posix_nls_ls)); // re-resolve
+        }
+    }
+    return r;
+}
+
+static void posix_nls_init(void) {
+    LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
+    for (int32_t strid = 0; strid < posix_countof(posix_nls_ns); strid += 16) {
+        int32_t block = strid / 16 + 1;
+        HRSRC res = FindResourceExW((HMODULE)null, RT_STRING,
+            MAKEINTRESOURCEW(block), lang_id);
+        uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
+        uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
+        if (ws == null) { break; }
+        for (int32_t i = 0; i < 16; i++) {
+            int32_t ix = strid + i;
+            uint16_t count = ws[0];
+            if (count > 0) {
+                ws++;
+                posix_fatal_if(ws[count - 1] != 0, "resource compiler must "
+                               "null-terminate strings");
+                posix_nls_ns[ix] = posix_nls_save_string(ws);
+                posix_nls_strings_count = ix + 1;
+                ws += count;
+            } else {
+                ws++;
+            }
+        }
+    }
+}
+
+#else // POSIX: no Win32 resource string tables (gettext could be wired here)
+
 static void posix_nls_init(void) {
     setlocale(LC_ALL, "");
 }
@@ -4671,7 +4841,7 @@ static int posix_nls_set_locale(const char* locale) {
 }
 
 static const char* posix_nls_str(const char* defau1t) {
-    return defau1t; // Stub: wire to gettext if resource bundles are used
+    return defau1t;
 }
 
 static int32_t posix_nls_strid(const char* s) {
@@ -4683,6 +4853,8 @@ static const char* posix_nls_string(int32_t strid, const char* defau1t) {
     (void)strid;
     return defau1t;
 }
+
+#endif // _WIN32
 
 struct posix_nls_if posix_nls = {
     .init       = posix_nls_init,
