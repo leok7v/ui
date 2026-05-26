@@ -311,7 +311,69 @@ static void posix_args_fini(void) {
     posix_args.v = null;
 }
 
+#if defined(_WIN32)
+
+static void posix_args_test_verify(const char* cl, int32_t expected, ...) {
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) {
+        posix_println("cl: `%s`", cl);
+    }
+    int32_t argc = posix_args.c;
+    const char** argv = posix_args.v;
+    void* memory = posix_args_memory;
+    posix_args.c = 0;
+    posix_args.v = null;
+    posix_args_memory = null;
+    posix_args_parse(cl);
+    va_list va;
+    va_start(va, expected);
+    for (int32_t i = 0; i < expected; i++) {
+        const char* s = va_arg(va, const char*);
+        const char* ai = posix_args.v[i];
+        posix_swear(strcmp(ai, s) == 0, "posix_args.v[%d]: `%s` expected: `%s`",
+                 i, ai, s);
+    }
+    va_end(va);
+    posix_args.fini();
+    // restore command line arguments:
+    posix_args.c = argc;
+    posix_args.v = argv;
+    posix_args_memory = memory;
+}
+
+static void posix_args_test(void) {
+    // The first argument (posix_args.v[0]) is treated specially.
+    // It represents the program name. Because it must be a valid pathname,
+    // parts surrounded by quote (") are allowed. The quote aren't included
+    // in the posix_args.v[0] output. The parts surrounded by quote prevent
+    // interpretation of a space or tab character as the end of the argument.
+    // The escaping rules don't apply.
+    posix_args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
+                     "c:\\foo\\bar\\snafu.exe");
+    posix_args_test_verify("c:\\foo\\bar\\snafu.exe", 1,
+                     "c:\\foo\\bar\\snafu.exe");
+    posix_args_test_verify("foo.exe \"a b c\" d e", 4,
+                     "foo.exe", "a b c", "d", "e");
+    posix_args_test_verify("foo.exe \"ab\\\"c\" \"\\\\\" d", 4,
+                     "foo.exe", "ab\"c", "\\", "d");
+    posix_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+                     "foo.exe", "a\\\\\\b", "de fg", "h");
+    posix_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+                     "foo.exe", "a\\\\\\b", "de fg", "h");
+    posix_args_test_verify("foo.exe a\"b\"\" c d", 2, // unmatched quote
+                     "foo.exe", "ab\" c d");
+    // unbalanced quote and backslash:
+    posix_args_test_verify("foo.exe \"",     2, "foo.exe", "\"");
+    posix_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
+    posix_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
+    posix_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#else
+
 static void posix_args_test(void) {}
+
+#endif
 
 struct posix_args_if posix_args = {
     .main         = posix_args_main,
@@ -357,7 +419,29 @@ static void posix_core_seterr(int err) { errno = err; }
 
 static void posix_core_exit(int32_t exit_code) { exit(exit_code); }
 
-static void posix_core_test(void) {}
+static void posix_core_test(void) { // in alphabetical order
+    posix_args.test();
+    posix_atomics.test();
+    posix_backtrace.test();
+    posix_clipboard.test();
+    posix_clock.test();
+    posix_config.test();
+    posix_debug.test();
+    posix_event.test();
+    posix_files.test();
+    posix_heap.test();
+    posix_loader.test();
+    posix_mem.test();
+    posix_mutex.test();
+    posix_num.test();
+    posix_processes.test();
+    posix_static_init_test();
+    posix_str.test();
+    posix_streams.test();
+    posix_thread.test();
+    posix_vigil.test();
+    posix_worker.test();
+}
 
 struct posix_core_if posix_core = {
     .err     = posix_core_err,
@@ -474,7 +558,9 @@ static void posix_debug_println_va(const char * file, int32_t line, const char *
     char output[4096];
     snprintf(output, posix_countof(output) - 1, "%s %s\n", prefix, text);
     output[posix_countof(output) - 1] = 0;
-    posix_debug.output(output, (int32_t)strlen(output));
+    // count includes the terminating 0x00 so posix_debug.tee()'s
+    // zero-terminated contract (s[count - 1] == 0) holds for interceptors.
+    posix_debug.output(output, (int32_t)strlen(output) + 1);
 }
 
 static void posix_debug_perrno(const char * file, int32_t line,
@@ -558,7 +644,10 @@ static int32_t posix_debug_verbosity_from_string(const char * s) {
     return r;
 }
 
-static void posix_debug_test(void) {}
+static void posix_debug_test(void) {
+    // not clear what can be tested here
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_debug_if posix_debug = {
     .verbosity = {
@@ -981,7 +1070,86 @@ static struct posix_str128 posix_str_fp(const char * format, fp64_t v) {
     return text;
 }
 
-static void posix_str_test(void) {}
+static void posix_str_test(void) {
+    posix_swear(posix_str.len("hello") == 5);
+    posix_swear(posix_str.starts("hello world", "hello"));
+    posix_swear(posix_str.ends("hello world", "world"));
+    posix_swear(posix_str.istarts("hello world", "HeLlO"));
+    posix_swear(posix_str.iends("hello world", "WoRlD"));
+    char ls[20] = {0};
+    posix_str.lower(ls, posix_countof(ls), "HeLlO WoRlD");
+    posix_swear(strcmp(ls, "hello world") == 0);
+    char upper[11] = {0};
+    posix_str.upper(upper, posix_countof(upper), "hello12345");
+    posix_swear(strcmp(upper,  "HELLO12345") == 0);
+    #pragma push_macro("glyph_chinese_one")
+    #pragma push_macro("glyph_chinese_two")
+    #pragma push_macro("glyph_teddy_bear")
+    #pragma push_macro("glyph_ice_cube")
+    #define glyph_chinese_one "\xE5\xA3\xB9"
+    #define glyph_chinese_two "\xE8\xB5\xB0"
+    #define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
+    #define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
+    const char* utf8_str =
+            glyph_teddy_bear
+            "0"
+            glyph_chinese_one glyph_chinese_two
+            "3456789 "
+            glyph_ice_cube;
+    posix_swear(posix_str.utf8bytes("\x01", 1) == 1);
+    posix_swear(posix_str.utf8bytes("\x7F", 1) == 1);
+    posix_swear(posix_str.utf8bytes("\x80", 1) == 0);
+    posix_swear(posix_str.utf8bytes(glyph_chinese_one, 1) == 0);
+    posix_swear(posix_str.utf8bytes(glyph_chinese_one, 2) == 0);
+    posix_swear(posix_str.utf8bytes(glyph_chinese_one, 3) == 3);
+    posix_swear(posix_str.utf8bytes(glyph_teddy_bear,  4) == 4);
+    #pragma pop_macro("glyph_ice_cube")
+    #pragma pop_macro("glyph_teddy_bear")
+    #pragma pop_macro("glyph_chinese_two")
+    #pragma pop_macro("glyph_chinese_one")
+    uint16_t wide_str[100] = {0};
+    posix_str.utf8to16(wide_str, posix_countof(wide_str), utf8_str, -1);
+    char utf8[100] = {0};
+    posix_str.utf16to8(utf8, posix_countof(utf8), wide_str, -1);
+    uint16_t utf16[100];
+    posix_str.utf8to16(utf16, posix_countof(utf16), utf8, -1);
+    char narrow_str[100] = {0};
+    posix_str.utf16to8(narrow_str, posix_countof(narrow_str), utf16, -1);
+    posix_swear(strcmp(narrow_str, utf8_str) == 0);
+    char formatted[100];
+    posix_str.format(formatted, posix_countof(formatted), "n: %d, s: %s", 42, "test");
+    posix_swear(strcmp(formatted, "n: 42, s: test") == 0);
+    // numeric values digit grouping format:
+    posix_swear(strcmp("0", posix_str.int64_dg(0, true, ",").s) == 0);
+    posix_swear(strcmp("-1", posix_str.int64_dg(-1, false, ",").s) == 0);
+    posix_swear(strcmp("999", posix_str.int64_dg(999, true, ",").s) == 0);
+    posix_swear(strcmp("-999", posix_str.int64_dg(-999, false, ",").s) == 0);
+    posix_swear(strcmp("1,001", posix_str.int64_dg(1001, true, ",").s) == 0);
+    posix_swear(strcmp("-1,001", posix_str.int64_dg(-1001, false, ",").s) == 0);
+    posix_swear(strcmp("18,446,744,073,709,551,615",
+        posix_str.int64_dg(UINT64_MAX, true, ",").s) == 0
+    );
+    posix_swear(strcmp("9,223,372,036,854,775,807",
+        posix_str.int64_dg(INT64_MAX, false, ",").s) == 0
+    );
+    posix_swear(strcmp("-9,223,372,036,854,775,808",
+        posix_str.int64_dg(INT64_MIN, false, ",").s) == 0
+    );
+    //  see:
+    // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+    uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
+    posix_swear(strcmp("3.141592741",
+                posix_str.fp("%.9f", *(fp32_t*)&pi_fp32).s) == 0,
+          "%s", posix_str.fp("%.9f", *(fp32_t*)&pi_fp32).s
+    );
+    //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+    uint64_t pi_fp64 = 0x400921FB54442D18ULL;
+    posix_swear(strcmp("3.141592653589793116",
+                posix_str.fp("%.18f", *(fp64_t*)&pi_fp64).s) == 0,
+          "%s", posix_str.fp("%.18f", *(fp64_t*)&pi_fp64).s
+    );
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_str_if posix_str = {
     .drop_const              = posix_str_drop_const,
@@ -1073,7 +1241,91 @@ static int32_t posix_vigil_fatal_if_error(const char * file, int32_t line,
     return 0;
 }
 
-static void posix_vigil_test(void) {}
+static struct posix_vigil_if posix_vigil_test_saved;
+static int32_t              posix_vigil_test_failed_assertion_count;
+
+#pragma push_macro("posix_vigil")
+// intimate knowledge of vigil.*() functions used in macro definitions
+#define posix_vigil posix_vigil_test_saved
+
+static int32_t posix_vigil_test_failed_assertion(const char* file, int32_t line,
+        const char* func, const char* condition, const char* format, ...) {
+    posix_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    posix_fatal_if_not(line > __LINE__, "line: %s", line);
+    posix_assert(strcmp(func, "posix_vigil_test") == 0, "func: %s", func);
+    posix_fatal_if(condition == null || condition[0] == 0);
+    posix_fatal_if(format == null || format[0] == 0);
+    posix_vigil_test_failed_assertion_count++;
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) {
+        va_list va;
+        va_start(va, format);
+        posix_debug.println_va(file, line, func, format, va);
+        va_end(va);
+        posix_debug.println(file, line, func, "assertion failed: %s (expected)\n",
+                     condition);
+    }
+    return 0;
+}
+
+static int32_t posix_vigil_test_fatal_calls_count;
+
+static int32_t posix_vigil_test_fatal_termination(const char* file, int32_t line,
+        const char* func, const char* condition, const char* format, ...) {
+    const int32_t er = posix_core.err();
+    const int32_t en = errno;
+    posix_assert(er == 2, "posix_core.err: %d expected 2", er);
+    posix_assert(en == 2, "errno: %d expected 2", en);
+    posix_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    posix_fatal_if_not(line > __LINE__, "line: %s", line);
+    posix_assert(strcmp(func, "posix_vigil_test") == 0, "func: %s", func);
+    posix_assert(strcmp(condition, "") == 0); // not yet used expected to be ""
+    posix_assert(format != null && format[0] != 0);
+    posix_vigil_test_fatal_calls_count++;
+    if (posix_debug.verbosity.level > posix_debug.verbosity.trace) {
+        va_list va;
+        va_start(va, format);
+        posix_debug.println_va(file, line, func, format, va);
+        va_end(va);
+        if (er != 0) { posix_debug.perror(file, line, func, er, ""); }
+        if (en != 0) { posix_debug.perrno(file, line, func, en, ""); }
+        if (condition != null && condition[0] != 0) {
+            posix_debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
+        } else {
+            posix_debug.println(file, line, func, "FATAL (testing)\n");
+        }
+    }
+    return 0;
+}
+
+#pragma pop_macro("posix_vigil")
+
+static void posix_vigil_test(void) {
+    posix_vigil_test_saved = posix_vigil;
+    int32_t en = errno;
+    int32_t er = posix_core.err();
+    errno = 2; // ENOENT
+    posix_core.set_err(2); // ERROR_FILE_NOT_FOUND
+    posix_vigil.failed_assertion  = posix_vigil_test_failed_assertion;
+    posix_vigil.fatal_termination = posix_vigil_test_fatal_termination;
+    int32_t count = posix_vigil_test_fatal_calls_count;
+    posix_fatal("testing: %s call", "fatal()");
+    posix_assert(posix_vigil_test_fatal_calls_count == count + 1);
+    count = posix_vigil_test_failed_assertion_count;
+    posix_assert(false, "testing: posix_assert(%s)", "false");
+    #ifdef DEBUG // verify that posix_assert() is only compiled in DEBUG:
+        posix_fatal_if_not(posix_vigil_test_failed_assertion_count == count + 1);
+    #else // not RELEASE buid:
+        posix_fatal_if_not(posix_vigil_test_failed_assertion_count == count);
+    #endif
+    count = posix_vigil_test_failed_assertion_count;
+    posix_swear(false, "testing: swear(%s)", "false");
+    // swear() is triggered in both debug and release configurations:
+    posix_fatal_if_not(posix_vigil_test_failed_assertion_count == count + 1);
+    errno = en;
+    posix_core.set_err(er);
+    posix_vigil = posix_vigil_test_saved;
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_vigil_if posix_vigil = {
     .failed_assertion  = posix_vigil_failed_assertion,
@@ -1256,7 +1508,60 @@ static int64_t posix_atomics_load_int64(volatile int64_t* a) {
 
 #endif // _WIN32
 
-static void posix_atomics_test(void) {}
+static void posix_atomics_test(void) {
+    volatile int32_t int32_var = 0;
+    volatile int64_t int64_var = 0;
+    volatile void* ptr_var = null;
+    int64_t spinlock = 0;
+    void* old_ptr = posix_atomics.exchange_ptr(&ptr_var, (void*)123);
+    posix_swear(old_ptr == null);
+    posix_swear(ptr_var == (void*)123);
+    int32_t incremented_int32 = posix_atomics.increment_int32(&int32_var);
+    posix_swear(incremented_int32 == 1);
+    posix_swear(int32_var == 1);
+    int32_t decremented_int32 = posix_atomics.decrement_int32(&int32_var);
+    posix_swear(decremented_int32 == 0);
+    posix_swear(int32_var == 0);
+    int64_t incremented_int64 = posix_atomics.increment_int64(&int64_var);
+    posix_swear(incremented_int64 == 1);
+    posix_swear(int64_var == 1);
+    int64_t decremented_int64 = posix_atomics.decrement_int64(&int64_var);
+    posix_swear(decremented_int64 == 0);
+    posix_swear(int64_var == 0);
+    int32_t added_int32 = posix_atomics.add_int32(&int32_var, 5);
+    posix_swear(added_int32 == 5);
+    posix_swear(int32_var == 5);
+    int64_t added_int64 = posix_atomics.add_int64(&int64_var, 10);
+    posix_swear(added_int64 == 10);
+    posix_swear(int64_var == 10);
+    int32_t old_int32 = posix_atomics.exchange_int32(&int32_var, 3);
+    posix_swear(old_int32 == 5);
+    posix_swear(int32_var == 3);
+    int64_t old_int64 = posix_atomics.exchange_int64(&int64_var, 6);
+    posix_swear(old_int64 == 10);
+    posix_swear(int64_var == 6);
+    bool int32_exchanged = posix_atomics.compare_exchange_int32(&int32_var, 3, 4);
+    posix_swear(int32_exchanged);
+    posix_swear(int32_var == 4);
+    bool int64_exchanged = posix_atomics.compare_exchange_int64(&int64_var, 6, 7);
+    posix_swear(int64_exchanged);
+    posix_swear(int64_var == 7);
+    ptr_var = (void*)0x123;
+    bool ptr_exchanged = posix_atomics.compare_exchange_ptr(&ptr_var,
+        (void*)0x123, (void*)0x456);
+    posix_swear(ptr_exchanged);
+    posix_swear(ptr_var == (void*)0x456);
+    posix_atomics.spinlock_acquire(&spinlock);
+    posix_swear(spinlock == 1);
+    posix_atomics.spinlock_release(&spinlock);
+    posix_swear(spinlock == 0);
+    int32_t loaded_int32 = posix_atomics.load32(&int32_var);
+    posix_swear(loaded_int32 == int32_var);
+    int64_t loaded_int64 = posix_atomics.load64(&int64_var);
+    posix_swear(loaded_int64 == int64_var);
+    posix_atomics.memory_fence();
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_atomics_if posix_atomics = {
     .exchange_ptr           = posix_atomics_exchange_ptr,
@@ -1355,7 +1660,41 @@ static void posix_mutex_dispose(struct posix_mutex* m) {
 
 #endif // _WIN32
 
-static void posix_mutex_test(void) {}
+// check if the elapsed time is within the expected range
+static void posix_mutex_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = posix_clock.seconds() - start;
+    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
+    posix_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+          "expected: %f elapsed %f seconds", expected, elapsed);
+}
+
+static void posix_mutex_test_lock_unlock(void* arg) {
+    struct posix_mutex* mutex = (struct posix_mutex*)arg;
+    posix_mutex.lock(mutex);
+    posix_thread.sleep_for(0.01); // Hold the mutex for 10ms
+    posix_mutex.unlock(mutex);
+}
+
+static void posix_mutex_test(void) {
+    struct posix_mutex mutex;
+    posix_mutex.init(&mutex);
+    fp64_t start = posix_clock.seconds();
+    posix_mutex.lock(&mutex);
+    posix_mutex.unlock(&mutex);
+    // Lock and unlock should be immediate
+    posix_mutex_test_check_time(start, 0);
+    enum { count = 5 };
+    posix_thread_t ts[count];
+    for (int32_t i = 0; i < posix_countof(ts); i++) {
+        ts[i] = posix_thread.start(posix_mutex_test_lock_unlock, &mutex);
+    }
+    // Wait for all threads to finish
+    for (int32_t i = 0; i < posix_countof(ts); i++) {
+        posix_thread.join(ts[i], -1);
+    }
+    posix_mutex.dispose(&mutex);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_mutex_if posix_mutex = {
     .init    = posix_mutex_init,
@@ -1538,7 +1877,50 @@ static void posix_event_dispose(posix_event_t e_handle) {
 
 #endif // _WIN32
 
-static void posix_event_test(void) {}
+// check if the elapsed time is within the expected range
+static void posix_event_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = posix_clock.seconds() - start;
+    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays (observed)
+    posix_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
+          "expected: %f elapsed %f seconds", expected, elapsed);
+}
+
+static void posix_event_test(void) {
+    posix_event_t event = posix_event.create();
+    fp64_t start = posix_clock.seconds();
+    posix_event.set(event);
+    posix_event.wait(event);
+    posix_event_test_check_time(start, 0); // Event should be immediate
+    posix_event.reset(event);
+    start = posix_clock.seconds();
+    const fp64_t timeout_seconds = 1.0 / 8.0;
+    int32_t result = posix_event.wait_or_timeout(event, timeout_seconds);
+    posix_event_test_check_time(start, timeout_seconds);
+    posix_swear(result == -1); // Timeout expected
+    enum { count = 5 };
+    posix_event_t events[count];
+    for (int32_t i = 0; i < posix_countof(events); i++) {
+        events[i] = posix_event.create_manual();
+    }
+    start = posix_clock.seconds();
+    posix_event.set(events[2]); // Set the third event
+    int32_t index = posix_event.wait_any(posix_countof(events), events);
+    posix_swear(index == 2);
+    posix_event_test_check_time(start, 0);
+    posix_swear(index == 2); // Third event should be triggered
+    posix_event.reset(events[2]); // Reset the third event
+    start = posix_clock.seconds();
+    result = posix_event.wait_any_or_timeout(posix_countof(events), events, timeout_seconds);
+    posix_swear(result == -1);
+    posix_event_test_check_time(start, timeout_seconds);
+    posix_swear(result == -1); // Timeout expected
+    // Clean up
+    posix_event.dispose(event);
+    for (int32_t i = 0; i < posix_countof(events); i++) {
+        posix_event.dispose(events[i]);
+    }
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_event_if posix_event = {
     .create              = posix_event_create,
@@ -1733,7 +2115,130 @@ static void posix_thread_close(posix_thread_t t) {
 
 #endif // _WIN32
 
-static void posix_thread_test(void) {}
+// test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
+
+struct posix_thread_philosophers;
+
+struct posix_thread_philosopher {
+    struct posix_thread_philosophers* ps;
+    struct posix_mutex  fork;
+    struct posix_mutex* left_fork;
+    struct posix_mutex* right_fork;
+    posix_thread_t thread;
+    uint64_t    id;
+};
+
+struct posix_thread_philosophers {
+    struct posix_thread_philosopher philosopher[3];
+    posix_event_t fed_up[3];
+    uint32_t seed;
+    volatile bool enough;
+};
+
+#pragma push_macro("verbose") // --verbosity trace
+
+#define verbose(...) do {                                 \
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) { \
+        posix_println(__VA_ARGS__);                             \
+    }                                                     \
+} while (0)
+
+static void posix_thread_philosopher_think(struct posix_thread_philosopher* p) {
+    verbose("philosopher %d is thinking.", p->id);
+    // Random think time between .1 and .3 seconds
+    fp64_t seconds = (posix_num.random32(&p->ps->seed) % 30 + 1) / 100.0;
+    posix_thread.sleep_for(seconds);
+}
+
+static void posix_thread_philosopher_eat(struct posix_thread_philosopher* p) {
+    verbose("philosopher %d is eating.", p->id);
+    // Random eat time between .1 and .2 seconds
+    fp64_t seconds = (posix_num.random32(&p->ps->seed) % 20 + 1) / 100.0;
+    posix_thread.sleep_for(seconds);
+}
+
+static void posix_thread_philosopher_routine(void* arg) {
+    struct posix_thread_philosopher* p = (struct posix_thread_philosopher*)arg;
+    enum { n = posix_countof(p->ps->philosopher) };
+    posix_thread.name("philosopher");
+    posix_thread.realtime();
+    while (!p->ps->enough) {
+        posix_thread_philosopher_think(p);
+        if (p->id == n - 1) { // Last philosopher picks up the right fork first
+            posix_mutex.lock(p->right_fork);
+            verbose("philosopher %d picked up right fork.", p->id);
+            posix_mutex.lock(p->left_fork);
+            verbose("philosopher %d picked up left fork.", p->id);
+        } else { // Other philosophers pick up the left fork first
+            posix_mutex.lock(p->left_fork);
+            verbose("philosopher %d picked up left fork.", p->id);
+            posix_mutex.lock(p->right_fork);
+            verbose("philosopher %d picked up right fork.", p->id);
+        }
+        posix_thread_philosopher_eat(p);
+        posix_mutex.unlock(p->right_fork);
+        verbose("philosopher %d put down right fork.", p->id);
+        posix_mutex.unlock(p->left_fork);
+        verbose("philosopher %d put down left fork.", p->id);
+        posix_event.set(p->ps->fed_up[p->id]);
+    }
+}
+
+static void posix_thread_detached_sleep(void* posix_unused(p)) {
+    posix_thread.sleep_for(1000.0); // seconds
+}
+
+static void posix_thread_detached_loop(void* posix_unused(p)) {
+    uint64_t sum = 0;
+    for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
+    // make sure that compiler won't get rid of the loop:
+    posix_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
+}
+
+static void posix_thread_test(void) {
+    struct posix_thread_philosophers ps = { .seed = 1 };
+    enum { n = posix_countof(ps.philosopher) };
+    // Initialize mutexes for forks
+    for (int32_t i = 0; i < n; i++) {
+        struct posix_thread_philosopher* p = &ps.philosopher[i];
+        p->id = i;
+        p->ps = &ps;
+        posix_mutex.init(&p->fork);
+        p->left_fork = &p->fork;
+        ps.fed_up[i] = posix_event.create();
+    }
+    // Create and start philosopher threads
+    for (int32_t i = 0; i < n; i++) {
+        struct posix_thread_philosopher* p = &ps.philosopher[i];
+        struct posix_thread_philosopher* r = &ps.philosopher[(i + 1) % n];
+        p->right_fork = r->left_fork;
+        p->thread = posix_thread.start(posix_thread_philosopher_routine, p);
+    }
+    // wait for all philosophers being fed up:
+    for (int32_t i = 0; i < n; i++) { posix_event.wait(ps.fed_up[i]); }
+    ps.enough = true;
+    // join all philosopher threads
+    for (int32_t i = 0; i < n; i++) {
+        struct posix_thread_philosopher* p = &ps.philosopher[i];
+        posix_thread.join(p->thread, -1);
+    }
+    // Dispose of mutexes and events
+    for (int32_t i = 0; i < n; ++i) {
+        struct posix_thread_philosopher* p = &ps.philosopher[i];
+        posix_mutex.dispose(&p->fork);
+        posix_event.dispose(ps.fed_up[i]);
+    }
+    // test detached threads
+    posix_thread_t detached_sleep = posix_thread.start(posix_thread_detached_sleep, null);
+    posix_thread.detach(detached_sleep);
+    posix_thread_t detached_loop = posix_thread.start(posix_thread_detached_loop, null);
+    posix_thread.detach(detached_loop);
+    // leave detached threads sleeping and running till ExitProcess(0)
+    // that should NOT hang.
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#pragma pop_macro("verbose")
 
 struct posix_thread_if posix_thread = {
     .start     = posix_thread_start,
@@ -1903,7 +2408,189 @@ static void posix_worker_post(struct posix_worker* worker, struct posix_work* w)
     posix_work_queue.post(w);
 }
 
-static void posix_worker_test(void) {}
+// tests:
+
+// keep in mind that posix_println() may be blocking and is a subject
+// of "astronomical" wait state times in order of dozens of ms.
+
+static int32_t posix_test_called;
+
+static void posix_never_called(struct posix_work* posix_unused(w)) {
+    posix_test_called++;
+}
+
+static void posix_work_queue_test_1(void) {
+    posix_test_called = 0;
+    // testing insertion time ordering of two events into queue
+    const fp64_t now = posix_clock.seconds();
+    struct posix_work_queue q = {0};
+    struct posix_work c1 = {
+        .queue = &q,
+        .work = posix_never_called,
+        .when = now + 1.0
+    };
+    struct posix_work c2 = {
+        .queue = &q,
+        .work = posix_never_called,
+        .when = now + 0.5
+    };
+    posix_work_queue.post(&c1);
+    posix_swear(q.head == &c1 && q.head->next == null);
+    posix_work_queue.post(&c2);
+    posix_swear(q.head == &c2 && q.head->next == &c1);
+    posix_work_queue.flush(&q);
+    // test that canceled events are not dispatched
+    posix_swear(posix_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    c1.canceled = false;
+    c2.canceled = false;
+    // test the posix_work_queue.cancel() function
+    posix_work_queue.post(&c1);
+    posix_work_queue.post(&c2);
+    posix_swear(q.head == &c2 && q.head->next == &c1);
+    posix_work_queue.cancel(&c2);
+    posix_swear(c2.canceled && q.head == &c1 && q.head->next == null);
+    c2.canceled = false;
+    posix_work_queue.post(&c2);
+    posix_work_queue.cancel(&c1);
+    posix_swear(c1.canceled && q.head == &c2 && q.head->next == null);
+    posix_work_queue.flush(&q);
+    posix_swear(posix_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+}
+
+// simple way of passing a single pointer to call_later
+
+static fp64_t posix_test_work_start; // makes timing debug traces easier to read
+
+static void posix_every_millisecond(struct posix_work* w) {
+    int32_t* i = (int32_t*)w->data;
+    fp64_t now = posix_clock.seconds();
+    if (posix_debug.verbosity.level > posix_debug.verbosity.info) {
+        const fp64_t since_start = now - posix_test_work_start;
+        const fp64_t dt = w->when - posix_test_work_start;
+        posix_println("%d now: %.6f time: %.6f", *i, since_start, dt);
+    }
+    (*i)++;
+    // read posix_clock.seconds() again because posix_println() above could block
+    w->when = posix_clock.seconds() + 0.001;
+    posix_work_queue.post(w);
+}
+
+static void posix_work_queue_test_2(void) {
+    posix_thread.realtime();
+    posix_test_work_start = posix_clock.seconds();
+    struct posix_work_queue q = {0};
+    // if a single pointer will suffice
+    int32_t i = 0;
+    struct posix_work c = {
+        .queue = &q,
+        .work = posix_every_millisecond,
+        .when = posix_test_work_start + 0.001,
+        .data = &i
+    };
+    posix_work_queue.post(&c);
+    while (q.head != null && i < 8) {
+        posix_thread.sleep_for(0.0001); // 100 microseconds
+        posix_work_queue.dispatch(&q);
+    }
+    posix_work_queue.flush(&q);
+    posix_swear(q.head == null);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) {
+        posix_println("called: %d times", i);
+    }
+}
+
+// extending posix_work with extra data:
+
+struct posix_work_ex {
+    struct posix_work base;
+    struct { int32_t a; int32_t b; } s;
+    int32_t i;
+};
+
+static void posix_every_other_millisecond(struct posix_work* w) {
+    struct posix_work_ex* ex = (struct posix_work_ex*)w;
+    fp64_t now = posix_clock.seconds();
+    if (posix_debug.verbosity.level > posix_debug.verbosity.info) {
+        const fp64_t since_start = now - posix_test_work_start;
+        const fp64_t dt  = w->when - posix_test_work_start;
+        posix_println(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
+                ex->i, ex->s.a, ex->s.b, since_start, dt);
+    }
+    ex->i++;
+    const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
+    // read posix_clock.seconds() again because posix_println() above could block
+    w->when = posix_clock.seconds() + 0.002;
+    posix_work_queue.post(w);
+}
+
+static void posix_work_queue_test_3(void) {
+    posix_thread.realtime();
+    posix_static_assertion(offsetof(struct posix_work_ex, base) == 0);
+    const fp64_t now = posix_clock.seconds();
+    struct posix_work_queue q = {0};
+    struct posix_work_ex ex = {
+        .base = {
+            .queue = &q,
+            .work = posix_every_other_millisecond,
+            .when = now + 0.002
+        },
+        .s = { .a = 1, .b = 2 },
+        .i = 0
+    };
+    posix_work_queue.post(&ex.base);
+    while (q.head != null && ex.i < 8) {
+        posix_thread.sleep_for(0.0001); // 100 microseconds
+        posix_work_queue.dispatch(&q);
+    }
+    posix_work_queue.flush(&q);
+    posix_swear(q.head == null);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) {
+        posix_println("called: %d times", ex.i);
+    }
+}
+
+static void posix_work_queue_test(void) {
+    posix_work_queue_test_1();
+    posix_work_queue_test_2();
+    posix_work_queue_test_3();
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+static int32_t posix_test_do_work_called;
+
+static void posix_test_do_work(struct posix_work* posix_unused(w)) {
+    posix_test_do_work_called++;
+}
+
+static void posix_worker_test(void) {
+    posix_work_queue_test(); // first test posix_work_queue
+    struct posix_worker worker = { 0 };
+    posix_worker.start(&worker);
+    struct posix_work asap = {
+        .when = 0, // A.S.A.P.
+        .done = posix_event.create(),
+        .work = posix_test_do_work
+    };
+    struct posix_work later = {
+        .when = posix_clock.seconds() + 0.010, // 10ms
+        .done = posix_event.create(),
+        .work = posix_test_do_work
+    };
+    posix_worker.post(&worker, &asap);
+    posix_worker.post(&worker, &later);
+    // because `asap` and `later` are local variables
+    // code needs to wait for them to be processed inside
+    // this function before they goes out of scope
+    posix_event.wait(asap.done); // await(asap)
+    posix_event.dispose(asap.done); // responsibility of the caller
+    // wait for later:
+    posix_event.wait(later.done); // await(later)
+    posix_event.dispose(later.done); // responsibility of the caller
+    // quit the worker thread:
+    posix_fatal_if_error(posix_worker.join(&worker, -1.0));
+    // does worker respect .when dispatch time?
+    posix_swear(posix_clock.seconds() >= later.when);
+}
 
 struct posix_worker_if posix_worker = {
     .start = posix_worker_start,
@@ -2058,7 +2745,27 @@ static void posix_heap_free(void* a) {
     posix_heap_deallocate(null, a);
 }
 
-static void posix_heap_test(void) {}
+static void posix_heap_test(void) {
+    // TODO: allocate, reallocate deallocate, create, dispose
+    void*   a[1024]; // addresses
+    int32_t b[1024]; // bytes
+    uint32_t seed = 0x1;
+    for (int i = 0; i < 1024; i++) {
+        b[i] = (int32_t)(posix_num.random32(&seed) % 1024) + 1;
+        int r = posix_heap.alloc(&a[i], b[i]);
+        posix_swear(r == 0);
+    }
+    for (int i = 0; i < 1024; i++) {
+        posix_heap.free(a[i]);
+    }
+#if defined(_WIN32)
+    HeapCompact(posix_heap_or_process_heap(null), 0);
+    // "There is no extended error information for HeapValidate;
+    //  do not call GetLastError."
+    posix_swear(HeapValidate(posix_heap_or_process_heap(null), 0, null));
+#endif
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_heap_if posix_heap = {
     .alloc        = posix_heap_alloc,
@@ -2319,7 +3026,17 @@ static void posix_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 #endif // _WIN32
 
-static void posix_mem_test(void) {}
+static void posix_mem_test(void) {
+    posix_swear(posix_args.c > 0);
+    void* data = null;
+    int64_t bytes = 0;
+    posix_swear(posix_mem.map_ro(posix_args.v[0], &data, &bytes) == 0);
+    posix_swear(data != null && bytes != 0);
+    posix_mem.unmap(data, bytes);
+    // TODO: page_size large_page_size allocate deallocate
+    // TODO: test heap functions
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_mem_if posix_mem = {
     .map_ro          = posix_mem_map_ro,
@@ -3071,7 +3788,301 @@ static void posix_files_closedir(struct posix_folder* folder) {
 
 #endif // _WIN32
 
-static void posix_files_test(void) {}
+#pragma push_macro("posix_files_test_failed")
+#pragma push_macro("verbose")
+
+#define posix_files_test_failed " failed %s", posix_strerr(posix_core.err())
+
+#define verbose(...) do {                                       \
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) { \
+        posix_println(__VA_ARGS__);                                   \
+    }                                                           \
+} while (0)
+
+static void posix_folders_dump_time(const char* label, uint64_t us) {
+    int32_t year = 0;
+    int32_t month = 0;
+    int32_t day = 0;
+    int32_t hh = 0;
+    int32_t mm = 0;
+    int32_t ss = 0;
+    int32_t ms = 0;
+    int32_t mc = 0;
+    posix_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    posix_println("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
+            label, year, month, day, hh, mm, ss, ms, mc);
+}
+
+static void posix_folders_test(void) {
+    uint64_t now = posix_clock.microseconds(); // microseconds since epoch
+    uint64_t before = now - 1 * (uint64_t)posix_clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * (uint64_t)posix_clock.usec_in_sec; // two seconds later
+    int32_t year = 0;
+    int32_t month = 0;
+    int32_t day = 0;
+    int32_t hh = 0;
+    int32_t mm = 0;
+    int32_t ss = 0;
+    int32_t ms = 0;
+    int32_t mc = 0;
+    posix_clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
+             year, month, day, hh, mm, ss, ms, mc);
+    // Test cwd, setcwd
+    const char* tmp = posix_files.tmp();
+    char cwd[256] = { 0 };
+    posix_fatal_if(posix_files.cwd(cwd, sizeof(cwd)) != 0, "posix_files.cwd() failed");
+    posix_fatal_if(posix_files.chdir(tmp) != 0, "posix_files.chdir(\"%s\") failed %s",
+                tmp, posix_strerr(posix_core.err()));
+    // there is no racing free way to create temporary folder
+    // without having a temporary file for the duration of folder usage:
+    char tmp_file[posix_files_max_path]; // create_tmp() is thread safe race free:
+    int r = posix_files.create_tmp(tmp_file, posix_countof(tmp_file));
+    posix_fatal_if(r != 0, "posix_files.create_tmp() failed %s", posix_strerr(r));
+    char tmp_dir[posix_files_max_path];
+    posix_str_printf(tmp_dir, "%s.dir", tmp_file);
+    r = posix_files.mkdirs(tmp_dir);
+    posix_fatal_if(r != 0, "posix_files.mkdirs(%s) failed %s", tmp_dir, posix_strerr(r));
+    verbose("%s", tmp_dir);
+    struct posix_folder folder;
+    char pn[posix_files_max_path] = { 0 };
+    posix_str_printf(pn, "%s/file", tmp_dir);
+    // cannot test symlinks because they are only
+    // available to Administrators and in Developer mode
+    char hard[posix_files_max_path] = { 0 };
+    char sub[posix_files_max_path] = { 0 };
+    posix_str_printf(hard, "%s/hard", tmp_dir);
+    posix_str_printf(sub, "%s/subd", tmp_dir);
+    const char* content = "content";
+    int64_t transferred = 0;
+    r = posix_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
+    posix_fatal_if(r != 0, "posix_files.write_fully(\"%s\") failed %s", pn, posix_strerr(r));
+    posix_swear(transferred == (int64_t)strlen(content));
+    r = posix_files.link(pn, hard);
+    posix_fatal_if(r != 0, "posix_files.link(\"%s\", \"%s\") failed %s",
+                      pn, hard, posix_strerr(r));
+    r = posix_files.mkdirs(sub);
+    posix_fatal_if(r != 0, "posix_files.mkdirs(\"%s\") failed %s", sub, posix_strerr(r));
+    r = posix_files.opendir(&folder, tmp_dir);
+    posix_fatal_if(r != 0, "posix_files.opendir(\"%s\") failed %s", tmp_dir, posix_strerr(r));
+    for (;;) {
+        struct posix_files_stat st = { 0 };
+        const char* name = posix_files.readdir(&folder, &st);
+        if (name == null) { break; }
+        uint64_t at = st.accessed;
+        uint64_t ct = st.created;
+        uint64_t ut = st.updated;
+        posix_swear(ct <= at && ct <= ut);
+        posix_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+        bool is_folder = st.type & posix_files.type_folder;
+        bool is_symlink = st.type & posix_files.type_symlink;
+        int64_t bytes = st.size;
+        verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
+                name, year, month, day, hh, mm, ss, ms, mc,
+                bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
+        if (strcmp(name, "file") == 0 || strcmp(name, "hard") == 0) {
+            posix_swear(bytes == (int64_t)strlen(content),
+                    "size of \"%s\": %lld is incorrect expected: %d",
+                    name, bytes, transferred);
+        }
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            posix_swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
+        } else {
+            posix_swear((strcmp(name, "subd") == 0) == is_folder,
+                  "\"%s\" is_folder: %d", name, is_folder);
+            // empirically timestamps are imprecise on NTFS
+            posix_swear(at >= before, "access: %lld  >= %lld", at, before);
+            if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
+                posix_println("file: %s", name);
+                posix_folders_dump_time("before", before);
+                posix_folders_dump_time("create", ct);
+                posix_folders_dump_time("update", ut);
+                posix_folders_dump_time("access", at);
+            }
+            posix_swear(ct >= before, "create: %lld  >= %lld", ct, before);
+            posix_swear(ut >= before, "update: %lld  >= %lld", ut, before);
+            // and no later than 2 seconds since posix_folders_test()
+            posix_swear(at < after, "access: %lld  < %lld", at, after);
+            posix_swear(ct < after, "create: %lld  < %lld", ct, after);
+            posix_swear(at < after, "update: %lld  < %lld", ut, after);
+        }
+    }
+    posix_files.closedir(&folder);
+    r = posix_files.rmdirs(tmp_dir);
+    posix_fatal_if(r != 0, "posix_files.rmdirs(\"%s\") failed %s",
+                     tmp_dir, posix_strerr(r));
+    r = posix_files.unlink(tmp_file);
+    posix_fatal_if(r != 0, "posix_files.unlink(\"%s\") failed %s",
+                     tmp_file, posix_strerr(r));
+    posix_fatal_if(posix_files.chdir(cwd) != 0, "posix_files.chdir(\"%s\") failed %s",
+             cwd, posix_strerr(posix_core.err()));
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+static void posix_files_test_append_thread(void* p) {
+    struct posix_file* f = (struct posix_file*)p;
+    uint8_t data[256] = {0};
+    for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
+    int64_t transferred = 0;
+    posix_fatal_if(posix_files.write(f, data, posix_countof(data), &transferred) != 0 ||
+             transferred != posix_countof(data), "posix_files.write()" posix_files_test_failed);
+}
+
+static void posix_files_test(void) {
+    posix_folders_test();
+    uint64_t now = posix_clock.microseconds(); // epoch time
+    char tf[256]; // temporary file
+    posix_fatal_if(posix_files.create_tmp(tf, posix_countof(tf)) != 0,
+            "posix_files.create_tmp()" posix_files_test_failed);
+    uint8_t data[256] = {0};
+    int64_t transferred = 0;
+    for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
+    {
+        struct posix_file* f = posix_files.invalid;
+        posix_fatal_if(posix_files.open(&f, tf,
+                 posix_files.o_wr | posix_files.o_create | posix_files.o_trunc) != 0 ||
+                !posix_files.is_valid(f), "posix_files.open()" posix_files_test_failed);
+        posix_fatal_if(posix_files.write_fully(tf, data, posix_countof(data), &transferred) != 0 ||
+                 transferred != posix_countof(data),
+                "posix_files.write_fully()" posix_files_test_failed);
+        posix_fatal_if(posix_files.open(&f, tf, posix_files.o_rd) != 0 ||
+                !posix_files.is_valid(f), "posix_files.open()" posix_files_test_failed);
+        for (int32_t i = 0; i < 256; i++) {
+            for (int32_t j = 1; j < 256 - i; j++) {
+                uint8_t test[posix_countof(data)] = { 0 };
+                int64_t position = i;
+                posix_fatal_if(posix_files.seek(f, &position, posix_files.seek_set) != 0 ||
+                         position != i,
+                        "posix_files.seek(position: %lld) failed %s",
+                         position, posix_strerr(posix_core.err()));
+                posix_fatal_if(posix_files.read(f, test, j, &transferred) != 0 ||
+                         transferred != j,
+                        "posix_files.read() transferred: %lld failed %s",
+                        transferred, posix_strerr(posix_core.err()));
+                for (int32_t k = 0; k < j; k++) {
+                    posix_swear(test[k] == data[i + k],
+                         "Data mismatch at position: %d, length %d"
+                         "test[%d]: 0x%02X != data[%d + %d]: 0x%02X ",
+                          i, j,
+                          k, test[k], i, k, data[i + k]);
+                }
+            }
+        }
+        posix_swear((posix_files.o_rd | posix_files.o_wr) != posix_files.o_rw);
+        posix_fatal_if(posix_files.open(&f, tf, posix_files.o_rw) != 0 || !posix_files.is_valid(f),
+                "posix_files.open()" posix_files_test_failed);
+        for (int32_t i = 0; i < 256; i++) {
+            uint8_t val = ~data[i];
+            int64_t pos = i;
+            posix_fatal_if(posix_files.seek(f, &pos, posix_files.seek_set) != 0 || pos != i,
+                    "posix_files.seek() failed %s", posix_core.err());
+            posix_fatal_if(posix_files.write(f, &val, 1, &transferred) != 0 ||
+                     transferred != 1, "posix_files.write()" posix_files_test_failed);
+            pos = i;
+            posix_fatal_if(posix_files.seek(f, &pos, posix_files.seek_set) != 0 || pos != i,
+                    "posix_files.seek(pos: %lld i: %d) failed %s", pos, i, posix_core.err());
+            uint8_t read_val = 0;
+            posix_fatal_if(posix_files.read(f, &read_val, 1, &transferred) != 0 ||
+                     transferred != 1, "posix_files.read()" posix_files_test_failed);
+            posix_swear(read_val == val, "Data mismatch at position %d", i);
+        }
+        struct posix_files_stat s = { 0 };
+        posix_files.stat(f, &s, false);
+        uint64_t before = now - 1 * (uint64_t)posix_clock.usec_in_sec; // one second before now
+        uint64_t after  = now + 2 * (uint64_t)posix_clock.usec_in_sec; // two seconds after
+        posix_swear(before <= s.created  && s.created  <= after,
+             "before: %lld created: %lld after: %lld", before, s.created, after);
+        posix_swear(before <= s.accessed && s.accessed <= after,
+             "before: %lld created: %lld accessed: %lld", before, s.accessed, after);
+        posix_swear(before <= s.updated  && s.updated  <= after,
+             "before: %lld created: %lld updated: %lld", before, s.updated, after);
+        posix_files.close(f);
+        posix_fatal_if(posix_files.open(&f, tf, posix_files.o_wr | posix_files.o_create | posix_files.o_trunc) != 0 ||
+                !posix_files.is_valid(f), "posix_files.open()" posix_files_test_failed);
+        posix_files.stat(f, &s, false);
+        posix_swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
+        posix_files.close(f);
+    }
+    {  // Append test with threads
+        struct posix_file* f = posix_files.invalid;
+        posix_fatal_if(posix_files.open(&f, tf, posix_files.o_rw | posix_files.o_append) != 0 ||
+                !posix_files.is_valid(f), "posix_files.open()" posix_files_test_failed);
+        posix_thread_t thread1 = posix_thread.start(posix_files_test_append_thread, f);
+        posix_thread_t thread2 = posix_thread.start(posix_files_test_append_thread, f);
+        posix_thread.join(thread1, -1);
+        posix_thread.join(thread2, -1);
+        posix_files.close(f);
+    }
+    {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
+        posix_fatal_if(posix_files.write_fully(tf, data, posix_countof(data), &transferred) != 0 ||
+                 transferred != posix_countof(data),
+                "posix_files.write_fully() failed %s", posix_core.err());
+        posix_fatal_if(!posix_files.exists(tf), "file \"%s\" does not exist", tf);
+        posix_fatal_if(posix_files.is_folder(tf), "%s is a folder", tf);
+        posix_fatal_if(posix_files.chmod777(tf) != 0, "posix_files.chmod777(\"%s\") failed %s",
+                 tf, posix_strerr(posix_core.err()));
+        char folder[256] = { 0 };
+        posix_str_printf(folder, "%s.folder\\subfolder", tf);
+        posix_fatal_if(posix_files.mkdirs(folder) != 0, "posix_files.mkdirs(\"%s\") failed %s",
+            folder, posix_strerr(posix_core.err()));
+        posix_fatal_if(!posix_files.is_folder(folder), "\"%s\" is not a folder", folder);
+        posix_fatal_if(posix_files.chmod777(folder) != 0, "posix_files.chmod777(\"%s\") failed %s",
+                 folder, posix_strerr(posix_core.err()));
+        posix_fatal_if(posix_files.rmdirs(folder) != 0, "posix_files.rmdirs(\"%s\") failed %s",
+                 folder, posix_strerr(posix_core.err()));
+        posix_fatal_if(posix_files.exists(folder), "folder \"%s\" still exists", folder);
+    }
+    {   // getcwd, chdir
+        const char* tmp = posix_files.tmp();
+        char cwd[256] = { 0 };
+        posix_fatal_if(posix_files.cwd(cwd, sizeof(cwd)) != 0, "posix_files.cwd() failed");
+        posix_fatal_if(posix_files.chdir(tmp) != 0, "posix_files.chdir(\"%s\") failed %s",
+                 tmp, posix_strerr(posix_core.err()));
+        // symlink
+        if (posix_processes.is_elevated()) {
+            char sym_link[posix_files_max_path];
+            posix_str_printf(sym_link, "%s.sym_link", tf);
+            posix_fatal_if(posix_files.symlink(tf, sym_link) != 0,
+                "posix_files.symlink(\"%s\", \"%s\") failed %s",
+                tf, sym_link, posix_strerr(posix_core.err()));
+            posix_fatal_if(!posix_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
+            posix_fatal_if(posix_files.unlink(sym_link) != 0, "posix_files.unlink(\"%s\") failed %s",
+                    sym_link, posix_strerr(posix_core.err()));
+        } else {
+            posix_println("Skipping posix_files.symlink test: process is not elevated");
+        }
+        // hard link
+        char hard_link[posix_files_max_path];
+        posix_str_printf(hard_link, "%s.hard_link", tf);
+        posix_fatal_if(posix_files.link(tf, hard_link) != 0,
+            "posix_files.link(\"%s\", \"%s\") failed %s",
+            tf, hard_link, posix_strerr(posix_core.err()));
+        posix_fatal_if(!posix_files.exists(hard_link), "\"%s\" does not exist", hard_link);
+        posix_fatal_if(posix_files.unlink(hard_link) != 0, "posix_files.unlink(\"%s\") failed %s",
+                 hard_link, posix_strerr(posix_core.err()));
+        posix_fatal_if(posix_files.exists(hard_link), "\"%s\" still exists", hard_link);
+        // copy, move:
+        posix_fatal_if(posix_files.copy(tf, "copied_file") != 0,
+            "posix_files.copy(\"%s\", 'copied_file') failed %s",
+            tf, posix_strerr(posix_core.err()));
+        posix_fatal_if(!posix_files.exists("copied_file"), "'copied_file' does not exist");
+        posix_fatal_if(posix_files.move("copied_file", "moved_file") != 0,
+            "posix_files.move('copied_file', 'moved_file') failed %s",
+            posix_strerr(posix_core.err()));
+        posix_fatal_if(posix_files.exists("copied_file"), "'copied_file' still exists");
+        posix_fatal_if(!posix_files.exists("moved_file"), "'moved_file' does not exist");
+        posix_fatal_if(posix_files.unlink("moved_file") != 0,
+                "posix_files.unlink('moved_file') failed %s",
+                 posix_strerr(posix_core.err()));
+        posix_fatal_if(posix_files.chdir(cwd) != 0, "posix_files.chdir(\"%s\") failed %s",
+                    cwd, posix_strerr(posix_core.err()));
+    }
+    posix_fatal_if(posix_files.unlink(tf) != 0);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#pragma pop_macro("verbose")
+#pragma pop_macro("posix_files_test_failed")
 
 struct posix_files_if posix_files = {
     .invalid      = (struct posix_file*)(intptr_t)-1,
@@ -3206,7 +4217,23 @@ static int posix_config_clean(const char* name) {
     return r;
 }
 
-static void posix_config_test(void) {}
+static void posix_config_test(void) {
+    const char* name = strrchr(posix_args.v[0], '\\');
+    if (name == null) { name = strrchr(posix_args.v[0], '/'); }
+    name = name != null ? name + 1 : posix_args.v[0];
+    posix_swear(name != null);
+    const char* key = "test";
+    const char data[] = "data";
+    int32_t bytes = sizeof(data);
+    posix_swear(posix_config.save(name, key, data, bytes) == 0);
+    char read[256];
+    posix_swear(posix_config.load(name, key, read, bytes) == bytes);
+    int32_t size = posix_config.size(name, key);
+    posix_swear(size == bytes);
+    posix_swear(posix_config.remove(name, key) == 0);
+    posix_swear(posix_config.clean(name) == 0);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_config_if posix_config = {
     .save   = posix_config_save,
@@ -3275,7 +4302,30 @@ static void posix_streams_read_write(struct posix_stream_memory_if* s, const voi
     s->pos_write = 0;
 }
 
-static void posix_streams_test(void) {}
+static void posix_streams_test(void) {
+    {   // read test
+        uint8_t memory[256];
+        for (int32_t i = 0; i < posix_countof(memory); i++) { memory[i] = (uint8_t)i; }
+        for (int32_t i = 1; i < posix_countof(memory) - 1; i++) {
+            struct posix_stream_memory_if ms; // memory stream
+            posix_streams.read_only(&ms, memory, sizeof(memory));
+            uint8_t data[256];
+            for (int32_t j = 0; j < posix_countof(data); j++) { data[j] = 0xFF; }
+            int64_t transferred = 0;
+            int r = ms.stream.read(&ms.stream, data, i, &transferred);
+            posix_swear(r == 0 && transferred == i);
+            for (int32_t j = 0; j < i; j++) { posix_swear(data[j] == memory[j]); }
+            for (int32_t j = i; j < posix_countof(data); j++) { posix_swear(data[j] == 0xFF); }
+        }
+    }
+    {   // write test
+        // TODO: implement
+    }
+    {   // read/write test
+        // TODO: implement
+    }
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_streams_if posix_streams = {
     .read_only  = posix_streams_read_only,
@@ -3448,7 +4498,18 @@ static void posix_clock_local(uint64_t microseconds, int32_t* year, int32_t* mon
 
 #endif // _WIN32
 
-static void posix_clock_test(void) {}
+static void posix_clock_test(void) {
+    // TODO: implement more tests
+    uint64_t t0 = posix_clock.nanoseconds();
+    uint64_t t1 = posix_clock.nanoseconds();
+    int32_t count = 0;
+    while (t0 == t1 && count < 1024) {
+        t1 = posix_clock.nanoseconds();
+        count++;
+    }
+    posix_swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_clock_if posix_clock = {
     .nsec_in_usec      = 1000,
@@ -3979,7 +5040,75 @@ static int posix_processes_spawn(const char* command) {
 
 #endif // _WIN32
 
+#if defined(_WIN32)
+
+#pragma push_macro("verbose") // --verbosity trace
+
+#define verbose(...) do {                                       \
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) { \
+        posix_println(__VA_ARGS__);                                   \
+    }                                                           \
+} while (0)
+
+static void posix_processes_test(void) { // in alphabetical order
+    const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
+    for (int32_t j = 0; j < posix_countof(names); j++) {
+        int32_t size  = 0;
+        int32_t count = 0;
+        uint64_t* pids = null;
+        int r = posix_processes.pids(names[j], null, size, &count);
+        while (r == ERROR_MORE_DATA && count > 0) {
+            size = count * 2; // set of processes may change rapidly
+            r = posix_heap.reallocate(null, (void**)&pids,
+                                  (int64_t)sizeof(uint64_t) * (int64_t)size,
+                                  false);
+            if (r == 0) {
+                r = posix_processes.pids(names[j], pids, size, &count);
+            }
+        }
+        if (r == 0 && count > 0) {
+            for (int32_t i = 0; i < count; i++) {
+                char path[256] = {0};
+                #pragma warning(suppress: 6011) // dereferencing null
+                r = posix_processes.nameof(pids[i], path, posix_countof(path));
+                if (r != ERROR_NOT_FOUND) {
+                    posix_assert(r == 0 && path[0] != 0);
+                    verbose("%6d %s %s", pids[i], path, posix_strerr(r));
+                }
+            }
+        }
+        posix_heap.deallocate(null, pids);
+    }
+    // test popen()
+    int32_t xc = 0;
+    char data[32 * 1024];
+    struct posix_stream_memory_if output;
+    posix_streams.write_only(&output, data, posix_countof(data));
+    const char* cmd = "cmd /c dir 2>nul >nul";
+    int r = posix_processes.popen(cmd, &xc, &output.stream, 99999.0);
+    verbose("r: %d xc: %d output:\n%s", r, xc, data);
+    posix_streams.write_only(&output, data, posix_countof(data));
+    cmd = "cmd /c dir \"folder that does not exist\\\"";
+    r = posix_processes.popen(cmd, &xc, &output.stream, 99999.0);
+    verbose("r: %d xc: %d output:\n%s", r, xc, data);
+    posix_streams.write_only(&output, data, posix_countof(data));
+    cmd = "cmd /c dir";
+    r = posix_processes.popen(cmd, &xc, &output.stream, 99999.0);
+    verbose("r: %d xc: %d output:\n%s", r, xc, data);
+    posix_streams.write_only(&output, data, posix_countof(data));
+    cmd = "cmd /c timeout 1";
+    r = posix_processes.popen(cmd, &xc, &output.stream, 1.0E-9);
+    verbose("r: %d xc: %d output:\n%s", r, xc, data);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#pragma pop_macro("verbose")
+
+#else
+
 static void posix_processes_test(void) {}
+
+#endif
 
 struct posix_processes_if posix_processes = {
     .name             = posix_processes_name,
@@ -4055,7 +5184,34 @@ static void posix_loader_close(void* handle) {
 
 #endif // _WIN32
 
+#if defined(_WIN32)
+
+static void posix_loader_test(void) {
+    void* global = posix_loader.open(null, posix_loader.local);
+    posix_loader.close(global);
+    // NtQueryTimerResolution - http://undocumented.ntinternals.net/
+    typedef long (__stdcall *query_timer_resolution_t)(
+        long* minimum_resolution,
+        long* maximum_resolution,
+        long* current_resolution);
+    void* nt_dll = posix_loader.open("ntdll", posix_loader.local);
+    query_timer_resolution_t query_timer_resolution =
+        (query_timer_resolution_t)posix_loader.sym(nt_dll, "NtQueryTimerResolution");
+    // in 100ns = 0.1us units
+    long min_resolution = 0;
+    long max_resolution = 0; // lowest possible delay between timer events
+    long cur_resolution = 0;
+    posix_fatal_if(query_timer_resolution(
+        &min_resolution, &max_resolution, &cur_resolution) != 0);
+    posix_loader.close(nt_dll);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#else
+
 static void posix_loader_test(void) {}
+
+#endif
 
 struct posix_loader_if posix_loader = {
     .local  = 0,
@@ -4205,7 +5361,50 @@ static uint64_t posix_num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
-static void posix_num_test(void) {}
+static void posix_num_test(void) {
+    {
+        posix_swear(posix_num.gcd32(1000000000, 24000000) == 8000000);
+        // https://asecuritysite.com/encryption/nprimes?y=64
+        // https://www.rapidtables.com/convert/number/decimal-to-hex.html
+        uint64_t p = 15843490434539008357u; // prime
+        uint64_t q = 16304766625841520833u; // prime
+        // pq: 258324414073910997987910483408576601381
+        //     0xC25778F20853A9A1EC0C27C467C45D25
+        struct posix_num128 pq = {.hi = 0xC25778F20853A9A1uLL,
+                       .lo = 0xEC0C27C467C45D25uLL };
+        struct posix_num128 p_q = posix_num.mul64x64(p, q);
+        posix_swear(p_q.hi == pq.hi && pq.lo == pq.lo);
+        uint64_t p1 = posix_num.muldiv128(p, q, q);
+        uint64_t q1 = posix_num.muldiv128(p, q, p);
+        posix_swear(p1 == p);
+        posix_swear(q1 == q);
+    }
+    #ifdef DEBUG
+    enum { n = 100 };
+    #else
+    enum { n = 10000 };
+    #endif
+    uint64_t seed64 = 1;
+    for (int32_t i = 0; i < n; i++) {
+        uint64_t p = posix_num.random64(&seed64);
+        uint64_t q = posix_num.random64(&seed64);
+        uint64_t p1 = posix_num.muldiv128(p, q, q);
+        uint64_t q1 = posix_num.muldiv128(p, q, p);
+        posix_swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        posix_swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+    }
+    uint32_t seed32 = 1;
+    for (int32_t i = 0; i < n; i++) {
+        uint64_t p = posix_num.random32(&seed32);
+        uint64_t q = posix_num.random32(&seed32);
+        uint64_t r = posix_num.muldiv128(p, q, 1);
+        posix_swear(r == p * q);
+        // division by the maximum uint64_t value:
+        r = posix_num.muldiv128(p, q, UINT64_MAX);
+        posix_swear(r == 0);
+    }
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_num_if posix_num = {
     .add128    = posix_num_add128,
@@ -4642,7 +5841,67 @@ static const char* posix_backtrace_string(const struct posix_backtrace* bt, char
 
 #endif // _WIN32
 
+#if defined(_WIN32)
+
+static bool (*posix_backtrace_debug_tee)(const char* s, int32_t count);
+
+static char  posix_backtrace_test_output[16 * 1024];
+static char* posix_backtrace_test_output_p;
+
+static bool posix_backtrace_tee(const char* s, int32_t count) {
+    if (count > 0 && s[count - 1] == 0) { // zero terminated
+        int32_t k = (int32_t)(uintptr_t)(
+            posix_backtrace_test_output_p - posix_backtrace_test_output);
+        int32_t space = posix_countof(posix_backtrace_test_output) - k;
+        if (count < space) {
+            memcpy(posix_backtrace_test_output_p, s, count);
+            posix_backtrace_test_output_p += count - 1; // w/o 0x00
+        }
+    } else {
+        posix_debug.breakpoint(); // incorrect output() cannot append
+    }
+    return true; // intercepted, do not do OutputDebugString()
+}
+
+static void posix_backtrace_test_thread(void* e) {
+    posix_event.wait(*(posix_event_t*)e);
+}
+
+static void posix_backtrace_test(void) {
+    posix_backtrace_debug_tee = posix_debug.tee;
+    posix_backtrace_test_output_p = posix_backtrace_test_output;
+    posix_backtrace_test_output[0] = 0x00;
+    posix_debug.tee = posix_backtrace_tee;
+    struct posix_backtrace bt = {{0}};
+    posix_backtrace.capture(&bt, 0);
+    // posix_backtrace_test <- posix_core_test <- run <- main
+    posix_swear(bt.frames >= 3);
+    posix_backtrace.symbolize(&bt);
+    posix_backtrace.trace(&bt, null);
+    posix_backtrace.trace(&bt, "main");
+    posix_backtrace.trace(&bt, null);
+    posix_backtrace.trace(&bt, "main");
+    posix_event_t e = posix_event.create();
+    posix_thread_t thread = posix_thread.start(posix_backtrace_test_thread, &e);
+    posix_backtrace.trace_all_but_self();
+    posix_event.set(e);
+    posix_thread.join(thread, -1.0);
+    posix_event.dispose(e);
+    posix_debug.tee = posix_backtrace_debug_tee;
+    if (posix_debug.verbosity.level >= posix_debug.verbosity.trace) {
+        posix_debug.output(posix_backtrace_test_output,
+            (int32_t)strlen(posix_backtrace_test_output) + 1);
+    }
+    posix_swear(strstr(posix_backtrace_test_output, "posix_backtrace_test") != null,
+          "%s", posix_backtrace_test_output);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
+
+#else
+
 static void posix_backtrace_test(void) {}
+
+#endif
 
 struct posix_backtrace_if posix_backtrace = {
     .capture            = posix_backtrace_capture,
@@ -4963,7 +6222,14 @@ static int posix_clipboard_put_image(ui_bitmap_t* image) {
     return ENOSYS;
 }
 
-static void posix_clipboard_test(void) {}
+static void posix_clipboard_test(void) {
+    posix_fatal_if_error(posix_clipboard.put_text("Hello Clipboard"));
+    char text[256];
+    int32_t bytes = posix_countof(text);
+    posix_fatal_if_error(posix_clipboard.get_text(text, &bytes));
+    posix_swear(strcmp(text, "Hello Clipboard") == 0);
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 struct posix_clipboard_if posix_clipboard = {
     .put_text  = posix_clipboard_put_text,
@@ -4991,6 +6257,21 @@ void* posix_force_symbol_reference(void* symbol) {
 
 #endif
 
-void posix_static_init_test(void) {}
+// test posix_static_init() { code } that will be executed in random
+// order but before main()
+
+static int32_t posix_static_init_function_called;
+
+static void posix_force_inline posix_static_init_function(void) {
+    posix_static_init_function_called = 1;
+}
+
+posix_static_init(static_init_test) { posix_static_init_function(); }
+
+void posix_static_init_test(void) {
+    posix_fatal_if(posix_static_init_function_called != 1,
+        "posix_static_init_function() expected to be called before main()");
+    if (posix_debug.verbosity.level > posix_debug.verbosity.quiet) { posix_println("done"); }
+}
 
 
