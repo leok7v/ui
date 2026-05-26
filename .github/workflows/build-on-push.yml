@@ -13,11 +13,11 @@ jobs:
       contents: read
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: setup msbuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
       - name: build debug
         run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet -property:Configuration=debug -property:Platform=x64
       - name: build release
@@ -35,18 +35,18 @@ jobs:
       - name: run release tests
         run:  bin\release\x64\test1.exe --verbosity quiet
       - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v1.1.2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'bin\**\*.exe'
       - name: upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui.release.zip
           path: |
             bin\release\**\*.exe
           retention-days: 5
       - name: upload debug artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui.debug.zip
           path: |
