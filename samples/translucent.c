@@ -25,6 +25,9 @@ static void opened(void) {
     static struct ui_fm fm;
     ui_draw.update_fm(&fm, ui_draw.create_font("Segoe Script", ui_app.in2px(0.5f), -1));
     hello.fm = &fm;
+    // The system caption (SM_CYCAPTION) looks short next to modern apps; this
+    // borderless window draws its own caption, so give it a taller bar.
+    ui_app.caption_height = ui_app.caption_height * 3 / 2;
     ui_app.set_layered_window(ui_color_rgb(30, 30, 30), 0.75f);
     ui_view.add_last(ui_app.content, &hello);
     ui_app.caption->state.hidden = true;

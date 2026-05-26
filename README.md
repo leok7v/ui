@@ -17,8 +17,8 @@ ui_             UI types and interfaces (Windows-only)
 ```
 include/   public headers, prefixed:  core/core.h  trace/trace.h  posix/posix.h  ui/ui.h
 src/       implementation:            core/  trace/  posix/  ui/
-samples/   runnable demos (polyglot, translucent, fractal, mandrill, editor,
-           groot, timers, layout, mandelbrot, guardians)
+samples/   runnable demos (sfh, polyglot, translucent, mandrill, fractal,
+           timers, groot, editor, guardians, layout, mandelbrot)
 tools/     build tooling (amalgamate, version)
 vendor/    third-party (stb)
 ```
@@ -60,3 +60,11 @@ struct ui_app ui_app = {
     }
 };
 ```
+
+## Samples and documentation
+
+Every sample has a short, illustrated page in [docs/](docs/README.md): a
+screenshot, what it demonstrates, the key code, and notes on its on-screen
+layout. The pages are ordered from the simplest to the most involved, so
+they double as a guided tour -- start at [sfh](docs/sfh.md) and follow the
+Next links, or jump straight to the [index](docs/README.md).
