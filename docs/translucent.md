@@ -1,19 +1,21 @@
 # translucent
 
-![translucent](screenshots/translucent.png)
+![translucent](screenshots/translucent.gif)
 
-A borderless window showing "Hello" in a script font. The window is 75%
-translucent: in the screenshot it sits over the mandrill sample so the
-image shows through. The caption (shown here because the pointer is near
-the top edge) is the window's own, not the system one. (A normal screen
-grab is used for this page, because the translucency is only visible
-composited against whatever is behind the window.)
+A borderless window showing "Hello" in a script font, 75% translucent over
+the mandrill sample so the image shows through. The animation shows the
+custom caption in action: with the pointer in the body the window is
+chromeless; move it to the top edge and the caption appears; hover the
+theme button and its "Switch to Light Mode" tooltip shows. (A composited
+screen grab is used, because the translucency is only visible against
+whatever is behind the window.)
 
 ## What it demonstrates
 
 - A layered, semi-transparent top-level window via
   `ui_app.set_layered_window(color, alpha)`.
-- A borderless window (`ui_app.no_decor = true`) with a custom caption.
+- A borderless window (`ui_app.no_decor = true`) with a custom caption,
+  including the dark/light theme-switch button and tooltips.
 - A custom hit test that reveals or hides the caption depending on where
   the pointer is, and lets the body act as a drag handle.
 - Setting the caption bar height (this sample makes it taller than the

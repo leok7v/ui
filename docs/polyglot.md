@@ -1,10 +1,11 @@
 # polyglot
 
-![polyglot](screenshots/polyglot.png)
+![polyglot](screenshots/polyglot.gif)
 
-The window shows the word "Hello" in a script font; the title bar reads
-"Polyglot [<locale>]" and the locale code changes once per second as the
-sample cycles through 123 locales.
+Once a second the greeting changes -- Hello, Hola, Bonjour, Ciao, Hallo,
+Olá, ... -- in a script font, and the title bar shows the matching locale,
+"Polyglot [<locale>]". The runtime locale is switched to match each
+greeting.
 
 ## What it demonstrates
 
@@ -16,16 +17,25 @@ sample cycles through 123 locales.
 
 ## Key code
 
-A view can ask to be called once a second; that is all the animation loop
-this sample needs:
+A view can ask to be called once a second; that is the whole animation
+loop. Each tick picks the next greeting, switches the locale to match, and
+updates the label and title:
 
 ```c
+static const struct greeting { const char* locale; const char* hello; }
+greetings[] = {
+    { "en-US", "Hello" }, { "es-ES", "Hola" }, { "fr-FR", "Bonjour" },
+    { "it-IT", "Ciao" },  { "de-DE", "Hallo" }, /* ... */
+};
+
 static void every_sec(struct ui_view* unused) {
-    posix_nls.set_locale(locales[locale]);             // switch locale
-    posix_str_printf(title, "Polyglot [%s]", locales[locale]);
+    const struct greeting* g = &greetings[locale];
+    posix_nls.set_locale(g->locale);                   // switch locale
+    ui_view.set_text(&label, "%s", g->hello);          // change greeting
+    posix_str_printf(title, "Polyglot [%s]", g->locale);
     ui_app.set_title(title);
     ui_app.request_layout();
-    locale = (locale + 1) % posix_countof(locales);
+    locale = (locale + 1) % posix_countof(greetings);
 }
 
 static void opened(void) {
@@ -34,11 +44,11 @@ static void opened(void) {
 }
 ```
 
-- `locales[]` lists 123 BCP-47 locale names ("en-US", "ja-JP", ...).
-- `opened` also creates the `Segoe Script` font, attaches it to the label,
-  and installs the `tap` / `long_press` / `double_tap` callbacks, which
-  report whether the pointer was inside the view (`ui_view.inside` against
-  `ui_app.mouse`).
+- The greetings are Latin-script so the decorative `Segoe Script` font
+  renders them cleanly.
+- `opened` also creates the font, attaches it to the label, and installs
+  the `tap` / `long_press` / `double_tap` callbacks, which report whether
+  the pointer was inside the view (`ui_view.inside` against `ui_app.mouse`).
 
 ## Window and layout
 

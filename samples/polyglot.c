@@ -4,33 +4,35 @@
 
 static char title[128] = "Polyglot"; // https://youtu.be/D36zd8yNTbQ
 
-static const char* locales[] = { // 123 languages
-    "af-ZA", "am-ET", "ar-SA", "as-IN", "az-AZ", "ba-RU", "be-BY", "bg-BG",
-    "bn-BD", "bo-CN", "br-FR", "bs-BA", "bs-Latn-BA", "ca-ES", "ca-ES-Valencia",
-    "cs-CZ", "cy-GB", "da-DK", "de-DE", "dv-MV", "el-GR", "en-US",
-    "es-ES", "et-EE", "eu-ES", "fa-IR", "ff-Latn-SN", "fi-FI", "fil-PH",
-    "fo-FO", "fr-FR", "fy-NL", "ga-IE", "gd-GB", "gl-ES", "gsw-FR", "gu-IN",
-    "ha-Latn-NG", "haw-US", "he-IL", "hi-IN", "hr-HR", "hsb-DE", "hu-HU",
-    "hy-AM", "ig-NG", "id-ID", "is-IS", "it-IT", "iu-Latn-CA", "ja-JP", "kk-KZ",
-    "kl-GL", "km-KH", "kn-IN", "kok-IN", "ko-KR", "ku-CK", "ky-KG", "lb-LU",
-    "lo-LA", "lt-LT", "lv-LV", "mni-IN", "mk-MK", "ml-IN", "mn-MN", "moh-CA",
-    "mr-IN", "ms-MY", "mt-MT", "mi-NZ", "ne-NP", "nb-NO", "nl-NL", "oc-FR",
-    "or-IN", "pa-IN", "pl-PL", "prs-AF", "ps-AF", "pt-PT", "ro-RO", "rm-CH",
-    "ru-RU", "rw-RW", "sa-IN", "sah-RU", "se-NO", "si-LK", "sk-SK", "sl-SI",
-    "sr-RS", "sr-Latn-RS", "st-ZA", "sv-SE", "sw-KE", "ta-IN", "te-IN", "tg-TJ",
-    "th-TH", "ti-ER", "tk-TM", "tn-ZA", "tr-TR", "tt-RU", "ug-CN", "uk-UA",
-    "ur-PK", "uz-UZ", "vi-VN", "wo-SN", "xh-ZA", "yo-NG", "zu-ZA"
+// "Hello" across a few Latin-script locales (the Segoe Script font below
+// renders these cleanly); the runtime locale is switched to match.
+static const struct greeting { const char* locale; const char* hello; }
+greetings[] = {
+    { "en-US", "Hello"      },
+    { "es-ES", "Hola"       },
+    { "fr-FR", "Bonjour"    },
+    { "it-IT", "Ciao"       },
+    { "de-DE", "Hallo"      },
+    { "pt-PT", "Ol\xC3\xA1" }, // Ola with acute accent
+    { "nl-NL", "Hoi"        },
+    { "sv-SE", "Hej"        },
+    { "fi-FI", "Hei"        },
+    { "cs-CZ", "Ahoj"       },
+    { "ro-RO", "Salut"      },
+    { "tr-TR", "Merhaba"    },
 };
 
 static int32_t locale;
 static ui_label_t label = ui_label(0.0, "Hello");
 
 static void every_sec(struct ui_view* posix_unused(v)) {
-    posix_nls.set_locale(locales[locale]);
-    posix_str_printf(title, "Polyglot [%s]", locales[locale]);
+    const struct greeting* g = &greetings[locale];
+    posix_nls.set_locale(g->locale);
+    ui_view.set_text(&label, "%s", g->hello);
+    posix_str_printf(title, "Polyglot [%s]", g->locale);
     ui_app.set_title(title);
     ui_app.request_layout();
-    locale = (locale + 1) % posix_countof(locales);
+    locale = (locale + 1) % posix_countof(greetings);
 }
 
 static bool tap(struct ui_view* v, int32_t ix, bool pressed) {
@@ -57,7 +59,7 @@ static void opened(void) {
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
-    locale = (int32_t)(posix_clock.nanoseconds() & 0xFFFF % posix_countof(locales));
+    locale = 0;
     label.tap = tap;
     label.long_press = long_press;
     label.double_tap = double_tap;
